@@ -359,6 +359,69 @@ lti-antiphishing/
 
 ---
 
+## Screenshots
+
+### Dashboard Quarantine List
+![Dashboard Quarantine List](screenshots/01_dashboard_quarantine.png)
+
+### Email Detail with XAI Explanation
+![Email Detail](screenshots/02_email_detail.png)
+
+### Mailpit Web UI
+![Mailpit UI](screenshots/03_mailpit_ui.png)
+
+### API Health Check
+```
+[screenshots/04_api_health.txt]
+```
+
+### Training Metadata (SHAP, ROC-AUC)
+```
+[screenshots/05_training_metadata.txt]
+```
+
+### Test Results (23/23 passed)
+```
+[screenshots/06_test_results.txt]
+```
+
+### Directory Tree
+```
+[screenshots/07_directory_tree.txt]
+```
+
+### Pipeline Worker Logs
+```
+[screenshots/08_pipeline_logs.txt]
+```
+
+### Model Info (XGBoost Parameters)
+```
+[screenshots/09_model_info.txt]
+```
+
+### Domain Monitor Output
+```
+[screenshots/10_domain_monitor.txt]
+```
+
+### Live Prediction Result
+```
+[screenshots/11_prediction_result.txt]
+```
+
+### Database Quarantine Summary
+```
+[screenshots/12_db_summary.txt]
+```
+
+### Dual Detection Evidence
+```
+[screenshots/dual_detection_evidence.txt]
+```
+
+---
+
 ## Testing
 
 ```bash
