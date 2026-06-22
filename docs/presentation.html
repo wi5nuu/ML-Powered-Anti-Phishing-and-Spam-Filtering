@@ -1,0 +1,289 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>LTI Anti-Phishing Presentation</title><style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px;
+    line-height: 1.6;
+    color: #333;
+}
+h1 { color: #1a5276; border-bottom: 3px solid #2e86c1; padding-bottom: 10px; }
+h2 { color: #2e86c1; margin-top: 40px; }
+h3 { color: #2980b9; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+td, th { border: 1px solid #ddd; padding: 10px; text-align: left; }
+th { background: #2e86c1; color: white; }
+tr:nth-child(even) { background: #f8f9fa; }
+code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+blockquote { border-left: 4px solid #2e86c1; margin: 15px 0; padding: 10px 20px; background: #f0f7ff; }
+hr { border: 0; border-top: 2px solid #2e86c1; margin: 30px 0; }
+</style></head><body><h1>ML-Powered Anti-Phishing and Spam Filtering</h1>
+<h2>Final Project — President University</h2>
+<h3>Fandi Gunawan, S.T., M.T.I., CISSP, CC, ISO 27001 LI, ISO 42001 LA</h3>
+<hr />
+<h2>1. Latar Belakang</h2>
+<p><strong>Lodaya Technologies Indonesia (LTI)</strong>
+- FinTech company, 25 employees
+- 5M+ daily financial transactions
+- Non-technical staff rentan terhadap phishing
+- Tidak ada sistem filtering email sebelumnya</p>
+<p><strong>Masalah:</strong>
+Administrasi &amp; customer service dari non-IT background. Spam filtering mandatory untuk mengurangi risiko.</p>
+<hr />
+<h2>2. Arsitektur Sistem</h2>
+<pre><code>Email (SMTP) → Mailpit → API Fetcher → Redis Queue
+                                              |
+                    ┌─────────────────────────┘
+                    │                         │
+            SpamAssassin              ML Classifier
+            (rule-based)              (XGBoost + TF-IDF)
+                    │                         │
+                    └──────────┬──────────────┘
+                               │
+                        Decision Engine
+                        (weighted fusion 65/35)
+                               │
+                    ┌──────────┴──────────┐
+                    │                     │
+                  WARN              QUARANTINE
+              (+header)               (DB)
+                                        │
+                                  Admin Dashboard
+</code></pre>
+<hr />
+<h2>3. Tech Stack</h2>
+<table>
+<thead>
+<tr>
+<th>Komponen</th>
+<th>Teknologi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ingestion</td>
+<td>Mailpit REST API / SMTP</td>
+</tr>
+<tr>
+<td>Rule Engine</td>
+<td>Apache SpamAssassin</td>
+</tr>
+<tr>
+<td>ML Framework</td>
+<td>XGBoost + TF-IDF (50.000 fitur)</td>
+</tr>
+<tr>
+<td>Inference API</td>
+<td>Python FastAPI (port 8001)</td>
+</tr>
+<tr>
+<td>Queue</td>
+<td>Redis (asinkron)</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>SQLite / PostgreSQL</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>FastAPI + Jinja2 (port 8081)</td>
+</tr>
+<tr>
+<td>Container</td>
+<td>Docker Compose</td>
+</tr>
+<tr>
+<td>Monitoring</td>
+<td>Prometheus</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>4. Machine Learning Model</h2>
+<p><strong>Dataset:</strong>
+- SpamAssassin public corpus: 3.899 files
+- Enron spam dataset: 11.029 emails
+- Synthetic phishing: 35 samples
+- <strong>Total: 2.243 sampel training</strong> (seimbang 50/50)</p>
+<p><strong>Pipeline:</strong>
+- TF-IDF vectorizer (50.000 fitur)
+- 20 structured features (urgency, URL count, dll)
+- XGBoost dengan RandomizedSearchCV (10 iter × 3 fold)</p>
+<p><strong>Hasil:</strong>
+- Best CV ROC-AUC: <strong>0.9891</strong>
+- Test ROC-AUC: <strong>0.9938</strong>
+- Precision: <strong>0.95</strong> | Recall: <strong>0.95</strong>
+- FP: 8 | FN: 8 (dari 337 test samples)</p>
+<p><strong>Hyperparameters:</strong>
+- 300 trees, max_depth=6, learning_rate=0.05
+- colsample_bytree=0.6, subsample=0.7</p>
+<hr />
+<h2>5. Structured Features (20 Fitur)</h2>
+<table>
+<thead>
+<tr>
+<th>Kategori</th>
+<th>Fitur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Urgency</strong></td>
+<td>urgency_score, num_exclamations, num_caps_words</td>
+</tr>
+<tr>
+<td><strong>URL Analysis</strong></td>
+<td>num_urls, num_unique_domains, has_url_shortener, has_lookalike_domain, url_entropy</td>
+</tr>
+<tr>
+<td><strong>Content</strong></td>
+<td>num_forms, javascript_present, word_count, html_text_ratio</td>
+</tr>
+<tr>
+<td><strong>Authentication</strong></td>
+<td>spf_pass, dkim_pass, dmarc_pass</td>
+</tr>
+<tr>
+<td><strong>Header</strong></td>
+<td>display_name_mismatch, reply_to_mismatch, has_attachments</td>
+</tr>
+<tr>
+<td><strong>Engagement</strong></td>
+<td>num_recipients, suspicious_attachments</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. Decision Engine</h2>
+<p><strong>Weighted Fusion:</strong></p>
+<pre><code>fused_score = 0.65 × ml_probability + 0.35 × (sa_score / 10)
+</code></pre>
+<p><strong>Thresholds:</strong>
+| Skor | Label | Aksi |
+|---|---|---|
+| &lt; 0.30 | CLEAN | Kirim ke inbox |
+| 0.30 - 0.70 | WARN | Tambah X-Spam-Reason header |
+| &gt;= 0.70 | QUARANTINE | Isolasi di database |</p>
+<p><strong>Hard Overrides:</strong>
+- SA score &gt;= 15 → langsung QUARANTINE
+- ML probability &gt;= 0.95 → langsung QUARANTINE
+- SPF/DKIM/DMARC semua pass → turunkan risiko</p>
+<hr />
+<h2>7. Extra Credit</h2>
+<h3>① Domain Inconsistency Checking</h3>
+<ul>
+<li>Levenshtein distance untuk lookalike domain</li>
+<li>dnstwist integration (2.448 domain permutasi)</li>
+<li>Mendeteksi: <code>bca-secure-login.xyz</code> → meniru BCA</li>
+</ul>
+<h3>② Explainable AI (XAI)</h3>
+<ul>
+<li>SHAP values untuk setiap prediksi</li>
+<li><code>X-Spam-Reason</code> header:
+  <code>X-Spam-Reason: [High Urgency Score: 0.89, 
+                  Lookalike Link Detected, 
+                  URL Shortener Detected]</code></li>
+<li>Melatih staf non-teknis mengenali phishing</li>
+</ul>
+<hr />
+<h2>8. Pipeline Demo</h2>
+<p><strong>End-to-End Flow:</strong>
+1. Email dikirim via SMTP ke Mailpit (port 1025)
+2. Mailpit API menyediakan raw email
+3. Fetcher mengambil email baru (setiap 30 detik)
+4. Push ke Redis queue <code>email_pipeline</code>
+5. Worker consume: parallel SA + ML scoring
+6. Decision Engine fusion → QUARANTINE/WARN/CLEAN
+7. Simpan ke database
+8. Admin review via Dashboard</p>
+<p><strong>Contoh Hasil:</strong>
+| Email | ML | SA | Fused | Label |
+|---|---|---|---|---|
+| "URGENT: Verify Account" (bit.ly) | 0.961 | 9.5 | 1.000 | QUARANTINE |
+| "Your Invoice Attached" | 0.851 | 5.5 | 0.650 | WARN |
+| "Meeting Tomorrow" | 0.642 | 0.0 | 0.642 | WARN |</p>
+<hr />
+<h2>9. Testing</h2>
+<p><strong>22 unit tests</strong> — semuanya PASS ✅</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Tests</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>features.py</td>
+<td>7 tests</td>
+<td>96%</td>
+</tr>
+<tr>
+<td>fusion.py</td>
+<td>6 tests</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>router.py</td>
+<td>2 tests</td>
+<td>93%</td>
+</tr>
+<tr>
+<td>parser.py</td>
+<td>4 tests</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>classifier</td>
+<td>3 tests</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>22 tests</strong></td>
+<td><strong>34%</strong> (core modules 96-100%)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>10. Evidence</h2>
+<p><strong>12 Screenshots:</strong>
+1. Dashboard quarantine list
+2. Email detail with XAI explanation
+3. Mailpit web UI
+4. Classifier API health
+5. Training metadata (SHAP, ROC-AUC)
+6. Test results (22/22 passed)
+7. Directory tree
+8. Pipeline worker logs
+9. Model info (XGBoost params)
+10. Domain monitor output
+11. Live prediction result
+12. Database quarantine summary</p>
+<hr />
+<h2>11. Hosting</h2>
+<p><strong>GitHub:</strong> https://github.com/wi5nuu/ML-Powered-Anti-Phishing-and-Spam-Filtering</p>
+<p><strong>License:</strong> MIT License</p>
+<p><strong>Dokumentasi:</strong>
+- <code>docs/user_manual.md</code> — Panduan staf non-teknis
+- <code>docs/admin_manual.md</code> — Panduan DevOps
+- <code>docs/architecture.md</code> — Dokumentasi arsitektur
+- <code>AI_USAGE.md</code> — AI Usage Disclosure</p>
+<hr />
+<h2>12. Kesimpulan</h2>
+<p><strong>Sistem telah memenuhi semua mandatory requirements:</strong>
+1. ✅ Inbound Email Parsing (Mailpit API)
+2. ✅ ML Classifier (XGBoost + TF-IDF, ROC-AUC 0.994)
+3. ✅ Quarantine Mechanism (DB + Dashboard)
+4. ✅ SpamAssassin Integration
+5. ✅ FastAPI Inference API
+6. ✅ Redis Async Queue
+7. ✅ Docker Containerization</p>
+<p><strong>Extra Credit:</strong>
+1. ✅ Domain Inconsistency (Levenshtein + dnstwist)
+2. ✅ Explainable AI (SHAP + X-Spam-Reason header)</p>
+<hr />
+<p><em>Terima Kasih — Fandi Gunawan, S.T., M.T.I.</em>
+<em>President University — June 2026</em></p></body></html>
