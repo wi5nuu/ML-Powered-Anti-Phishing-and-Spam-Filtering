@@ -31,6 +31,7 @@ class QuarantineEmail(Base):
     fused_score = Column(Float, nullable=False)
     sa_score = Column(Float, default=0.0)
     ml_probability = Column(Float, default=0.0)
+    anomaly_score = Column(Float, default=0.0)
     xai_summary = Column(Text, default="")
     routing_reason = Column(Text, default="")
     raw_content_hash = Column(String(64), default="")

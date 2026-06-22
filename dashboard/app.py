@@ -94,7 +94,7 @@ async def email_detail(email_id: str, request: Request, db: Session = Depends(ge
 
     human_reasons = []
     reason_labels = {
-        "SpamProb": "Probabilitas spam dari model AI",
+        "SpamProb": "Probabilitas spam dari model supervised AI",
         "Urgency-Score": "Email mengandung kata-kata mendesak/darurat",
         "Lookalike-Domain": "Link mengarah ke domain yang mirip lodaya.id",
         "SPF": "Verifikasi identitas pengirim (SPF) gagal",
@@ -103,8 +103,11 @@ async def email_detail(email_id: str, request: Request, db: Session = Depends(ge
         "URL-Shortener": "Link dipersingkat (menyembunyikan tujuan asli)",
         "DisplayName-Mismatch": "Nama pengirim tidak cocok dengan alamat email",
         "HTML-Forms": "Email mengandung formulir input mencurigakan",
-        "FusedScore": "Skor akhir gabungan SA + ML",
+        "FusedScore": "Skor akhir gabungan ML + SA + Anomaly",
+        "AnomalyScore": "Skor anomali dari deteksi unsupervised",
     }
+    if email_record.anomaly_score and email_record.anomaly_score > 0.3:
+        human_reasons.append("Pola email tidak biasa (terdeteksi unsupervised anomaly detection)")
     for part in xai_parts:
         if "=" in part:
             key = part.split("=")[0]

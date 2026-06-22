@@ -105,10 +105,10 @@ async def score_with_spamassassin(raw_email: str) -> float:
 
 async def score_with_ml(raw_email: str, email_id: str,
                         client: httpx.AsyncClient) -> dict:
-    """Call ML classifier service, return full response dict."""
+    """Call dual-layer classifier service, return supervised + unsupervised scores."""
     try:
         resp = await client.post(
-            f"{CLASSIFIER_URL}/predict",
+            f"{CLASSIFIER_URL}/predict-dual",
             json={"raw_email": raw_email, "email_id": email_id},
             timeout=30.0,
         )
@@ -116,13 +116,16 @@ async def score_with_ml(raw_email: str, email_id: str,
         return resp.json()
     except httpx.TimeoutException:
         logger.error("classifier_timeout", email_id=email_id)
-        return {"spam_probability": 0.0, "xai_summary": "Classifier timeout", "top_reasons": []}
+        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+                "xai_summary": "Classifier timeout", "top_reasons": []}
     except httpx.HTTPStatusError as e:
         logger.error("classifier_http_error", status=e.response.status_code)
-        return {"spam_probability": 0.0, "xai_summary": "Classifier error", "top_reasons": []}
+        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+                "xai_summary": "Classifier error", "top_reasons": []}
     except Exception as e:
         logger.error("classifier_error", error=str(e))
-        return {"spam_probability": 0.0, "xai_summary": str(e), "top_reasons": []}
+        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+                "xai_summary": str(e), "top_reasons": []}
 
 
 async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
@@ -134,23 +137,25 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
 
     start = time.monotonic()
 
-    # ── Skor paralel: SA + ML ──────────────────────────────────────────────
+    # ── Skor paralel: SA + Dual ML (Supervised + Unsupervised) ──────────────
     sa_task  = asyncio.create_task(score_with_spamassassin(raw_email))
     ml_task  = asyncio.create_task(score_with_ml(raw_email, email_id, http_client))
     sa_score, ml_result = await asyncio.gather(sa_task, ml_task)
 
-    ml_prob    = ml_result.get("spam_probability", 0.0)
-    xai_str    = ml_result.get("xai_summary", "")
+    ml_prob       = ml_result.get("spam_probability", 0.0)
+    anomaly_score = ml_result.get("anomaly_score", 0.0)
+    xai_str       = ml_result.get("xai_summary", "")
 
     # Parse auth dari raw email untuk fusion
     spf_pass   = "spf=pass"  in raw_email.lower()
     dkim_pass  = "dkim=pass" in raw_email.lower()
     dmarc_pass = "dmarc=pass" in raw_email.lower()
 
-    # ── Decision Engine ────────────────────────────────────────────────────
+    # ── Decision Engine (3-way fusion) ──────────────────────────────────────
     fusion = fuse(
         sa_score=sa_score,
         ml_probability=ml_prob,
+        anomaly_score=anomaly_score,
         spf_pass=spf_pass,
         dkim_pass=dkim_pass,
         dmarc_pass=dmarc_pass,
@@ -188,6 +193,7 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
             fused_score=fusion.fused_score,
             sa_score=sa_score,
             ml_probability=ml_prob,
+            anomaly_score=anomaly_score,
             xai_summary=xai_str,
             routing_reason=fusion.routing_reason,
             raw_content_hash=payload.get("raw_hash", ""),

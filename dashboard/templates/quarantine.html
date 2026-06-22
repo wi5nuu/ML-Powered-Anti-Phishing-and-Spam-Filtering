@@ -12,7 +12,9 @@
         <tr>
             <th>Email ID</th>
             <th>Label</th>
+            <th>Deteksi</th>
             <th>Skor</th>
+            <th>Anomali</th>
             <th>Status</th>
             <th>Waktu</th>
             <th>Aksi</th>
@@ -23,7 +25,15 @@
         <tr class="row-{{ email.label.lower() }}">
             <td><a href="/email/{{ email.email_id }}">{{ email.email_id[:16] }}...</a></td>
             <td><span class="badge badge-{{ email.label.lower() }}">{{ email.label }}</span></td>
+            <td>
+                {% if email.anomaly_score and email.anomaly_score > 0 %}
+                <span class="badge badge-dual">Dual</span>
+                {% else %}
+                <span class="badge badge-single">ML</span>
+                {% endif %}
+            </td>
             <td>{{ "%.3f"|format(email.fused_score) }}</td>
+            <td>{{ "%.3f"|format(email.anomaly_score or 0) }}</td>
             <td>{{ email.status }}</td>
             <td>{{ email.received_at[:19] }}</td>
             <td>

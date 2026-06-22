@@ -8,8 +8,17 @@
         <span class="badge badge-{{ email.label.lower() }}">{{ email.label }}</span>
     </div>
     <div class="detail-row"><strong>Skor Akhir:</strong> {{ "%.3f"|format(email.fused_score) }}</div>
-    <div class="detail-row"><strong>Skor SpamAssassin:</strong> {{ "%.2f"|format(email.sa_score) }}</div>
-    <div class="detail-row"><strong>Probabilitas ML:</strong> {{ "%.4f"|format(email.ml_probability) }}</div>
+    <div class="detail-row">
+        <strong>Deteksi:</strong>
+        {% if email.anomaly_score and email.anomaly_score > 0 %}
+        <span class="badge badge-dual">Dual Detection</span>
+        {% else %}
+        <span class="badge badge-single">Single Detection</span>
+        {% endif %}
+    </div>
+    <div class="detail-row"><strong>Skor SpamAssassin (rule):</strong> {{ "%.2f"|format(email.sa_score) }}</div>
+    <div class="detail-row"><strong>Probabilitas ML (supervised):</strong> {{ "%.4f"|format(email.ml_probability) }}</div>
+    <div class="detail-row"><strong>Skor Anomali (unsupervised):</strong> {{ "%.4f"|format(email.anomaly_score or 0) }}</div>
     <div class="detail-row"><strong>Status:</strong> {{ email.status }}</div>
     <div class="detail-row"><strong>Waktu Diterima:</strong> {{ email.received_at[:19] }}</div>
     <div class="detail-row"><strong>Rute:</strong> {{ email.routing_reason }}</div>

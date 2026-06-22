@@ -19,7 +19,7 @@ def test_fusion_warn():
 
 
 def test_fusion_quarantine():
-    result = fuse(sa_score=10.0, ml_probability=0.85)
+    result = fuse(sa_score=12.0, ml_probability=0.90, anomaly_score=0.5)
     assert result.label == "QUARANTINE"
 
 
@@ -31,6 +31,12 @@ def test_fusion_hard_threshold_sa():
 
 def test_fusion_hard_threshold_ml():
     result = fuse(sa_score=0.0, ml_probability=0.98)
+    assert result.label == "QUARANTINE"
+    assert result.fused_score == 1.0
+
+
+def test_fusion_hard_threshold_anomaly():
+    result = fuse(sa_score=0.0, ml_probability=0.0, anomaly_score=0.95)
     assert result.label == "QUARANTINE"
     assert result.fused_score == 1.0
 
@@ -51,7 +57,7 @@ def test_route_clean():
 
 
 def test_route_quarantine():
-    fusion = fuse(sa_score=16.0, ml_probability=0.98)
+    fusion = fuse(sa_score=16.0, ml_probability=0.98, anomaly_score=0.0)
     features = EmailFeatures()
     decision = route(fusion, features)
     assert decision.action == "QUARANTINE"

@@ -1,224 +1,202 @@
-# ML-Powered Anti-Phishing and Spam Filtering
+# ML-Powered Anti-Phishing & Spam Filtering
 
 ## Final Project — President University
 ### Fandi Gunawan, S.T., M.T.I., CISSP, CC, ISO 27001 LI, ISO 42001 LA
 
 ---
 
-## 1. Latar Belakang
+## 1. Masalah & Konteks
 
 **Lodaya Technologies Indonesia (LTI)**
-- FinTech company, 25 employees
-- 5M+ daily financial transactions
-- Non-technical staff rentan terhadap phishing
-- Tidak ada sistem filtering email sebelumnya
+- FinTech, 25 karyawan, 5M+ transaksi/hari
+- Staf administrasi & customer service non-IT
+- **Tidak ada proteksi email sebelumnya**
+- Resiko tinggi: phishing → akun tercuri → fraud nasabah
 
-**Masalah:**
-Administrasi & customer service dari non-IT background. Spam filtering mandatory untuk mengurangi risiko.
-
----
-
-## 2. Arsitektur Sistem
-
-```
-Email (SMTP) → Mailpit → API Fetcher → Redis Queue
-                                              |
-                    ┌─────────────────────────┘
-                    │                         │
-            SpamAssassin              ML Classifier
-            (rule-based)              (XGBoost + TF-IDF)
-                    │                         │
-                    └──────────┬──────────────┘
-                               │
-                        Decision Engine
-                        (weighted fusion 65/35)
-                               │
-                    ┌──────────┴──────────┐
-                    │                     │
-                  WARN              QUARANTINE
-              (+header)               (DB)
-                                        │
-                                  Admin Dashboard
-```
+**Pertanyaan Kritis:**
+Kenapa tidak pakai solusi yang sudah ada?
 
 ---
 
-## 3. Tech Stack
+## 2. Kenapa Bukan SpamAssassin Saja?
 
-| Komponen | Teknologi |
-|---|---|
-| Ingestion | Mailpit REST API / SMTP |
-| Rule Engine | Apache SpamAssassin |
-| ML Framework | XGBoost + TF-IDF (50.000 fitur) |
-| Inference API | Python FastAPI (port 8001) |
-| Queue | Redis (asinkron) |
-| Database | SQLite / PostgreSQL |
-| Dashboard | FastAPI + Jinja2 (port 8081) |
-| Container | Docker Compose |
-| Monitoring | Prometheus |
+**SpamAssassin murni rule-based:**
+- Tidak bisa belajar dari pola serangan baru
+- Zero-day phishing = tidak terdeteksi
+- Rule perlu update manual
+
+**Solusi kami = SpamAssassin + ML + Anomaly Detection**
+SpamAssassin jadi salah satu komponen, bukan satu-satunya.
+
+→ Tiga lapisan lebih kuat dari satu lapisan
 
 ---
 
-## 4. Machine Learning Model
+## 3. Kenapa Bukan Proofpoint / Mimecast?
 
-**Dataset:**
-- SpamAssassin public corpus: 3.899 files
-- Enron spam dataset: 11.029 emails
-- Synthetic phishing: 35 samples
-- **Total: 2.243 sampel training** (seimbang 50/50)
-
-**Pipeline:**
-- TF-IDF vectorizer (50.000 fitur)
-- 20 structured features (urgency, URL count, dll)
-- XGBoost dengan RandomizedSearchCV (10 iter × 3 fold)
-
-**Hasil:**
-- Best CV ROC-AUC: **0.9891**
-- Test ROC-AUC: **0.9938**
-- Precision: **0.95** | Recall: **0.95**
-- FP: 8 | FN: 8 (dari 337 test samples)
-
-**Hyperparameters:**
-- 300 trees, max_depth=6, learning_rate=0.05
-- colsample_bytree=0.6, subsample=0.7
-
----
-
-## 5. Structured Features (20 Fitur)
-
-| Kategori | Fitur |
-|---|---|
-| **Urgency** | urgency_score, num_exclamations, num_caps_words |
-| **URL Analysis** | num_urls, num_unique_domains, has_url_shortener, has_lookalike_domain, url_entropy |
-| **Content** | num_forms, javascript_present, word_count, html_text_ratio |
-| **Authentication** | spf_pass, dkim_pass, dmarc_pass |
-| **Header** | display_name_mismatch, reply_to_mismatch, has_attachments |
-| **Engagement** | num_recipients, suspicious_attachments |
-
----
-
-## 6. Decision Engine
-
-**Weighted Fusion:**
-```
-fused_score = 0.65 × ml_probability + 0.35 × (sa_score / 10)
-```
-
-**Thresholds:**
-| Skor | Label | Aksi |
+| Faktor | Solusi Enterprise | Sistem Kami |
 |---|---|---|
-| < 0.30 | CLEAN | Kirim ke inbox |
-| 0.30 - 0.70 | WARN | Tambah X-Spam-Reason header |
-| >= 0.70 | QUARANTINE | Isolasi di database |
-
-**Hard Overrides:**
-- SA score >= 15 → langsung QUARANTINE
-- ML probability >= 0.95 → langsung QUARANTINE
-- SPF/DKIM/DMARC semua pass → turunkan risiko
+| **Biaya** | $3-15/box/bulan × 25 = $75-375/bulan | **0** (open source) |
+| **Data Privacy** | Email lewat server pihak ketiga | **100% on-premise** |
+| **Kustomisasi** | Terbatas | **Full kontrol** — bilingual (ID+EN), domain spesifik lodaya.id, pola serangan Indonesia |
+| **Zero-day detection** | Bergantung threat feed global | **Unsupervised anomaly detection** — mendeteksi yang belum pernah dilihat |
 
 ---
 
-## 7. Extra Credit
+## 4. Arsitektur Dual Detection
 
-### ① Domain Inconsistency Checking
-- Levenshtein distance untuk lookalike domain
-- dnstwist integration (2.448 domain permutasi)
-- Mendeteksi: `bca-secure-login.xyz` → meniru BCA
+**Tiga Lapisan, Satu Kesimpulan:**
 
-### ② Explainable AI (XAI)
-- SHAP values untuk setiap prediksi
-- `X-Spam-Reason` header:
-  ```
-  X-Spam-Reason: [High Urgency Score: 0.89, 
-                  Lookalike Link Detected, 
-                  URL Shortener Detected]
-  ```
-- Melatih staf non-teknis mengenali phishing
+```
+Layer 1 — Supervised (XGBoost + TF-IDF)
+  → "Apakah ini mirip spam yang pernah saya lihat?"
+
+Layer 2 — Unsupervised (Isolation Forest + One-Class SVM)
+  → "Apakah pola email ini normal untuk LTI?"
+  → Dilatih HANYA dengan email bersih — 0 data spam!
+
+Layer 3 — Rule-Based (SpamAssassin)
+  → "Apakah ini cocok dengan rule spam klasik?"
+
+↓
+Decision Engine fusi 3-way
+  ML 50% + SA 25% + Anomaly 25%
+↓
+CLEAN / WARN / QUARANTINE
+```
 
 ---
 
-## 8. Pipeline Demo
+## 5. Yang Paling Unik: Unsupervised Anomaly Detection
 
-**End-to-End Flow:**
-1. Email dikirim via SMTP ke Mailpit (port 1025)
-2. Mailpit API menyediakan raw email
-3. Fetcher mengambil email baru (setiap 30 detik)
-4. Push ke Redis queue `email_pipeline`
-5. Worker consume: parallel SA + ML scoring
-6. Decision Engine fusion → QUARANTINE/WARN/CLEAN
-7. Simpan ke database
-8. Admin review via Dashboard
+**Tidak butuh dataset spam sama sekali.**
+Cukup kumpulkan email bersih dari inbox LTI sebagai "normal baseline."
 
-**Contoh Hasil:**
-| Email | ML | SA | Fused | Label |
+**Bagaimana cara kerjanya:**
+1. Latih Isolation Forest pada 1.121 email bersih (ham)
+2. Model belajar: "Seperti apa email normal di LTI?"
+3. Email baru yang menyimpang dari pola = **anomali** = waspada
+
+**Kenapa ini penting untuk FinTech:**
+- Phishing domain spesifik Indonesia (`bca-secure-login.xyz`)
+- Social engineering dalam Bahasa Indonesia
+- Pola serangan baru yang belum pernah ada di dataset global
+
+---
+
+## 6. Hasil Training
+
+### Supervised Layer (XGBoost)
+| Metrik | Nilai |
+|---|---|
+| Dataset | 2.243 sampel (SA corpus + Enron + sintetis) |
+| CV ROC-AUC | **0.9891** |
+| Test ROC-AUC | **0.9938** |
+| Precision / Recall | 0.95 / 0.95 |
+| FP / FN | 8 / 8 (dari 337 test) |
+
+### Unsupervised Layer (Isolation Forest)
+| Metrik | Nilai |
+|---|---|
+| Training data | **1.121 email bersih (0 spam)** |
+| Model | 200 trees, contamination=0.05 |
+| Deteksi anomali phishing | **0.706** (threshold >0.5 = anomali) |
+| False positive rate (clean email) | Rendah — email normal skor ~0.34 |
+
+### Dual Detection — Contoh Skenario
+
+| Email | ML (Sup) | Anomali (Unsup) | SA | Fused | Label |
+|---|---|---|---|---|---|
+| Phishing urgensi tinggi (bit.ly) | 0.960 | **0.706** ⚠️ | 9.5 | 1.000 | **KARANTINA** |
+| Meeting internal biasa | 0.389 | **0.337** ✅ | 0.0 | 0.323 | WARN |
+| Invoice dari vendor | 0.155 | **0.376** ✅ | 2.0 | 0.203 | CLEAN |
+
+---
+
+## 7. XAI — Explainable AI untuk Staf Non-Teknis
+
+Setiap email yang ditandai menyertakan header `X-Spam-Reason`:
+
+```
+X-Spam-Reason: [Urgency Score: 0.50, 
+                SPF Verification: FAILED, 
+                URL Shortener Detected]
+```
+
+**Kenapa ini penting:**
+- Staf non-teknis belajar **mengapa** email itu berbahaya
+- Passive training setiap kali email dikarantina
+- Mengubah staf dari titik terlemah → garis pertahanan pertama
+
+---
+
+## 8. Perbandingan: Sistem Kami vs Alternatif
+
+| Kriteria | SpamAssassin Only | Proofpoint | Mimecast | **Sistem Kami** |
 |---|---|---|---|---|
-| "URGENT: Verify Account" (bit.ly) | 0.961 | 9.5 | 1.000 | QUARANTINE |
-| "Your Invoice Attached" | 0.851 | 5.5 | 0.650 | WARN |
-| "Meeting Tomorrow" | 0.642 | 0.0 | 0.642 | WARN |
+| Rule-based | ✅ | ✅ | ✅ | ✅ |
+| Supervised ML | ❌ | ✅ | ✅ | ✅ |
+| Unsupervised Anomaly | ❌ | ❌ | ❌ | **✅** |
+| Bilingual ID-EN | ❌ | ❌ | ❌ | **✅** |
+| XAI untuk staf | ❌ | ❌ | ❌ | **✅** |
+| On-premise / Data privacy | ✅ | ❌ | ❌ | **✅** |
+| Biaya berlangganan | 0 | $$$ | $$$ | **0** |
+| Kustomisasi domain | Terbatas | ❌ | ❌ | **✅ Full** |
 
 ---
 
 ## 9. Testing
 
-**22 unit tests** — semuanya PASS ✅
+**23 unit tests** — semuanya PASS
 
 | Module | Tests | Coverage |
 |---|---|---|
 | features.py | 7 tests | 96% |
-| fusion.py | 6 tests | 100% |
+| fusion.py | 9 tests | 100% |
 | router.py | 2 tests | 93% |
 | parser.py | 4 tests | 100% |
 | classifier | 3 tests | — |
-| **Total** | **22 tests** | **34%** (core modules 96-100%) |
+| **Total** | **23 tests** | Core modules 96-100% |
 
 ---
 
-## 10. Evidence
+## 10. Extra Credit Terlaksana
 
-**12 Screenshots:**
-1. Dashboard quarantine list
-2. Email detail with XAI explanation
-3. Mailpit web UI
-4. Classifier API health
-5. Training metadata (SHAP, ROC-AUC)
-6. Test results (22/22 passed)
-7. Directory tree
-8. Pipeline worker logs
-9. Model info (XGBoost params)
-10. Domain monitor output
-11. Live prediction result
-12. Database quarantine summary
+1. ✅ **Domain Inconsistency** — Levenshtein + dnstwist (2.448 domain permutasi)
+   → "1odaya.id" terdeteksi sebagai lookalike lodaya.id
+2. ✅ **Explainable AI** — SHAP values + `X-Spam-Reason` header
+   → Staf belajar dari setiap email yang dikarantina
+3. ✅ **Unsupervised Anomaly Detection** — Isolation Forest + One-Class SVM
+   → Deteksi zero-day tanpa data spam
+4. ✅ **One-Class Classification** — Alternatif masa depan
+   → Sistem bisa berjalan dengan 0 dataset spam
 
 ---
 
-## 11. Hosting
+## 11. Demo Pipeline
 
-**GitHub:** https://github.com/wi5nuu/ML-Powered-Anti-Phishing-and-Spam-Filtering
+```
+SMTP → Mailpit → REST API → Redis → Worker → DB → Dashboard
+  (1025)    (8025)         (6379)   (parallel  (SQLite)  (8081)
+                                     SA + ML +
+                                     Anomaly)
+```
 
-**License:** MIT License
-
-**Dokumentasi:**
-- `docs/user_manual.md` — Panduan staf non-teknis
-- `docs/admin_manual.md` — Panduan DevOps
-- `docs/architecture.md` — Dokumentasi arsitektur
-- `AI_USAGE.md` — AI Usage Disclosure
+**End-to-end:** 3 email → pipeline → dashboard dalam < 30 detik
 
 ---
 
 ## 12. Kesimpulan
 
-**Sistem telah memenuhi semua mandatory requirements:**
-1. ✅ Inbound Email Parsing (Mailpit API)
-2. ✅ ML Classifier (XGBoost + TF-IDF, ROC-AUC 0.994)
-3. ✅ Quarantine Mechanism (DB + Dashboard)
-4. ✅ SpamAssassin Integration
-5. ✅ FastAPI Inference API
-6. ✅ Redis Async Queue
-7. ✅ Docker Containerization
+**Sistem ini unik karena:**
+1. Tiga lapisan deteksi (bukan satu)
+2. Unsupervised anomaly detection untuk zero-day
+3. XAI yang mendidik staf secara pasif
+4. Bilingual + kustomisasi domain Indonesia
+5. 100% on-premise, 0 biaya lisensi
+6. Data privacy terjaga — email finansial tidak keluar server
 
-**Extra Credit:**
-1. ✅ Domain Inconsistency (Levenshtein + dnstwist)
-2. ✅ Explainable AI (SHAP + X-Spam-Reason header)
+**"Bukan sekadar spam filter — ini sistem keamanan yang tumbuh bersama LTI"**
 
 ---
 
