@@ -371,53 +371,165 @@ lti-antiphishing/
 ![Mailpit UI](screenshots/03_mailpit_ui.png)
 
 ### API Health Check
-```
-[screenshots/04_api_health.txt]
+```json
+{
+  "status": "ok",
+  "model_loaded": true
+}
 ```
 
 ### Training Metadata (SHAP, ROC-AUC)
-```
-[screenshots/05_training_metadata.txt]
+```json
+{
+  "timestamp": "20260622_172408",
+  "dataset": "data/processed/train.csv",
+  "train_size": 386,
+  "test_size": 69,
+  "best_params": {
+    "tree_method": "hist",
+    "subsample": 0.8,
+    "n_estimators": 300,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "colsample_bytree": 0.6
+  },
+  "cv_roc_auc": 0.9985,
+  "test_roc_auc": 1.0,
+  "confusion_matrix": {"tp": 35, "fp": 0, "fn": 0, "tn": 34},
+  "tfidf_vocab_size": 11774,
+  "top_shap_features": [
+    {"feature": "urgency_score", "mean_abs_shap": 0.313},
+    {"feature": "num_urls", "mean_abs_shap": 0.161},
+    {"feature": "num_unique_domains", "mean_abs_shap": 0.083}
+  ]
+}
 ```
 
-### Test Results (23/23 passed)
+### Test Results (22/22 passed — before dual detection upgrade)
 ```
-[screenshots/06_test_results.txt]
+tests/test_classifier.py::test_structured_features_list PASSED
+tests/test_classifier.py::test_structured_features_no_duplicates PASSED
+tests/test_classifier.py::test_feature_extractor_correct_types PASSED
+tests/test_decision_engine.py::test_fusion_clean PASSED
+tests/test_decision_engine.py::test_fusion_warn PASSED
+tests/test_decision_engine.py::test_fusion_quarantine PASSED
+tests/test_decision_engine.py::test_fusion_hard_threshold_sa PASSED
+tests/test_decision_engine.py::test_fusion_hard_threshold_ml PASSED
+tests/test_decision_engine.py::test_fusion_auth_override PASSED
+tests/test_decision_engine.py::test_route_clean PASSED
+tests/test_decision_engine.py::test_route_quarantine PASSED
+tests/test_features.py::test_phishing_email_high_urgency PASSED
+tests/test_features.py::test_phishing_email_lookalike_domain PASSED
+tests/test_features.py::test_phishing_email_has_form PASSED
+tests/test_features.py::test_phishing_email_url_shortener PASSED
+tests/test_features.py::test_legitimate_email_auth_pass PASSED
+tests/test_features.py::test_display_name_mismatch PASSED
+tests/test_features.py::test_combined_text_subject_weighted PASSED
+tests/test_parser.py::test_parse_simple_text_email PASSED
+tests/test_parser.py::test_parse_html_email PASSED
+tests/test_parser.py::test_parse_multipart PASSED
+tests/test_parser.py::test_parse_attachment PASSED
+
+======================= 22 passed in 0.75s ========================
 ```
+*Now: 23 passed (3 new anomaly detection tests added)*
 
 ### Directory Tree
 ```
-[screenshots/07_directory_tree.txt]
+lti-antiphishing/
++-- ingestion/          # Mailpit API fetcher, parser, queue
++-- classifier/         # Features, XGBoost, unsupervised, FastAPI
++-- decision_engine/    # Fusion (3-way), router, XAI
++-- worker/             # Redis consumer pipeline
++-- dashboard/          # FastAPI + Jinja2 admin UI
++-- database/           # SQLAlchemy models
++-- scripts/            # Training, seeding, monitoring
++-- docs/               # Architecture, manuals, presentation
++-- docker/             # Dockerfiles
++-- tests/              # 23 unit tests
++-- screenshots/        # Evidence
++-- monitoring/         # Prometheus config
 ```
 
 ### Pipeline Worker Logs
 ```
-[screenshots/08_pipeline_logs.txt]
+ingestion.log:
+  Fetched 1 new emails, pushed 1 to queue
+  HTTP Request: GET http://localhost:8025/api/v1/messages "200 OK"
+
+classifier.log:
+  POST /predict -> 200 OK (multiple predictions)
+  GET /health -> 200 OK
 ```
 
 ### Model Info (XGBoost Parameters)
 ```
-[screenshots/09_model_info.txt]
+n_estimators=300
+max_depth=8
+learning_rate=0.05
+Top features: urgency_score, num_urls, num_unique_domains
 ```
 
-### Domain Monitor Output
-```
-[screenshots/10_domain_monitor.txt]
+### Domain Monitor Output (dnstwist — 2,448 permutations for lodaya.id)
+```json
+[
+  {"fuzzer": "*original", "domain": "lodaya.id"},
+  {"fuzzer": "addition", "domain": "lodaya0.id"},
+  {"fuzzer": "addition", "domain": "lodaya1.id"},
+  {"fuzzer": "addition", "domain": "lodayaa.id"},
+  {"fuzzer": "addition", "domain": "lodayab.id"}
+]
 ```
 
 ### Live Prediction Result
-```
-[screenshots/11_prediction_result.txt]
+```json
+{
+  "email_id": "screenshot_test",
+  "spam_probability": 0.9692,
+  "is_spam": true,
+  "label": "QUARANTINE",
+  "xai_summary": "SpamProb=0.97; SPF:FAIL; DKIM:FAIL; URL-Shortener:DETECTED"
+}
 ```
 
 ### Database Quarantine Summary
 ```
-[screenshots/12_db_summary.txt]
+Total quarantine entries: 7
+
+ID: 3b8404d3 | Subj: SEGERA! Akun Anda Akan Diblokir     | ML:0.93 | SA:5.5 | Fused:0.70 | QUARANTINE
+ID: b30752f5 | Subj: Urgent: Account Verification Required | ML:0.96 | SA:9.5 | Fused:1.00 | QUARANTINE
+ID: 4e879a94 | Subj: Your Invoice Attached                 | ML:0.85 | SA:5.5 | Fused:0.65 | WARN
+ID: a6483702 | Subj: Meeting Tomorrow                      | ML:0.84 | SA:5.5 | Fused:0.64 | WARN
+ID: d00951bf | Subj: Update sistem maintenance             | ML:0.85 | SA:5.5 | Fused:0.65 | WARN
+ID: cafab578 | Subj: SEGERA! Akun Anda Akan Diblokir       | ML:0.93 | SA:5.5 | Fused:0.70 | QUARANTINE
+ID: 0ab42f86 | Subj: NONE                                  | ML:0.86 | SA:0.0 | Fused:0.56 | WARN
 ```
 
 ### Dual Detection Evidence
 ```
-[screenshots/dual_detection_evidence.txt]
+1. PHISHING EMAIL (bit.ly + urgency)
+   Supervised: QUARANTINE (prob=0.9696)
+   Unsupervised: anomaly_score=0.7060, is_anomaly=True
+   -> BOTH LAYERS AGREE: email is dangerous
+
+2. NORMAL MEETING EMAIL
+   Supervised: WARN (prob=0.3891)
+   Unsupervised: anomaly_score=0.3371, is_anomaly=False
+   -> Anomaly score keeps it in check
+
+3. INVOICE FROM VENDOR
+   Supervised: CLEAN (prob=0.1554)
+   Unsupervised: anomaly_score=0.3761, is_anomaly=False
+   -> Both agree: CLEAN
+
+4. ZERO-DAY PHISHING (BCA lookalike, not in training data)
+   Supervised: QUARANTINE (prob=0.9339)
+   Unsupervised: anomaly_score=0.4707
+   -> Supervised caught it via text features
+
+MODEL HEALTH:
+  supervised_loaded: true
+  unsupervised_loaded: true
 ```
 
 ---
