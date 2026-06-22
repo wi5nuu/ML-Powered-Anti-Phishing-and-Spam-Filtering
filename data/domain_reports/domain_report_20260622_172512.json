@@ -1,0 +1,9794 @@
+[
+  {
+    "fuzzer": "*original",
+    "domain": "lodaya.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya0.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya1.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya2.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya3.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya4.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya5.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya6.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya7.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya8.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodaya9.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaa.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayab.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayac.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayad.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayae.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaf.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayag.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayah.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayai.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaj.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayak.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayal.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayam.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayan.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayao.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayap.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaq.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayar.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayas.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayat.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayau.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayav.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaw.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayax.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayay.id"
+  },
+  {
+    "fuzzer": "addition",
+    "domain": "lodayaz.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "dodaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "hodaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lgdaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lkdaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lmdaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lndaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "loda9a.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodaia.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodaqa.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodaxa.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodayc.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodaye.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodayi.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodayq.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodcya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodeya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodiya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lodqya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "loeaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lofaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lolaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "lotaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "modaya.id"
+  },
+  {
+    "fuzzer": "bitsquatting",
+    "domain": "nodaya.id"
+  },
+  {
+    "fuzzer": "cyrillic",
+    "domain": "xn--80aa4bv11enj.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "10daya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "1obaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "1oclaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "1odaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "1odlaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "i0daya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "iobaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "ioclaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "iodaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "iodlaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "l0baya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "l0claya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "l0daya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "l0dlaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lobaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "loblaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "loc1aya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lociaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "loclaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "locllaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lod1aya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lodiaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lodlaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lodllaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "loelaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "lolbaya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--0daya-55a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--0daya-goc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--0daya-i6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--0daya-j7a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--0daya-u6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-0ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-281b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-49a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-6dc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-dua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-f91b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-g9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-jua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-m29a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-s9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-uob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1daya-vua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-2kc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-6b1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-6ya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-7c1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-jc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-ub1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-uya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-vc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oaya-wkc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-0g2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-5va.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-6rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-jy1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-qhb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-qi2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-quc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-rjc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-tva.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odaa-yec.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-1qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-4jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-7qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-7wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-era.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-ilc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-jwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-kra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-n11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-owb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-qra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-vqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-vwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1oday-xcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-2jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-5qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-5wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-cra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-glc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-hwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-ira.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-l11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-mwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-ora.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-tqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-twa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-vcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--1odya-zqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a02d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a0456b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a0k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a2583b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a27l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a6h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a8256b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-40a8i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-43a50o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-4qa12b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-4qa15t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-4qa33b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-4qa54b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-4qa96b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a0483b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a06l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a4g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a6156b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a6h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a80d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a8256b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f1a8i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f9b0174b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f9b2274b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-f9b4302b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-fra12b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-fra33b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-fra75b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-fra90b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-fra93t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-k3a92o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kgb52j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kqa39b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kqa54b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kqa57t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kqa75b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-kqa96b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-pqa15b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-pqa36b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-pqa78b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-pqa93b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-pqa96t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a0456b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a0k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a23d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a2556b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a2l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a4683b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a48l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0a8i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u0b37a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-u3a71o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-uqa18b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-uqa33b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-uqa36t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-uqa54b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-uqa75b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a0e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a2946b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a2f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a4056b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a48c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a4g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a6183b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-z1a63l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-zqa15b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-zqa57b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-zqa72b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-zqa75t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--daya-zqa93b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-0ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-281b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-49a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-6dc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-dua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-f91b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-g9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-jua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-m29a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-s9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-uob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--idaya-vua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-2kc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-6b1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-6ya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-7c1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-jc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-ub1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-uya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-vc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioaya-wkc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-0g2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-5va.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-6rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-jy1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-qhb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-qi2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-quc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-rjc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-tva.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodaa-yec.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-1qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-4jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-7qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-7wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-era.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-ilc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-jwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-kra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-n11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-owb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-qra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-vqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-vwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ioday-xcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-2jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-5qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-5wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-cra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-glc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-hwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-ira.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-l11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-mwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-ora.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-tqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-twa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-vcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--iodya-zqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-2kc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-6b1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-6ya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-7c1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-jc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-ub1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-uya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-vc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0aya-wkc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-0g2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-5va.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-6rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-jy1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-qhb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-qi2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-quc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-rjc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-tva.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0daa-yec.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-1qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-4jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-7qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-7wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-era.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-ilc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-jwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-kra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-n11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-owb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-qra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-vqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-vwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0day-xcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-2jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-5qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-5wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-cra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-glc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-hwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-ira.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-l11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-mwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-ora.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-tqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-twa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-vcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--l0dya-zqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-044a35c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-044at6c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa0975b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa0n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa2085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa23s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa2o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa4185b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa6285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa8385b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0qa83s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua37a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua5876b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua58a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua77f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua7976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua79a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua9014b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-0ua92o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a0525b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a08m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a2625b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a4725b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a6825b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a68m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-53a8325b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa0285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa2385b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa23s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa4875b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa4m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa62s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa6975b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa6n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-5qa8085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-b54a35c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-b54ar5c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-g6b5384b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-g6b7484b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-g6b9512b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra0285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra02s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra2775b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra2l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra41s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra4875b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra4m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra6975b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-gra8085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a0135b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a01n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a2625b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a40n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a4725b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a6825b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l3a8925b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l54a14c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l54ar5c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l6b1484b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l6b3512b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-l6b9284b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb00i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb0774b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb2874b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb4974b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb6084b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb60i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lgb8574b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa0285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa05s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa0q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa2385b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa4485b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa6585b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa65s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa8085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-lqa8o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q33a22e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q33a43e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q33aq2e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q33as3e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q33au4e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q44a56c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-q44at6c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa0585b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa05s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa2085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa2o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa4185b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa44s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa4p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa6285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qqa8385b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua1214b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua14o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua58a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua7976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua79a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua9086b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua90b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-qua98f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b0393b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b2493b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b4593b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b4v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b6093b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b8193b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v0b8u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a0525b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a2625b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a29m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a4725b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a6825b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a8925b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v3a89m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v54a14c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-v54ap4c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa0285b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa2385b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa4485b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa44s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa6975b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa6n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa8085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa83s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--laya-vqa8o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-0ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-281b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-49a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-6dc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-dua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-f91b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-g9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-jua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-m29a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-s9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-uob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lbaya-vua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-3gb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-3l8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-3wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-3wb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-bgb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-bxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-bya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-i15b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-iqc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-ixa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-pgb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-pl8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-pxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lclaya-wxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa26i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa29r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa42q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa4856b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa4c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa6527b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa67v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa6917b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa69e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-0qa6d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a01d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a04m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a2306b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a27k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a4076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a42q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a4466b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-53a4u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa0527b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa07v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa0917b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa09e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa0d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa65i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa68r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa81q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa8756b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-5qa8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra19b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra3096b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra30c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra5196b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra51c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra59g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra7224b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-7ra74p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-djb5085b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-djb7185b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-djb9213b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-djb94e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra44i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra47r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra60q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra6656b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra8327b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra85v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra8717b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra87e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gra8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gx5aqn.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-gx5awk.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i1b3405b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i1b5505b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i1b7632b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i5b5784b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i5b7884b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-i5b9912b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa1986b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa19b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa3096b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa30c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa38g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa5124b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa53p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-isa97b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a43d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a46m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a6506b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a69k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a8276b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a84q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a8666b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-l3a8w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb06h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb0j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb2555b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb29f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb4226b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb44l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lgb4616b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa01s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa08i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa2066b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa24q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa2e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa4127b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa41f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa4727b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa49v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-lqa4f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-n9a1716b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-n9a3816b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-n9a3w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-n9a51i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-n9a5943b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-nfc1944b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-nfc3054b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-nfc5181b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-no5a3q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-no5arq.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-q33a48k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-q33ao6k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-q33as8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa40s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa47i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa63q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa6956b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa6d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa8027b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa80f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa8627b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa88v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qqa8e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qx5a0m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-qx5a6j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b0074b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b2135b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b2735b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b29c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v0b8q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a22d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a25m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a4406b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a48k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a6176b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a63q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a6566b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-v3a6v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa03q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa0956b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa0d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa2027b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa20f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa2627b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa28v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa2e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa86i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaa-vqa89r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa1g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa35p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa35s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa3966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa3h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa50s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa91k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-0qa9e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3mb0665b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3mb2792b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3mb29c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3mb8465b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na0044b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na02r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na0j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na2k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na46d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na4i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na4l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na6707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na67d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na6j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na86i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na8807b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na88d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3na8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa01p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa0914b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa45b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa6686b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa66b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa85g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa8786b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-3sa87b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-53a10k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-53a10n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-53a1416b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-53a35m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-53a76e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa31k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa3e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa5f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa74p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa74s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa7866b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa7g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-5qa99r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na0707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na07d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na0j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na26i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na2807b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na28d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na2h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na41r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na4934b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na4i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na6j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na85d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8na8k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8q5a4l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-8q5asl.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa0j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa25d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa2h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa2k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa4607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa46d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa4i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa65i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa6707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa67d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa6g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa80r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa8834b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eoa8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta24b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta4586b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta45b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta64g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta6686b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta66b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta8714b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-eta89o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra10k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra1d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra3e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra53p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra53s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra5766b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra5f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-gra78r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa05i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa0707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa07d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa0g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa20r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa2834b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa2h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa4i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa64d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa6g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa6j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa8507b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa85d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-joa8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-l3a19e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-l3a52k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-l3a52n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-l3a5616b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-l3a77m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lgb12f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lgb12i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lgb1665b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lgb37h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lgb7y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa1176b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa17p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa17s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa1j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa32s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa73k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa7g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-lqa9h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa04d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa0g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa0j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa2507b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa25d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa2h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa44i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa4607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa46d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa4f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa6734b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa69q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa6g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-ooa8h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-q33ar3i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa13k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa1g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa3h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa5076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa56p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa56s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa5i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-qqa71s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-t5b2684b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-t5b4784b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-t5b6812b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa0734b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa09q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa0g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa2h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa43d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa4f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa4i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa6407b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa64d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa6g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa83i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa8507b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa85d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-toa8e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa07g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa0986b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa09b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa2024b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa22p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa66b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa8786b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tsa87b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tzb4115b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tzb6215b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tzb8342b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-tzb8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v0b1s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v0b9084b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v0b9w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v3a31k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v3a31n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v3a3516b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v3a56m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-v3a97e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa11s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa52k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa5f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa7g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa95p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa95s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa9966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-vqa9h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-y6b4184b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-y6b6284b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lday-y6b8312b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-0ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-281b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-49a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-6dc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-dua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-f91b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-g9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-jua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-m29a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-s9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-uob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldaya-vua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-3gb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-3l8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-3wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-3wb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-bgb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-bxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-bya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-i15b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-iqc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-ixa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-pgb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-pl8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-pxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldlaya-wxa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa15p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa15s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa1966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa1h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa30s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa71k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa7e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-0qa9f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1mb0565b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1mb2665b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1mb4792b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1mb49c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na07i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na0907b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na09d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na2044b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na22r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na4k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na66d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na6i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na6l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na8707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na87d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1na8j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa06g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa0886b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa08b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa21p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa2914b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa65b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa8686b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-1sa86b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-53a15m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-53a56e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-53a9316b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-53a99j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-53a99m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa11k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa1e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa3f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa54p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa54s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa5866b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa5g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-5qa79r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na06d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na0l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na2707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na27d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na46i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na4807b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na48d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na4h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na61r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na6934b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na6i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6na8j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6q5a6l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-6q5aul.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa01r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa0934b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa45d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa4h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa4k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa6607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa66d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa6i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa85i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa8707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa87d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-coa8g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta00p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta0814b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta44b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta6586b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta65b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta84g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta8686b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-cta86b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra1e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra33p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra33s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra3766b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra3f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra58r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra99j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-gra9c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa0607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa06d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa25i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa2707b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa27d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa2g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa40r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa4834b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa4h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa6i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa84d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa8g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-hoa8j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-l3a32k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-l3a32n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-l3a3616b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-l3a57m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-l3a98e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lgb17h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lgb5y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lgb91f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lgb91i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lgb9565b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa12s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa53k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa5g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa7h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa9076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa96p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa96s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-lqa9i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa24d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa2g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa4507b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa45d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa4h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa64i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa6607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa66d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa6f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa8734b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa89q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-moa8g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-q33ap3i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa1h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa3076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa36p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa36s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa3i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa51s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa92k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-qqa9f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-r5b4684b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-r5b6784b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-r5b8812b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa04i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa0607b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa06d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa0f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa2734b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa29q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa2g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa4h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa63d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa6f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa6i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa8407b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa84d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-roa8g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa0886b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa08b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa27g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa2986b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa29b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa4024b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa42p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rsa86b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rzb0442b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rzb0c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rzb6115b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-rzb8215b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v0b7084b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v0b7w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v0b9r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v3a11k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v3a11n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v3a1516b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v3a36m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-v3a77e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa32k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa3f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa5g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa75p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa75s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa7966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa7h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-vqa90s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-w6b0412b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-w6b6184b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--ldya-w6b8284b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-144a36d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-144a78a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-144ax9d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua32q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua39g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua5146b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua55o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua70u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua7207b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua72d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-1ua7807b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra0475b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra2575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra28r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra4675b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra6775b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra8875b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-7ra88r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-c54a78d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-c54ar6d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-c54av8a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb0964b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb09g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb2464b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb4564b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb48g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb6664b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-djb8764b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-h6b5644b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-h6b7315b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-h6b75a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-h6b7705b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b0883b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b2983b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b2s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b4093b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b6193b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b8293b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i1b8s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b0673b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b0c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b2173b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b4273b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b4b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b6373b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-i5b8473b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa0475b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa07r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa0i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa2575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa4675b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa6775b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa67r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa8275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-isa8g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m54a15d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m54a57a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m54av8d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m6b1315b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m6b15a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m6b1705b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-m6b9544b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a0205b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a05k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a2305b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a4405b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a6505b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a65k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-n9a8005b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-nfc0433b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-nfc2533b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-nfc4633b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-nfc6733b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-nfc8233b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-r44a99d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-r44at7d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-r44ax9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua50h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua53q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua7246b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua76o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua91u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua9307b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua93d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-rua9907b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-w54a57d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-w54ap5d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaa-w54at7a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-144a63b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-1ua05i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-1ua4256b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-1ua48n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-1ua48q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-1ua63q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb1254b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb3354b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb33f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb5844b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb72f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb7944b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3mb9054b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na1695b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na16t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na3195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na3z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na50a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na5295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na55t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na7395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3na9495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa1575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa15r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa3075b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa3e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa5175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa54r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa5f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa7275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-3sa9375b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na1395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na3495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na5595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na55t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na7095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na7y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na9195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na94t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-8na9z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-c54au3b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa1095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa1y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa3195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa34t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa3z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa5295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa7395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa9495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eoa94t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta1965b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta1d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta3075b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta33r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta3e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta5175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta7275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta9375b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-eta93r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-h6b4754b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-h6bu.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa1395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa3495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa34t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa5985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa5x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa7095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa73t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa7y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-joa9195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-m54a42b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-m6b8654b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-m6bo.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa1095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa13t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa1y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa3195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa5295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa7395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa73t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa9885b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-ooa9w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-r44aw4b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-rua26i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-rua6356b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-rua69n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-rua69q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-rua84q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b1173b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b1a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b3273b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b5373b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b7473b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b7a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-t5b9963b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa1395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa13t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa3885b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa3w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa52t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa5985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa5x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa7095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-toa9195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa1575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa3675b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa36r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa5175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa5f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa7275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa75r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa7g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tsa9375b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb1593b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb3693b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb3z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb5793b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb7893b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb9993b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-tzb9z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-w54as2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-y6b1563b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-y6b3663b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-y6b5763b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-y6b7863b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loay-y6b9963b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-2jb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-2kc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-590b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-6b1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-6ya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-7c1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-ekc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-ewc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-h90b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-jc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-t90b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-ub1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-uya.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-vc1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loaya-wkc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-0g2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-5va.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-6rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-jy1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-qhb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-qi2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-quc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-rjc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-tva.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobaa-yec.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-1qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-4jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-7qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-7wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-era.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-ilc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-jwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-kra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-n11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-owb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-qra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-vqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-vwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobay-xcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-2jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-5qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-5wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-cra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-glc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-hwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-ira.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-l11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-mwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-ora.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-tqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-twa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-vcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lobya-zqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--locaya-5db.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--locaya-ddb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--locaya-k2c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--locaya-kcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--locaya-ycb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-00b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-0wc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-f87b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-frc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-fza.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-t9c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-tob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-tt8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-tv8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclaa-tza.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-10a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-1c8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-1oc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-1ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-1yc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-85b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-8ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-8za.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-gua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-gxc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-n0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-nta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-nua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclay-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-65b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-6za.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-eua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-exc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-l0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-lta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-lua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-sta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-z0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-zc8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-zoc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-zta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loclya-zyc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb02d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb0825b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb2595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb27i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb2985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2mb88e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na00x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na0237b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na02g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na0837b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na0q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na61t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na68j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na8076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na84r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2na8o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa0117b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa01e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa0717b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa09u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa60r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa67h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa83p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-2sa8946b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb1595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb17i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb1985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb78e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb91d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3mb9725b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na51t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na58j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na7076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na74r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na7o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na9137b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na91g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na9737b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na99w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3na9p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa50r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa57h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa73p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa7946b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa9017b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa90e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa9617b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-3sa98u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na01t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na08j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na2076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na24r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na2o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na4137b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na41g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na4737b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na49w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7na4p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7q5aoz.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7q5auw.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra10p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra10s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra1466b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra1c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra35r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra76j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7ra9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-7rax.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na1076b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na14r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na1o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na3137b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na31g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na3737b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na39w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na3p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na90t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8na97j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8q5a9y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8q5atw.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra0b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra20p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra20s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra2466b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra2c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra45r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ra86j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-8ray.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-djb30e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-djb30h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-djb3455b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-djb55g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-djb9m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa40t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa47j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa63r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa6966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa6n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa8037b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa80g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa8637b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa88w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-doa8o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta46h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta49q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta62p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta6846b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta8517b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta87u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta8907b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-dta89d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ejb0n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ejb40e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ejb40h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ejb4455b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ejb65g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa30t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa37j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa53r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa5966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa5n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa7037b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa70g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa7637b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa78w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eoa7o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta36h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta39q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta52p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta5846b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta7517b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta77u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta7907b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-eta79d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i1b1874b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i1b1u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i1b3p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i5b3164b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i5b3d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-i5bl.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa03r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa0966b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa0n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa2037b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa20g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa2637b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa28w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa2o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa86j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ioa89s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa14r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa55j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa9266b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa98o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa98r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isa9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isal.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-isax.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j1b2874b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j1b2u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j1b4p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j5b4164b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j5b4d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-j5bm.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa1037b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa10g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa1637b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa18w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa1o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa76j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa79s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa92r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa9866b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-joa9m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa0366b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa09o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa09r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa0b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa24r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsa65j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsam.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-jsay.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-n9a12k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-n9a53c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-n9a9095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-n9a96h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-n9a96k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-nfc9224b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-no5ate.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa26j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa29s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa42r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa4866b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa4m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa6537b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa67w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa6927b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa69f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-noa6n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-o9a0195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-o9a07h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-o9a07k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-o9a22k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-o9a63c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ofc0324b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-oo5aue.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa16j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa19s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa32r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa3866b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa3m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa5537b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa57w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa5927b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa59f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ooa5n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-s5b4944b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-s5b6015b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-s5b6615b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-s5b68a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa0537b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa07w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa0927b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa09f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa0n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa65j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa68s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa81r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa8766b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-soa8l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa0156b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa05p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa20v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa2217b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa22e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa2817b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa81r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-ssa88h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb4v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb6474b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb6e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb8145b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb83d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-szb8535b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-t5b3944b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-t5b5015b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-t5b5615b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-t5b58a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa55j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa58s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa71r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa7766b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa7l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa9437b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa96w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa9827b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa98f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-toa9m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa10v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa1217b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa12e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa1817b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa71r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa78h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa9056b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tsa94p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb3v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb5474b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb5e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb7145b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb73d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-tzb7535b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-x6b6444b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-x6b8115b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-x6b83a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-x6b8505b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-y6b5444b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-y6b7115b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-y6b73a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loda-y6b7505b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-0g2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-5va.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-6rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-jy1b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-qhb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-qi2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-quc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-rjc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-tva.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaa-yec.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-1qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-4jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-7qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-7wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-era.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-ilc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-jwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-kra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-n11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-owb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-qra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-vqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-vwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loday-xcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaya-5db.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaya-ddb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaya-k2c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaya-kcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodaya-ycb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-00b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-0wc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-f87b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-frc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-fza.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-t9c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-tob.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-tt8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-tv8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlaa-tza.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-10a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-1c8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-1oc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-1ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-1yc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-85b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-8ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-8za.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-gua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-gxc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-n0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-nta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-nua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlay-uta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-65b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-6ta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-6za.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-eua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-exc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-l0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-lta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-lua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-sta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-z0a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-zc8b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-zoc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-zta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodlya-zyc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2mb10f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2mb94c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2mb94f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2mb9835b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2mbb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na34l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na3r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na5a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na5s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na7186b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na77q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na77t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na7t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2na92t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2nab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2nah.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2nan.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2nat.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2naz.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sa33j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sa7066b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sa76o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sa76r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sa91r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2sab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-2san.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3mb64c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3mb64f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3mb6835b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3mb89e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na04l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na0r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na2a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na2s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na4186b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na47q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na47t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na4t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3na62t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3nae.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3nak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3naq.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3naw.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sa03j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sa4066b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sa46o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sa46r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sa61r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-3sak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na1186b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na17q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na17t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na1t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na32t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na73l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na7q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7na9r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7nab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7nah.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7nan.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7nat.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7naz.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-7q5ab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na02t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na43l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na4q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na6r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na8086b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na86q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na86t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8na8s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8nae.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8nak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8naq.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-8naw.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa13l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa1q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa3r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa5086b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa56q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa56t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa5s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doa71t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doah.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doan.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-doat.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dta12j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dta55o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dta55r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dta5956b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dta70r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-dtab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa0r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa2086b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa26q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa26t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa2s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa41t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa82l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoa8p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoae.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eoaq.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eta25o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eta25r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eta2956b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eta40r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-eta81j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa11t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa52l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa5p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa7q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa95q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa95t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa9976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioa9r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioah.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ioan.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa22l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa2p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa4q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa65q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa65t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa6976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa6r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joa80t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joae.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-joak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa1q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa35q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa35t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa3976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa3r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa50t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa91l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noa9o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-noah.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa05q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa05t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa0976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa0r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa20t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa61l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa6o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooa8p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ooae.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-s5b3064b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-s5b3c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-s5bb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa31l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa3o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa5p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa74q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa74t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa7876b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa7q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soa99s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-soab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssa13r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssa54j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssa9166b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssa97o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssa97r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssab.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssan.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-ssaz.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-szb51a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-szb5584b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-szb7w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-szbb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-t5b0064b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-t5b0c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa01l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa0o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa2p.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa44q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa44t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa4876b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa4q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-toa69s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsa24j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsa6166b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsa67o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsa67r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsa82r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsak.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tsaw.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tzb21a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tzb2584b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-tzb4w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-x6b5554b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-x6bb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lody-y6b2554b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-2jc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-5qa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-5wa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-cra.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-glc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-hwa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-ira.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-l11b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-mwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-ora.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-tqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-twa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-vcc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lodya-zqa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-41a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-4i7b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-4rb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-c1a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-c3a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-ci7b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-cyc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-cz5b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-j2a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-jj7b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-jyc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-q1a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-qi7b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-x2a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-xh7b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--lolaya-xua.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-144a43b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb1154b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb3254b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb5354b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb53f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb7844b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb92f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1mb9944b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na1595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na3695b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na36t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na5195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na5z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na70a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na7295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na75t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1na9395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa1475b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa3575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa35r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa5075b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa5e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa7175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa74r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa7f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1sa9275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1ua2256b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1ua28n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1ua28q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1ua43q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-1ua84i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na10a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na1295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na15t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na3395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na5495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na7595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na75t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na9095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-6na9y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-c54as3b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa1595b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa15t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa3095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa3y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa5195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa54t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa5z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa7295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-coa9395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta1475b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta14r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta3965b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta3d.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta5075b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta53r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta5e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta7175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-cta9275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-h6b2754b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-h6bs.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa1295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa3395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa5495b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa54t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa7985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa7x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa9095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa93t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-hoa9y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-m54a22b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-m6b6654b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-m6bm.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa1985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa1x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa3095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa33t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa3y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa5195b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa7295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa9395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-moa93t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r44au4b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b1073b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b3173b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b3a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b5273b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b7373b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b9473b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-r5b9a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa1295b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa3395b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa33t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa5885b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa5w.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa72t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa7985b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa7x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-roa9095b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa1475b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa3575b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa5675b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa56r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa7175b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa7f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa9275b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa95r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rsa9g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rua06i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rua4356b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rua49n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rua49q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rua64q.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb1004b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb10a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb3593b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb5693b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb5z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb7793b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-rzb9893b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w54aq2b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w6b1073b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w6b3563b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w6b5663b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w6b7763b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--loya-w6b9863b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-0ua0x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-0ua2y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-0ua60a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-0ua88r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-0ua8v.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a1045b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a3145b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a31o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a5635b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a70o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a7735b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-40a9835b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a1045b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a10o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a3535b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a5635b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a59n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a7735b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f1a9835b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f9b1753b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f9b3853b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f9b5953b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f9b7453b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-f9b9553b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-g6b8j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-l6b2j.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-qua00s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-qua0x.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-qua2y.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-qua4z.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-qua81a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a1045b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a3145b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a5245b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a52o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a7735b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a91o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-u0a9835b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a1435b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a17n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a3535b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a5635b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a7735b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a77n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oaya-z1a9235b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--obaya-55a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--obaya-goc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--obaya-i6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--obaya-j7a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--obaya-u6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oclaya-2db.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oclaya-9cb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oclaya-h2c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oclaya-hcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oclaya-vcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a1386b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a15r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a1776b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a17a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a73e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a76n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a9516b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-40a99l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-7ra00b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-7ra42b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-7ra60t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-7ra67a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-7ra88a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-djb80i.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a52e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a55n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a7416b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a78l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a9186b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a93r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a9576b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f1a95a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f9b1434b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f9b3105b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f9b3594b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-f9b3t.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-i1b64a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-i5b8n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-isa21b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-isa46a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-isa49s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-isa67a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-isa88a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-n9a47l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a11m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a1716b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a3486b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a36r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a3876b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a38a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a94e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-u0a97n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a10e.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a13n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a3216b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a36l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a51r.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a5376b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a53a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaa-z1a5976b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3mb15g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3na16c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3na37c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3na79c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3na94c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3na97u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3sa15a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3sa36a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3sa78a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3sa93a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-3sa96s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-40a08n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-40a49f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-40a82l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-40a82o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-40a8626b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-8na19c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-8na34c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-8na37u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-8na55c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-8na76c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eoa16c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eoa58c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eoa73c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eoa76u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eoa94c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eta15a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eta57a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eta72a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eta75s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-eta93a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f1a28f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f1a61l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f1a61o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f1a6526b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f1a86n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-f9b0544b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-joa13c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-joa16u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-joa34c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-joa55c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-joa97c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-ooa37c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-ooa52c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-ooa55u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-ooa73c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-ooa94c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-t5b5m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-toa13c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-toa34c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-toa76c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-toa91c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-toa94u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tsa15a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tsa18s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tsa36a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tsa57a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tsa99a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-tzb71b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-u0a04l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-u0a04o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-u0a0826b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-u0a29n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-u0a60g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-y6b7h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-z1a2326b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-z1a29k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-z1a29n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-z1a44n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--oday-z1a85f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-3nc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-4sa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-55a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-82a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-93a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-9nc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-bta.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-d81b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-goc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-i6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-j7a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-l3a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-m4a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-p81b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-ssa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-u6a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-vwb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-x3a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-xnc.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-ysa.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odaya-z6b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odlaya-2db.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odlaya-9cb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odlaya-h2c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odlaya-hcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odlaya-vcb.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1mb35g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1na15c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1na18u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1na36c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1na57c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1na99c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1sa14a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1sa17s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1sa35a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1sa56a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-1sa98a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-40a29f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-40a62l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-40a62o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-40a6626b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-40a87n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-6na39c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-6na54c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-6na57u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-6na75c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-6na96c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-coa15c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-coa36c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-coa78c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-coa93c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-coa96u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-cta14a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-cta35a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-cta77a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-cta92a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-cta95s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f1a08f.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f1a41l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f1a41o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f1a4526b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f1a66n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-f9b8444b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-hoa18c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-hoa33c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-hoa36u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-hoa54c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-hoa75c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-moa15c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-moa57c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-moa72c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-moa75u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-moa93c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-r5b7m.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-roa12c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-roa15u.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-roa33c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-roa54c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-roa96c.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rsa10b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rsa35a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rsa38s.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rsa56a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rsa77a.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-rzb91b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-u0a09n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-u0a40g.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-u0a83l.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-u0a83o.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-u0a8726b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-w6b9h.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-z1a0326b.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-z1a09k.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-z1a09n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-z1a24n.id"
+  },
+  {
+    "fuzzer": "homoglyph",
+    "domain": "xn--odya-z1a65f.id"
+  },
+  {
+    "fuzzer": "hyphenation",
+    "domain": "l-odaya.id"
+  },
+  {
+    "fuzzer": "hyphenation",
+    "domain": "lo-daya.id"
+  },
+  {
+    "fuzzer": "hyphenation",
+    "domain": "lod-aya.id"
+  },
+  {
+    "fuzzer": "hyphenation",
+    "domain": "loda-ya.id"
+  },
+  {
+    "fuzzer": "hyphenation",
+    "domain": "loday-a.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "klodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "l0odaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "l9odaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "liodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lkodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "llodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lmodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lo0daya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lo9daya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "locdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lod2aya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loda1ya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loda2ya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loda6ya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loda7ya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodaaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodagya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodahya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodaqya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodasya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodatya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodauya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodawya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodaxya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loday6a.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loday7a.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayga.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayha.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodaysa.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayta.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayua.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayxa.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodayya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodazya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodcaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodeaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodfaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodqaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodraya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodsaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodwaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodxaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodyaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lodzaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loedaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lofdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loidaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lokdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loldaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lopdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lordaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "losdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "loxdaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "lpodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "mlodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "olodaya.id"
+  },
+  {
+    "fuzzer": "insertion",
+    "domain": "plodaya.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "ldaya.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "loaya.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "lodaa.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "loday.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "lodya.id"
+  },
+  {
+    "fuzzer": "omission",
+    "domain": "odaya.id"
+  },
+  {
+    "fuzzer": "repetition",
+    "domain": "loddaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "kodaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "l9daya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lidaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lldaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "locaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lod1ya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lod2ya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loda6a.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loda7a.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodaaa.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodaga.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodaha.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodasa.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodata.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodaua.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loday1.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loday2.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodays.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodayw.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodayy.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodayz.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodsya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodwya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodyya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lodzya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loraya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "losaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "loxaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "lpdaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "oodaya.id"
+  },
+  {
+    "fuzzer": "replacement",
+    "domain": "podaya.id"
+  },
+  {
+    "fuzzer": "subdomain",
+    "domain": "l.odaya.id"
+  },
+  {
+    "fuzzer": "subdomain",
+    "domain": "lo.daya.id"
+  },
+  {
+    "fuzzer": "subdomain",
+    "domain": "lod.aya.id"
+  },
+  {
+    "fuzzer": "subdomain",
+    "domain": "loda.ya.id"
+  },
+  {
+    "fuzzer": "transposition",
+    "domain": "ldoaya.id"
+  },
+  {
+    "fuzzer": "transposition",
+    "domain": "loadya.id"
+  },
+  {
+    "fuzzer": "transposition",
+    "domain": "lodaay.id"
+  },
+  {
+    "fuzzer": "transposition",
+    "domain": "lodyaa.id"
+  },
+  {
+    "fuzzer": "transposition",
+    "domain": "oldaya.id"
+  },
+  {
+    "fuzzer": "various",
+    "domain": "lodaya-id.com"
+  },
+  {
+    "fuzzer": "various",
+    "domain": "lodayaid.com"
+  },
+  {
+    "fuzzer": "various",
+    "domain": "lodayaid.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "ladaya.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "ledaya.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "lodayo.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "lodayu.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "lodoya.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "loduya.id"
+  },
+  {
+    "fuzzer": "vowel-swap",
+    "domain": "ludaya.id"
+  }
+]

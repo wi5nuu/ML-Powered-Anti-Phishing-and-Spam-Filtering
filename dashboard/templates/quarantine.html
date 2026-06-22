@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stats-bar">
+    <div class="stat">Total: <strong>{{ total }}</strong></div>
+    <div class="stat">Dikarantina: <strong>{{ quarantine_count }}</strong></div>
+    <div class="stat">Peringatan: <strong>{{ warn_count }}</strong></div>
+    <div class="stat">Feedback FP: <strong>{{ feedback_count }}</strong></div>
+</div>
+
+<table class="email-table">
+    <thead>
+        <tr>
+            <th>Email ID</th>
+            <th>Label</th>
+            <th>Skor</th>
+            <th>Status</th>
+            <th>Waktu</th>
+            <th>Aksi</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for email in emails %}
+        <tr class="row-{{ email.label.lower() }}">
+            <td><a href="/email/{{ email.email_id }}">{{ email.email_id[:16] }}...</a></td>
+            <td><span class="badge badge-{{ email.label.lower() }}">{{ email.label }}</span></td>
+            <td>{{ "%.3f"|format(email.fused_score) }}</td>
+            <td>{{ email.status }}</td>
+            <td>{{ email.received_at[:19] }}</td>
+            <td>
+                <form action="/email/{{ email.email_id }}/release" method="POST" style="display:inline">
+                    <button type="submit" class="btn btn-success">Lepaskan</button>
+                </form>
+                <form action="/email/{{ email.email_id }}/confirm-spam" method="POST" style="display:inline">
+                    <button type="submit" class="btn btn-danger">Spam</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

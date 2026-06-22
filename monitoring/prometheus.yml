@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "classifier"
+    static_configs:
+      - targets: ["classifier:8001"]
+  - job_name: "worker"
+    static_configs:
+      - targets: ["worker:8002"]

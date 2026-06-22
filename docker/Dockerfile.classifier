@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY classifier/ classifier/
+COPY decision_engine/ decision_engine/
+COPY database/ database/
+
+EXPOSE 8001
+
+CMD ["uvicorn", "classifier.predict:app", "--host", "0.0.0.0", "--port", "8001"]

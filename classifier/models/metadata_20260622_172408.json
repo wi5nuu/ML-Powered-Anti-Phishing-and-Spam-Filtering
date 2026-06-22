@@ -1,0 +1,135 @@
+{
+  "timestamp": "20260622_172408",
+  "dataset": "data\\processed\\train.csv",
+  "train_size": 386,
+  "test_size": 69,
+  "best_params": {
+    "tree_method": "hist",
+    "subsample": 0.8,
+    "scale_pos_weight": 0.9794871794871794,
+    "n_estimators": 300,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "eval_metric": "logloss",
+    "colsample_bytree": 0.6
+  },
+  "cv_roc_auc": 0.9985189798954982,
+  "test_roc_auc": 1.0,
+  "test_avg_precision": 1.0,
+  "confusion_matrix": {
+    "tp": 35,
+    "fp": 0,
+    "fn": 0,
+    "tn": 34
+  },
+  "false_positive_rate_pct": 0.0,
+  "false_negative_rate_pct": 0.0,
+  "top_shap_features": [
+    {
+      "feature": "for zzzz",
+      "mean_abs_shap": 2.300225257873535
+    },
+    {
+      "feature": "127",
+      "mean_abs_shap": 1.0309733152389526
+    },
+    {
+      "feature": "to zzzz",
+      "mean_abs_shap": 0.5358421206474304
+    },
+    {
+      "feature": "from",
+      "mean_abs_shap": 0.4971117079257965
+    },
+    {
+      "feature": "127 by",
+      "mean_abs_shap": 0.4505158066749573
+    },
+    {
+      "feature": "http",
+      "mean_abs_shap": 0.41145646572113037
+    },
+    {
+      "feature": "urgency_score",
+      "mean_abs_shap": 0.31343743205070496
+    },
+    {
+      "feature": "com",
+      "mean_abs_shap": 0.29651182889938354
+    },
+    {
+      "feature": "zzzz",
+      "mean_abs_shap": 0.29241862893104553
+    },
+    {
+      "feature": "to yyyy",
+      "mean_abs_shap": 0.26290878653526306
+    },
+    {
+      "feature": "your",
+      "mean_abs_shap": 0.2581571638584137
+    },
+    {
+      "feature": "subject",
+      "mean_abs_shap": 0.20325683057308197
+    },
+    {
+      "feature": "num_urls",
+      "mean_abs_shap": 0.16129441559314728
+    },
+    {
+      "feature": "taint",
+      "mean_abs_shap": 0.15048520267009735
+    },
+    {
+      "feature": "date",
+      "mean_abs_shap": 0.1371324509382248
+    },
+    {
+      "feature": "to",
+      "mean_abs_shap": 0.1104205995798111
+    },
+    {
+      "feature": "yyyy",
+      "mean_abs_shap": 0.10929493606090546
+    },
+    {
+      "feature": "received",
+      "mean_abs_shap": 0.0931921973824501
+    },
+    {
+      "feature": "taint org",
+      "mean_abs_shap": 0.08335097879171371
+    },
+    {
+      "feature": "num_unique_domains",
+      "mean_abs_shap": 0.08334994316101074
+    }
+  ],
+  "model_path": "classifier\\models\\xgb_model_20260622_172408.joblib",
+  "tfidf_path": "classifier\\models\\tfidf_20260622_172408.joblib",
+  "scaler_path": "classifier\\models\\scaler_20260622_172408.joblib",
+  "structured_features": [
+    "num_urls",
+    "num_unique_domains",
+    "has_url_shortener",
+    "has_lookalike_domain",
+    "min_levenshtein_to_protected",
+    "num_attachments",
+    "has_executable_attachment",
+    "urgency_score",
+    "html_text_ratio",
+    "num_images",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "display_name_mismatch",
+    "subject_has_re_fwd_fake",
+    "num_recipients",
+    "is_bulk_sender",
+    "entropy_of_links",
+    "num_forms",
+    "javascript_present"
+  ],
+  "tfidf_vocab_size": 11774
+}

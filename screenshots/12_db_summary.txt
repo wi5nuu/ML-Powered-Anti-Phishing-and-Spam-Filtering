@@ -1,0 +1,9 @@
+Total quarantine entries: 7
+
+  3b8404d31c543a02 | Subj: SEGERA! Akun Anda Akan Diblokir          | ML: 0.9347 | SA: 5.5 | Fused: 0.7038 | QUARANTINE
+  b30752f5e5cbdc42 | Subj: Urgent: Account Verification Required    | ML: 0.9611 | SA: 9.5 | Fused: 1.0000 | QUARANTINE
+  4e879a94873ba476 | Subj: Your Invoice Attached                    | ML: 0.8513 | SA: 5.5 | Fused: 0.6496 | WARN
+  a6483702b55471a1 | Subj: Meeting Tomorrow                         | ML: 0.8401 | SA: 5.5 | Fused: 0.6423 | WARN
+  d00951bfb039d0eb | Subj: Update sistem maintenance jadwal Minggu  | ML: 0.8503 | SA: 5.5 | Fused: 0.6489 | WARN
+  cafab578742b4b80 | Subj: SEGERA! Akun Anda Akan Diblokir          | ML: 0.9347 | SA: 5.5 | Fused: 0.7038 | QUARANTINE
+  0ab42f8661ceac41 | Subj: NONE                                     | ML: 0.8597 | SA: 0.0 | Fused: 0.5588 | WARN

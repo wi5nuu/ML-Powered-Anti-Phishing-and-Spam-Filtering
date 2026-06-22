@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Detail Email</h2>
+
+<div class="detail-card">
+    <div class="detail-row"><strong>Email ID:</strong> {{ email.email_id }}</div>
+    <div class="detail-row"><strong>Label:</strong>
+        <span class="badge badge-{{ email.label.lower() }}">{{ email.label }}</span>
+    </div>
+    <div class="detail-row"><strong>Skor Akhir:</strong> {{ "%.3f"|format(email.fused_score) }}</div>
+    <div class="detail-row"><strong>Skor SpamAssassin:</strong> {{ "%.2f"|format(email.sa_score) }}</div>
+    <div class="detail-row"><strong>Probabilitas ML:</strong> {{ "%.4f"|format(email.ml_probability) }}</div>
+    <div class="detail-row"><strong>Status:</strong> {{ email.status }}</div>
+    <div class="detail-row"><strong>Waktu Diterima:</strong> {{ email.received_at[:19] }}</div>
+    <div class="detail-row"><strong>Rute:</strong> {{ email.routing_reason }}</div>
+</div>
+
+<h3>Penjelasan (XAI)</h3>
+<div class="xai-card">
+    {% for reason in human_reasons %}
+    <div class="xai-reason">{{ reason }}</div>
+    {% endfor %}
+</div>
+
+<h3>Detail Teknis</h3>
+<table class="email-table">
+    <thead><tr><th>Komponen</th><th>Nilai</th></tr></thead>
+    <tbody>
+        {% for r in reasons %}
+        <tr><td>{{ r.key }}</td><td>{{ r.value }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="action-bar">
+    <form action="/email/{{ email.email_id }}/release" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-success">Lepaskan ke Inbox</button>
+    </form>
+    <form action="/email/{{ email.email_id }}/confirm-spam" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-danger">Konfirmasi Spam</button>
+    </form>
+    <form action="/email/{{ email.email_id }}/report-false-positive" method="POST" style="display:inline">
+        <input type="text" name="notes" placeholder="Catatan (opsional)">
+        <button type="submit" class="btn btn-warning">Laporkan False Positive</button>
+    </form>
+</div>
+
+<a href="/" class="btn-back">Kembali ke Daftar</a>
+{% endblock %}

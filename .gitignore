@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database (keep for demo - contains evidence)
+# *.db
+
+# Logs
+logs/*.log
+*.log
+
+# Environment (commit .env.example instead)
+.env
+
+# Large data files
+data/raw/enron/maildir/
+data/processed/large_*
+
+# Docker
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS
+Thumbs.db
+.DS_Store

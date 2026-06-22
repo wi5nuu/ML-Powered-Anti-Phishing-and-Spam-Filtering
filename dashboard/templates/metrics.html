@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Panel Metrik</h2>
+
+<div class="stats-bar">
+    <div class="stat">Total Diproses: <strong>{{ total }}</strong></div>
+    <div class="stat">Dikarantina: <strong>{{ quarantine_count }}</strong></div>
+    <div class="stat">Peringatan: <strong>{{ warn_count }}</strong></div>
+    <div class="stat">Laporan False Positive: <strong>{{ feedback_count }}</strong></div>
+</div>
+
+<h3>Top 10 Pengirim Terblokir</h3>
+<table class="email-table">
+    <thead><tr><th>Pengirim</th><th>Jumlah</th></tr></thead>
+    <tbody>
+        {% for sender, count in top_senders %}
+        <tr><td>{{ sender or "(tidak diketahui)" }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Distribusi Label</h3>
+<div class="distribution">
+    <div class="bar-container">
+        <div class="bar bar-clean" style="width:{{ ((total - quarantine_count - warn_count) / max(total,1) * 100) | round }}%">
+            {{ ((total - quarantine_count - warn_count) / max(total,1) * 100) | round }}% Clean
+        </div>
+        <div class="bar bar-warn" style="width:{{ (warn_count / max(total,1) * 100) | round }}%">
+            {{ (warn_count / max(total,1) * 100) | round }}% WARN
+        </div>
+        <div class="bar bar-quarantine" style="width:{{ (quarantine_count / max(total,1) * 100) | round }}%">
+            {{ (quarantine_count / max(total,1) * 100) | round }}% Karantina
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+# Ingestion
+imaplib2>=3.6
+email-validator>=2.1.0
+python-dotenv>=1.0.0
+
+# Queue
+redis>=5.0.0
+
+# NLP & ML
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+pandas>=2.0.0
+numpy>=1.26.0
+nltk>=3.8.1
+Sastrawi>=1.0.1
+langdetect>=1.0.9
+
+# Feature: URL & Domain Analysis
+tldextract>=5.1.0
+rapidfuzz>=3.6.0
+dnspython>=2.6.0
+dnstwist>=2023.8.0
+
+# Feature: Header Analysis
+pyspf>=2.0.14
+dkimpy>=1.1.8
+
+# API & Web
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+jinja2>=3.1.0
+python-multipart>=0.0.9
+aiofiles>=23.2.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+aiosqlite>=0.20.0
+
+# Serialization & Storage
+joblib>=1.4.0
+orjson>=3.9.0
+
+# Explainability
+shap>=0.45.0
+
+# Monitoring
+prometheus-fastapi-instrumentator>=6.1.0
+
+# SpamAssassin client
+spampy>=0.1.0
+
+# Logging
+structlog>=24.1.0
