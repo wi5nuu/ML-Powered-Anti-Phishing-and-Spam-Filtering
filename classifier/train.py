@@ -264,9 +264,10 @@ def train(data_path: str, output_suffix: str = ""):
         (latest_tfidf, tfidf_path),
         (latest_scaler, scaler_path),
     ]:
-        if latest.exists() or latest.is_symlink():
+        if latest.exists():
             latest.unlink()
-        latest.symlink_to(versioned.name)
+        import shutil
+        shutil.copy2(versioned, latest)
 
     # Simpan metadata evaluasi sebagai JSON
     metadata = {

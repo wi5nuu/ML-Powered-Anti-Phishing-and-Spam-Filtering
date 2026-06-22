@@ -9,6 +9,7 @@ Endpoint:
   GET  /model-info
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -277,10 +278,14 @@ async def predict_unsupervised(req: EmailPredictRequest):
 @app.post("/predict-dual", response_model=DualPredictResponse)
 async def predict_dual(req: EmailPredictRequest):
     """Dual-layer prediction: Supervised (XGBoost) + Unsupervised (IForest/OCSVM).
-    Untuk worker pipeline — mendapatkan kedua skor dalam satu panggilan.
+    Worker pipeline — kedua skor dalam satu panggilan.
+    Fungsi heavy (SHAP, XGBoost) di-offload ke thread biar gak blocking.
     """
-    supervised = _predict_supervised_internal(req.raw_email, req.email_id)
-    unsupervised = _predict_unsupervised_internal(req.raw_email, req.email_id)
+    loop = asyncio.get_running_loop()
+    supervised, unsupervised = await asyncio.gather(
+        loop.run_in_executor(None, _predict_supervised_internal, req.raw_email, req.email_id),
+        loop.run_in_executor(None, _predict_unsupervised_internal, req.raw_email, req.email_id),
+    )
     return DualPredictResponse(
         email_id=supervised.email_id,
         spam_probability=supervised.spam_probability,

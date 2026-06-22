@@ -218,16 +218,18 @@ class AnomalyDetector:
         joblib.dump(self.one_class_svm, ocsvm_path)
         joblib.dump(self.scaler, scaler_path)
 
-        # Symlink latest
-        for latest_name, versioned_path in [
-            ("isolation_forest_latest.joblib", if_path),
-            ("one_class_svm_latest.joblib", ocsvm_path),
-            ("unsupervised_scaler_latest.joblib", scaler_path),
-        ]:
-            latest = MODEL_DIR / latest_name
-            if latest.exists() or latest.is_symlink():
+        # Save _latest versions directly (not symlinks — Windows compatibility)
+        versioned_to_latest = {
+            if_path: MODEL_DIR / "isolation_forest_latest.joblib",
+            ocsvm_path: MODEL_DIR / "one_class_svm_latest.joblib",
+            scaler_path: MODEL_DIR / "unsupervised_scaler_latest.joblib",
+        }
+        for versioned, latest in versioned_to_latest.items():
+            if latest.exists():
                 latest.unlink()
-            latest.symlink_to(versioned_path.name)
+            # Copy the actual file content to _latest name
+            import shutil
+            shutil.copy2(versioned, latest)
 
         logger.info("Unsupervised models saved to %s", MODEL_DIR)
 

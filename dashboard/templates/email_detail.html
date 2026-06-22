@@ -10,7 +10,7 @@
     <div class="detail-row"><strong>Skor Akhir:</strong> {{ "%.3f"|format(email.fused_score) }}</div>
     <div class="detail-row">
         <strong>Deteksi:</strong>
-        {% if email.anomaly_score and email.anomaly_score > 0 %}
+        {% if email.anomaly_score is not none and email.anomaly_score > 0 %}
         <span class="badge badge-dual">Dual Detection</span>
         {% else %}
         <span class="badge badge-single">Single Detection</span>

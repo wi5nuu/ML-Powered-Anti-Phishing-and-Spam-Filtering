@@ -33,7 +33,7 @@
                 {% endif %}
             </td>
             <td>{{ "%.3f"|format(email.fused_score) }}</td>
-            <td>{{ "%.3f"|format(email.anomaly_score or 0) }}</td>
+            <td>{{ "%.3f"|format(email.anomaly_score or 0) if email.anomaly_score is not none else "N/A" }}</td>
             <td>{{ email.status }}</td>
             <td>{{ email.received_at[:19] }}</td>
             <td>

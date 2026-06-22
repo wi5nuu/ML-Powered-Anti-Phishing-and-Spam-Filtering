@@ -1,0 +1,36 @@
+DUAL DETECTION EVIDENCE
+======================
+Date: 2026-06-22
+
+1. PHISHING EMAIL (bit.ly + urgency)
+   Supervised: QUARANTINE (prob=0.9696)
+   Unsupervised: anomaly_score=0.7060, is_anomaly=True
+   → BOTH LAYERS AGREE: email is dangerous
+   → XAI: urgency, SPF fail, DKIM fail, URL shortener, SHAP
+
+2. NORMAL MEETING EMAIL
+   Supervised: WARN (prob=0.3891) — borderline, no auth headers
+   Unsupervised: anomaly_score=0.3371, is_anomaly=False
+   → Unsupervised keeps it in check (adds 0.08 to score, still WARN)
+
+3. INVOICE FROM VENDOR
+   Supervised: CLEAN (prob=0.1554)
+   Unsupervised: anomaly_score=0.3761, is_anomaly=False
+   → Both agree: CLEAN
+
+4. ZERO-DAY PHISHING (BCA lookalike, would NOT be in training data)
+   Supervised: QUARANTINE (prob=0.9339)
+   Unsupervised: anomaly_score=0.4707, is_anomaly=False
+   → Supervised caught it (text features)
+   → Unsupervised moderate — not fully anomalous because the features 
+     similarities to phishing patterns
+
+MODEL HEALTH:
+  supervised_loaded: true
+  unsupervised_loaded: true
+
+FILES:
+  - classifier/unsupervised.py (Isolation Forest + One-Class SVM)
+  - scripts/train_unsupervised.py (training script)
+  - classifier/predict.py (3 endpoints: /predict, /predict-unsupervised, /predict-dual)
+  - decision_engine/fusion.py (3-way fusion: ML 50%, SA 25%, Anomaly 25%)
