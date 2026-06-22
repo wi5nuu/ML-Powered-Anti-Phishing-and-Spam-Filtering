@@ -77,11 +77,13 @@ def build_feature_matrix(df: pd.DataFrame, tfidf: TfidfVectorizer,
     Returns:
         scipy sparse matrix: TF-IDF + structured features digabung
     """
+    # Fill NaN combined_text and ensure string type
+    texts = df["combined_text"].fillna("").astype(str)
     # TF-IDF sparse matrix
     if fit:
-        tfidf_matrix = tfidf.fit_transform(df["combined_text"])
+        tfidf_matrix = tfidf.fit_transform(texts)
     else:
-        tfidf_matrix = tfidf.transform(df["combined_text"])
+        tfidf_matrix = tfidf.transform(texts)
 
     # Structured features (dense -> sparse)
     struct_df = df[STRUCTURED_FEATURES].astype(float).fillna(0)
@@ -163,10 +165,10 @@ def train(data_path: str, output_suffix: str = ""):
         n_jobs=-1,
     )
 
-    logger.info("Mulai RandomizedSearchCV (30 iter x 5 fold)...")
+    logger.info("Mulai RandomizedSearchCV (10 iter x 3 fold)...")
     search = RandomizedSearchCV(
         base_xgb, xgb_params,
-        n_iter=30, cv=5, scoring="roc_auc",
+        n_iter=10, cv=3, scoring="roc_auc",
         verbose=1, random_state=42, n_jobs=-1,
         refit=True,
     )

@@ -25,8 +25,11 @@ logs/*.log
 # Environment (commit .env.example instead)
 .env
 
-# Large data files
-data/raw/enron/maildir/
+# Large data files (thousands of small files)
+data/raw/enron/
+data/raw/spamassassin_corpus/
+data/raw/indonesian/
+data/raw/*.tar.*
 data/processed/large_*
 
 # Docker
