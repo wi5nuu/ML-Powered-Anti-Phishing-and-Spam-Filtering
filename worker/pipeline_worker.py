@@ -1,17 +1,15 @@
 """
-Pipeline Worker — consumer Redis queue, orchestrate full pipeline.
+Pipeline Worker — Enterprise Edition with WebSocket pub/sub, multi-channel alerting, and metrics.
 
 Flow per email:
   1. Ambil dari Redis queue
   2. SpamAssassin scoring (via spamc subprocess atau socket)
-  3. ML Classifier scoring (via HTTP ke classifier service)
-  4. Decision Engine fusion
-  5. Inject X-Spam-Reason header
-  6. Route: simpan ke DB (quarantine/warn) atau pass ke inbox
-  7. Kirim notifikasi Slack/webhook jika QUARANTINE (opsional)
-
-Worker ini dirancang sebagai consumer tunggal yang bisa di-scale
-horizontal cukup dengan menjalankan lebih banyak container instance.
+  3. ML Classifier scoring (via HTTP ke classifier service) — dual layer
+  4. Decision Engine 3-way fusion
+  5. Broadcast ke WebSocket via Redis pub/sub
+  6. Save ke database
+  7. Multi-channel alerting (Slack, Telegram, Email) untuk CRITICAL/HIGH
+  8. Track pipeline metrics
 """
 
 import asyncio
@@ -31,17 +29,19 @@ from sqlalchemy.orm import sessionmaker
 from database.models import QuarantineEmail, PipelineMetrics
 from decision_engine.fusion import fuse
 from decision_engine.xai import build_xai_header
+from worker.notifier import AlertManager, AlertPayload, alert_manager
+from worker.email_forwarder import forward_email
 
 load_dotenv()
 logger = structlog.get_logger()
 
-REDIS_URL         = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-QUEUE_NAME        = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
-CLASSIFIER_URL    = os.getenv("CLASSIFIER_URL", "http://classifier:8001")
-SA_HOST           = os.getenv("SPAMASSASSIN_HOST", "spamassassin")
-SA_PORT           = int(os.getenv("SPAMASSASSIN_PORT", "783"))
-DB_URL            = os.getenv("DB_URL", "sqlite+aiosqlite:///./lti_antiphishing.db")
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
+REDIS_URL          = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+QUEUE_NAME         = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
+PUBSUB_CHANNEL     = os.getenv("PUBSUB_CHANNEL", "email:processed")
+CLASSIFIER_URL     = os.getenv("CLASSIFIER_URL", "http://classifier:8001")
+SA_HOST            = os.getenv("SPAMASSASSIN_HOST", "spamassassin")
+SA_PORT            = int(os.getenv("SPAMASSASSIN_PORT", "783"))
+DB_URL             = os.getenv("DB_URL", "sqlite+aiosqlite:///./lti_antiphishing.db")
 WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "10"))
 
 
@@ -197,6 +197,7 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
             xai_summary=xai_str,
             routing_reason=fusion.routing_reason,
             raw_content_hash=payload.get("raw_hash", ""),
+            raw_content=raw_email[:50000],  # Simpan 50KB pertama untuk forensik
             status="pending",
             subject=subject,
             sender=sender,
@@ -204,34 +205,49 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         db_session.add(quarantine_entry)
         await db_session.commit()
 
-    # ── Slack notification untuk QUARANTINE ───────────────────────────────
-    if fusion.label == "QUARANTINE" and SLACK_WEBHOOK_URL:
-        await notify_slack(
+    # ── Broadcast ke WebSocket via Redis pub/sub ─────────────────────────
+    pubsub_payload = json.dumps({
+        "type": "email_processed",
+        "email_id": email_id,
+        "subject": subject,
+        "label": fusion.label,
+        "fused_score": fusion.fused_score,
+        "anomaly_score": anomaly_score,
+        "ml_probability": ml_prob,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    try:
+        r_pub = await aio_redis.from_url(REDIS_URL)
+        await r_pub.publish(PUBSUB_CHANNEL, pubsub_payload)
+        await r_pub.aclose()
+    except Exception as e:
+        logger.warning("pubsub_publish_failed", error=str(e))
+
+    # ── Multi-channel alerting untuk QUARANTINE ──────────────────────────
+    if fusion.label == "QUARANTINE":
+        severity = "CRITICAL" if anomaly_score > 0.5 else "HIGH"
+        alert_payload = AlertPayload(
             email_id=email_id,
+            subject=subject,
+            sender=sender,
             fused_score=fusion.fused_score,
+            ml_probability=ml_prob,
+            anomaly_score=anomaly_score,
+            label=fusion.label,
             xai_summary=xai_str,
-            http_client=http_client,
+            severity=severity,
         )
+        asyncio.create_task(alert_manager.send_all(alert_payload))
+
+    # ── Forward CLEAN/WARN ke inbox asli ────────────────────────────────
+    # Hanya forward jika FORWARDER_SMTP_HOST di-set
+    import os as _os
+    if _os.getenv("FORWARDER_SMTP_HOST"):
+        asyncio.create_task(forward_email(
+            raw_email, fusion.label, fusion.fused_score, payload
+        ))
 
     return fusion
-
-
-async def notify_slack(email_id: str, fused_score: float,
-                       xai_summary: str, http_client: httpx.AsyncClient):
-    """Kirim notifikasi Slack untuk email yang dikarantina."""
-    payload = {
-        "text": (
-            f":rotating_light: *Email Dikarantina*\n"
-            f"ID: `{email_id}`\n"
-            f"Skor: `{fused_score:.3f}`\n"
-            f"Alasan: `{xai_summary}`\n"
-            f"Tinjau di: http://dashboard:8080/quarantine"
-        )
-    }
-    try:
-        await http_client.post(SLACK_WEBHOOK_URL, json=payload, timeout=10.0)
-    except Exception as e:
-        logger.warning("slack_notify_failed", error=str(e))
 
 
 async def run_worker():
