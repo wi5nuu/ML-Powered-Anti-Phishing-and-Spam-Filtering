@@ -79,6 +79,15 @@ STRUCTURED_FEATURES = [
     "entropy_of_links",
     "num_forms",
     "javascript_present",
+    # ── Business context features ───────────────────────────────────────────
+    "safe_business_score",
+    "bec_score",
+    "urgency_level",
+    "sender_reputation",
+    "has_generic_greeting",
+    "request_for_transfer",
+    "ceo_impersonation",
+    "business_context_weight",
 ]
 
 # ─── Data Model ──────────────────────────────────────────────────────────────
@@ -116,6 +125,15 @@ class EmailFeatures:
     entropy_of_links: float = 0.0   # Entropy Shannon dari link URL
     num_forms: int = 0              # Form HTML dalam email
     javascript_present: bool = False
+    # ── Business context ───────────────────────────────────────────────────
+    safe_business_score: float = 1.0   # 0 (unsafe) - 1.0 (safe business email)
+    bec_score: float = 0.0             # 0-1 likelihood of BEC/CEO fraud
+    urgency_level: float = 0.0         # Business urgency (not just keywords)
+    sender_reputation: float = 1.0     # 0 (malicious domain) - 1.0 (known corp)
+    has_generic_greeting: bool = False # "Dear Sir/Madam" instead of personal
+    request_for_transfer: bool = False # Asks for wire transfer / payment
+    ceo_impersonation: bool = False    # Sender pretends to be C-level
+    business_context_weight: float = 0.5  # Overall business relevance 0-1
 
 
 @dataclass
@@ -387,6 +405,104 @@ class FeatureExtractor:
             ) if len(features.combined_text) > 20 else "unknown"
         except Exception:
             features.detected_language = "unknown"
+
+        # ── Business context scoring ───────────────────────────────────────
+        combined_lower = features.combined_text.lower()
+        body_lower = parsed.body_text.lower()
+        sender_domain = parsed.sender_domain.lower()
+
+        # safe_business_score: legitimate business patterns
+        # Also boost score when email has NO malicious indicators at all
+        biz_indicators = [
+            "invoice", "pembayaran", "payment", "transaction", "laporan",
+            "report", "meeting", "contract", "kontrak", "proposal",
+            "purchase order", "po ", "quotation", "quote", "rfq",
+            "delivery order", "do ", "faktur", "receipt", "statement",
+            "reminder", "update", "review", "schedule", "timesheet",
+        ]
+        biz_hits = sum(1 for w in biz_indicators if w in combined_lower)
+        features.safe_business_score = min(biz_hits / 5.0, 1.0)
+        # Floor: if email is from a trusted domain with no malicious features, boost
+        no_malicious = (features.num_urls == 0 and features.has_executable_attachment is False
+                        and features.num_attachments == 0 and features.display_name_mismatch is False)
+        if no_malicious and features.sender_reputation >= 0.7 and features.safe_business_score < 0.4:
+            # This looks like a clean personal/conversational email
+            features.safe_business_score = max(features.safe_business_score, 0.4)
+
+        # bec_score: Business Email Compromise indicators
+        bec_indicators = [
+            "wire transfer", "bank transfer", "urgent payment",
+            "confidential", "ceo", "cfi", "director", "vp ",
+            "i'm in a meeting", "i am in a meeting", "can't talk",
+            "do not discuss", "keep this confidential", "gift card",
+            "purchase gift card", "payment change", "bank details changed",
+            "new banking details", "need you to process", "kindly do",
+            "wire ${amount}", "settlement #{ref}", "legal settlement",
+        ]
+        bec_hits = sum(1 for w in bec_indicators if w in combined_lower)
+        features.bec_score = min(bec_hits / 3.0, 1.0)
+
+        # urgency_level: business-context urgency (meeting deadlines, etc)
+        urgent_biz = [
+            "eod", "today", "immediately", "asap", "deadline",
+            "before end of day", "urgent", "time-sensitive", "rush",
+            "priority", "critical", "by tomorrow", "before friday",
+        ]
+        urgency_biz_hits = sum(1 for w in urgent_biz if w in combined_lower)
+        features.urgency_level = min(urgency_biz_hits / 4.0, 1.0)
+
+        # sender_reputation: known corporate domains vs suspicious
+        trusted_domains = {
+            "lodaya.id", "bca.co.id", "mandiri.co.id", "bni.co.id",
+            "bri.co.id", "gojek.com", "tokopedia.com", "shopee.co.id",
+            "traveloka.com", "telkom.co.id", "gmail.com", "yahoo.com",
+            "outlook.com", "office365.com",
+        }
+        suspicious_tlds = {".tk", ".ml", ".ga", ".cf", ".xyz", ".life", ".top", ".gq"}
+        sender_ext = tldextract.extract(sender_domain)
+        sender_reg = sender_ext.top_domain_under_public_suffix or sender_domain
+        if sender_reg in trusted_domains:
+            features.sender_reputation = 1.0
+        elif any(sender_domain.endswith(t) for t in suspicious_tlds):
+            features.sender_reputation = 0.0
+        else:
+            features.sender_reputation = 0.5
+
+        # has_generic_greeting
+        generic_greetings = [
+            "dear sir", "dear madam", "dear customer", "dear user",
+            "kepada yth", "kepada nasabah", "kepada pengguna",
+            "kepada pelanggan", "kepada customer", "to whom it may concern",
+        ]
+        features.has_generic_greeting = any(g in body_lower[:200] for g in generic_greetings)
+
+        # request_for_transfer
+        transfer_phrases = [
+            "wire transfer", "transfer dana", "transfer uang",
+            "kirim uang", "process payment", "process a payment",
+            "pay this invoice", "pay immediately", "send payment",
+            "please pay", "payment required", "purchase gift card",
+            "gift cards", "payment change", "new account",
+        ]
+        features.request_for_transfer = any(p in combined_lower for p in transfer_phrases)
+
+        # ceo_impersonation: sender display name has C-level title
+        c_level_titles = [
+            "ceo", "cfo", "coo", "cto", "director", "president",
+            "vp ", "vice president", "managing director",
+        ]
+        display = parsed.display_name.lower()
+        features.ceo_impersonation = any(t in display for t in c_level_titles)
+
+        # business_context_weight: composite
+        biz_features = [
+            features.safe_business_score,
+            features.sender_reputation,
+            1.0 - features.bec_score,
+            1.0 - features.request_for_transfer,
+            1.0 - features.ceo_impersonation,
+        ]
+        features.business_context_weight = float(np.mean(biz_features))
 
         return features
 

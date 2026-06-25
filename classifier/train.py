@@ -145,38 +145,57 @@ def train(data_path: str, output_suffix: str = ""):
     X_train = build_feature_matrix(X_train_df, tfidf, scaler, fit=True)
     X_test  = build_feature_matrix(X_test_df,  tfidf, scaler, fit=False)
 
-    # ── Model dengan hyperparameter tuning ────────────────────────────────
-    xgb_params = {
-        "n_estimators": [300, 500, 700],
-        "max_depth": [4, 6, 8],
-        "learning_rate": [0.05, 0.1, 0.2],
-        "subsample": [0.7, 0.8, 1.0],
-        "colsample_bytree": [0.6, 0.8, 1.0],
-        "scale_pos_weight": [  # Handle class imbalance
-            (y_train == 0).sum() / max((y_train == 1).sum(), 1)
-        ],
-        "tree_method": ["hist"],     # GPU compatible, cepat
-        "eval_metric": ["logloss"],
-    }
+    # ── Model ────────────────────────────────────────────────────────────
+    n_samples = X_train.shape[0]
+    scale_pos = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
 
-    base_xgb = XGBClassifier(
-        use_label_encoder=False,
-        random_state=42,
-        n_jobs=-1,
-    )
-
-    logger.info("Mulai RandomizedSearchCV (10 iter x 3 fold)...")
-    search = RandomizedSearchCV(
-        base_xgb, xgb_params,
-        n_iter=10, cv=3, scoring="roc_auc",
-        verbose=1, random_state=42, n_jobs=-1,
-        refit=True,
-    )
-    search.fit(X_train, y_train)
-
-    best_model = search.best_estimator_
-    logger.info("Best params: %s", search.best_params_)
-    logger.info("Best CV ROC-AUC: %.4f", search.best_score_)
+    if n_samples > 50000:
+        # Skip hyperparameter search for large datasets — train directly
+        logger.info("Large dataset (%d samples): training directly (skip search)", n_samples)
+        best_model = XGBClassifier(
+            n_estimators=500,
+            max_depth=8,
+            learning_rate=0.1,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            scale_pos_weight=scale_pos,
+            tree_method="hist",
+            device="cuda",
+            eval_metric="logloss",
+            use_label_encoder=False,
+            random_state=42,
+            n_jobs=-1,
+        )
+        best_model.fit(X_train, y_train)
+    else:
+        # Dataset <50k: full search with CPU hist
+        xgb_params = {
+            "n_estimators": [300, 500, 700],
+            "max_depth": [4, 6, 8],
+            "learning_rate": [0.05, 0.1, 0.2],
+            "subsample": [0.7, 0.8, 1.0],
+            "colsample_bytree": [0.6, 0.8, 1.0],
+            "scale_pos_weight": [scale_pos],
+            "tree_method": ["hist"],
+            "eval_metric": ["logloss"],
+        }
+        base_xgb = XGBClassifier(
+            use_label_encoder=False,
+            random_state=42,
+            n_jobs=-1,
+            device="cuda",
+        )
+        logger.info("Mulai RandomizedSearchCV (10 iter x 3 fold)...")
+        search = RandomizedSearchCV(
+            base_xgb, xgb_params,
+            n_iter=10, cv=3, scoring="roc_auc",
+            verbose=1, random_state=42, n_jobs=-1,
+            refit=True,
+        )
+        search.fit(X_train, y_train)
+        best_model = search.best_estimator_
+        logger.info("Best params: %s", search.best_params_)
+        logger.info("Best CV ROC-AUC: %.4f", search.best_score_)
 
     # ── Evaluasi Test Set ─────────────────────────────────────────────────
     y_pred      = best_model.predict(X_test)
@@ -219,29 +238,44 @@ def train(data_path: str, output_suffix: str = ""):
             adversarial_path
         )
 
-    # ── SHAP untuk explainability ─────────────────────────────────────────
-    logger.info("Computing SHAP values (sample 200 untuk efisiensi)...")
-    sample_idx = np.random.choice(X_test.shape[0],
-                                  size=min(200, X_test.shape[0]),
-                                  replace=False)
-    X_test_dense = X_test[sample_idx].toarray()
-    explainer = shap.TreeExplainer(best_model)
-    shap_values = explainer.shap_values(X_test_dense)
+    # ── SHAP untuk explainability (skip untuk dataset besar >50k) ─────────
+    if n_samples <= 50000 and y_prob is not None:
+        logger.info("Computing SHAP values (sample 200 untuk efisiensi)...")
+        sample_idx = np.random.choice(X_test.shape[0],
+                                      size=min(200, X_test.shape[0]),
+                                      replace=False)
+        X_test_dense = X_test[sample_idx].toarray()
+        explainer = shap.TreeExplainer(best_model)
+        shap_values = explainer.shap_values(X_test_dense)
+    else:
+        shap_values = None
+        logger.info("Skipping SHAP (large dataset)")
 
     # Feature names untuk SHAP
     tfidf_feature_names = tfidf.get_feature_names_out().tolist()
     all_feature_names = tfidf_feature_names + STRUCTURED_FEATURES
 
-    # Top 20 global feature importance (untuk laporan)
-    mean_abs_shap = np.abs(shap_values).mean(axis=0)
-    top_features = sorted(
-        zip(all_feature_names, mean_abs_shap),
-        key=lambda x: x[1], reverse=True
-    )[:20]
-
-    logger.info("Top 20 Global SHAP Features:")
-    for fname, importance in top_features:
-        logger.info("  %-40s %.4f", fname, importance)
+    # Top 20 global feature importance (jika SHAP dihitung)
+    top_features = []
+    if shap_values is not None:
+        mean_abs_shap = np.abs(shap_values).mean(axis=0)
+        top_features = sorted(
+            zip(all_feature_names, mean_abs_shap),
+            key=lambda x: x[1], reverse=True
+        )[:20]
+        logger.info("Top 20 Global SHAP Features:")
+        for fname, importance in top_features:
+            logger.info("  %-40s %.4f", fname, importance)
+    else:
+        # Gunakan feature_importances_ dari XGBoost sebagai alternatif
+        fi = best_model.feature_importances_
+        top_idx = np.argsort(fi)[-20:][::-1]
+        for idx in top_idx:
+            if idx < len(all_feature_names):
+                top_features.append((all_feature_names[idx], float(fi[idx])))
+        logger.info("Top 20 Global Feature Importances (XGBoost):")
+        for fname, importance in top_features:
+            logger.info("  %-40s %.4f", fname, importance)
 
     # ── Simpan artefak model ──────────────────────────────────────────────
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -270,20 +304,22 @@ def train(data_path: str, output_suffix: str = ""):
         shutil.copy2(versioned, latest)
 
     # Simpan metadata evaluasi sebagai JSON
+    best_params = getattr(search, 'best_params_', None) if 'search' in dir() else None
+    cv_score = float(getattr(search, 'best_score_', 0.0)) if 'search' in dir() and hasattr(search, 'best_score_') else None
     metadata = {
         "timestamp": timestamp,
         "dataset": data_path,
         "train_size": len(X_train_df),
         "test_size": len(X_test_df),
-        "best_params": search.best_params_,
-        "cv_roc_auc": float(search.best_score_),
+        "best_params": best_params if best_params else "direct_fit",
+        "cv_roc_auc": cv_score,
         "test_roc_auc": float(roc_auc),
         "test_avg_precision": float(avg_prec),
         "confusion_matrix": {"tp": int(tp), "fp": int(fp), "fn": int(fn), "tn": int(tn)},
         "false_positive_rate_pct": round((fp / max(fp + tn, 1)) * 100, 2),
         "false_negative_rate_pct": round((fn / max(fn + tp, 1)) * 100, 2),
-        "top_shap_features": [
-            {"feature": f, "mean_abs_shap": float(v)}
+        "top_features": [
+            {"feature": f, "importance": float(v)}
             for f, v in top_features
         ],
         "model_path": str(model_path),
