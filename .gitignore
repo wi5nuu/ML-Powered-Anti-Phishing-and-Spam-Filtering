@@ -15,8 +15,28 @@ venv/
 *.swp
 *.swo
 
-# Database (keep for demo - contains evidence)
-# *.db
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Model versioned artifacts (keep _latest.joblib only)
+classifier/models/*_2026*.joblib
+classifier/models/*_from_ham.joblib
+classifier/models/metadata_*.json
+
+# Dataset (large)
+data/dataset_1/
+data/dataset_2/
+data/dataset_merged/
+data/processed/*.csv
+
+# Temporary scripts
+_start_realtime.py
+_retrain_unsupervised.py
+_realtime_clean.py
+_live_demo.py
 
 # Logs
 logs/*.log
