@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="{{ 'dark' if request.cookies.get('theme') == 'dark' else 'light' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,11 +13,71 @@
             <div class="nav-links">
                 <a href="/">Karantina</a>
                 <a href="/metrics-panel">Metrik</a>
+                <a href="/help">Dokumentasi</a>
+                {% if user %}
+                <span class="user-badge">
+                    {{ user.username }}
+                    <span class="role-badge {{ user.role }}">{{ user.role }}</span>
+                </span>
+                <a href="#" onclick="logout()">Logout</a>
+                {% else %}
+                <a href="/login">Login</a>
+                {% endif %}
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+                    {% if request.cookies.get('theme') == 'dark' %}☀️{% else %}🌙{% endif %}
+                </button>
             </div>
         </div>
     </nav>
     <main class="container">
         {% block content %}{% endblock %}
     </main>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            document.cookie = 'theme=' + next + ';path=/;max-age=31536000';
+            document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function logout() {
+            fetch('/api/auth/logout', { method: 'POST' })
+                .then(() => { window.location.href = '/login'; })
+                .catch(() => { window.location.href = '/login'; });
+        }
+
+        // WebSocket live feed
+        let ws = null;
+        function connectWS() {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = proto + '//' + window.location.host + '/ws';
+            ws = new WebSocket(url);
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    showToast('Email baru: ' + (data.subject || 'unknown'), 'info');
+                } catch(e) {}
+            };
+            ws.onclose = function() { setTimeout(connectWS, 5000); };
+        }
+        // Only connect if authenticated
+        if (document.cookie.includes('access_token')) {
+            connectWS();
+        }
+    </script>
 </body>
 </html>
