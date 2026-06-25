@@ -20,9 +20,17 @@ def run_monitor():
     """
     print(f"[{datetime.now()}] Running dnstwist untuk {PROTECTED_DOMAIN}...")
 
-    fuzzer = dnstwist.Fuzzer(PROTECTED_DOMAIN)
-    fuzzer.generate()
-    domains = fuzzer.permutations()
+    try:
+        fuzzer = dnstwist.Fuzzer(PROTECTED_DOMAIN)
+        fuzzer.generate()
+        domains = fuzzer.permutations()
+    except Exception as e:
+        print(f"[ERROR] dnstwist gagal: {e}")
+        return []
+
+    if not domains:
+        print("[WARN] dnstwist tidak mengembalikan data apapun.")
+        return []
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_path = REPORT_PATH / f"domain_report_{timestamp}.json"
