@@ -1,0 +1,132 @@
+"""
+Multi-channel alerting for LTI Anti-Phishing.
+Supports Slack, Telegram, and Email alerts with severity levels.
+"""
+
+import asyncio
+import logging
+import os
+import json
+import aiohttp
+import smtplib
+from email.mime.text import MIMEText
+from dataclasses import dataclass, asdict
+
+logger = logging.getLogger(__name__)
+
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+SMTP_HOST = os.getenv("ALERT_SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("ALERT_SMTP_PORT", "587"))
+SMTP_USER = os.getenv("ALERT_SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("ALERT_SMTP_PASSWORD", "")
+
+
+@dataclass
+class AlertPayload:
+    email_id: str
+    subject: str
+    sender: str
+    fused_score: float
+    ml_probability: float
+    anomaly_score: float
+    label: str
+    xai_summary: str
+    severity: str  # CRITICAL, HIGH, MEDIUM
+
+
+class AlertManager:
+    def __init__(self):
+        self.session: aiohttp.ClientSession = None
+
+    async def ensure_session(self):
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession()
+
+    async def send_slack(self, payload: AlertPayload):
+        if not SLACK_WEBHOOK_URL:
+            return
+        await self.ensure_session()
+        emoji = {"CRITICAL": ":red_circle:", "HIGH": ":warning:", "MEDIUM": ":large_blue_circle:"}
+        text = (
+            f"{emoji.get(payload.severity, ':warning:')} *[{payload.severity}] Phishing Alert*\n"
+            f"*Subject:* {payload.subject}\n"
+            f"*Sender:* {payload.sender}\n"
+            f"*Fused Score:* {payload.fused_score:.3f}\n"
+            f"*ML Prob:* {payload.ml_probability:.4f}\n"
+            f"*Anomaly:* {payload.anomaly_score:.4f}\n"
+            f"*XAI:* {payload.xai_summary}\n"
+            f"<http://localhost:8081/email/{payload.email_id}|View in Dashboard>"
+        )
+        try:
+            await self.session.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=10.0)
+            logger.info("Slack alert sent for %s", payload.email_id)
+        except Exception as e:
+            logger.warning("Slack alert failed: %s", e)
+
+    async def send_telegram(self, payload: AlertPayload):
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+            return
+        await self.ensure_session()
+        emoji = {"CRITICAL": "\u26a0\ufe0f", "HIGH": "\u2757", "MEDIUM": "\ud83d\udd35"}
+        text = (
+            f"{emoji.get(payload.severity, '\u2757')} *[{payload.severity}] Phishing Alert*\n"
+            f"Subject: {payload.subject}\n"
+            f"Sender: {payload.sender}\n"
+            f"Score: {payload.fused_score:.3f} | ML: {payload.ml_probability:.4f} | Anom: {payload.anomaly_score:.4f}\n"
+            f"/email_{payload.email_id}"
+        )
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        try:
+            await self.session.post(url, json={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": text,
+                "parse_mode": "Markdown",
+            }, timeout=10.0)
+            logger.info("Telegram alert sent for %s", payload.email_id)
+        except Exception as e:
+            logger.warning("Telegram alert failed: %s", e)
+
+    async def send_email(self, payload: AlertPayload):
+        if not SMTP_HOST or not SMTP_USER:
+            return
+        body = (
+            f"LTI Anti-Phishing Alert — {payload.severity}\n\n"
+            f"Email ID: {payload.email_id}\n"
+            f"Subject: {payload.subject}\n"
+            f"Sender: {payload.sender}\n"
+            f"Label: {payload.label}\n"
+            f"Fused Score: {payload.fused_score:.3f}\n"
+            f"ML Probability: {payload.ml_probability:.4f}\n"
+            f"Anomaly Score: {payload.anomaly_score:.4f}\n"
+            f"XAI: {payload.xai_summary}\n\n"
+            f"Dashboard: http://localhost:8081/email/{payload.email_id}"
+        )
+        msg = MIMEText(body)
+        msg["Subject"] = f"[{payload.severity}] LTI Anti-Phishing Alert — {payload.subject[:40]}"
+        msg["From"] = SMTP_USER
+        msg["To"] = SMTP_USER
+        try:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
+            logger.info("Email alert sent for %s", payload.email_id)
+        except Exception as e:
+            logger.warning("Email alert failed: %s", e)
+
+    async def send_all(self, payload: AlertPayload):
+        await asyncio.gather(
+            self.send_slack(payload),
+            self.send_telegram(payload),
+            self.send_email(payload),
+            return_exceptions=True,
+        )
+
+    async def close(self):
+        if self.session and not self.session.closed:
+            await self.session.close()
+
+
+alert_manager = AlertManager()
