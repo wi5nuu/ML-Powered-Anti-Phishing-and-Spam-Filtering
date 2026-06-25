@@ -1,16 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="stats-bar">
-    <div class="stat">Total: <strong>{{ total }}</strong></div>
-    <div class="stat">Dikarantina: <strong>{{ quarantine_count }}</strong></div>
-    <div class="stat">Peringatan: <strong>{{ warn_count }}</strong></div>
-    <div class="stat">Feedback FP: <strong>{{ feedback_count }}</strong></div>
+    <div class="stat stat-total">
+        <span class="stat-label">Total Diproses</span>
+        <strong>{{ total }}</strong>
+    </div>
+    <div class="stat stat-quarantine">
+        <span class="stat-label">Dikarantina</span>
+        <strong>{{ quarantine_count }}</strong>
+    </div>
+    <div class="stat stat-warn">
+        <span class="stat-label">Peringatan</span>
+        <strong>{{ warn_count }}</strong>
+    </div>
+    <div class="stat stat-clean">
+        <span class="stat-label">False Positive</span>
+        <strong>{{ feedback_count }}</strong>
+    </div>
 </div>
 
 <table class="email-table">
     <thead>
         <tr>
-            <th>Email ID</th>
+            <th>Subjek</th>
             <th>Label</th>
             <th>Deteksi</th>
             <th>Skor</th>
@@ -22,8 +34,12 @@
     </thead>
     <tbody>
         {% for email in emails %}
-        <tr class="row-{{ email.label.lower() }}">
-            <td><a href="/email/{{ email.email_id }}">{{ email.email_id[:16] }}...</a></td>
+        <tr class="row-{{ email.label.lower() }}" data-email-id="{{ email.email_id }}">
+            <td class="subject-cell">
+                <a href="/email/{{ email.email_id }}">{{ email.subject[:50] or email.email_id[:20] }}</a>
+                <br><button class="expand-btn" onclick="togglePreview('{{ email.email_id }}')">Preview</button>
+                <div class="email-preview" id="preview-{{ email.email_id }}">Loading...</div>
+            </td>
             <td><span class="badge badge-{{ email.label.lower() }}">{{ email.label }}</span></td>
             <td>
                 {% if email.anomaly_score and email.anomaly_score > 0 %}
@@ -35,7 +51,7 @@
             <td>{{ "%.3f"|format(email.fused_score) }}</td>
             <td>{{ "%.3f"|format(email.anomaly_score or 0) if email.anomaly_score is not none else "N/A" }}</td>
             <td>{{ email.status }}</td>
-            <td>{{ email.received_at[:19] }}</td>
+            <td>{{ email.received_at[:19] if email.received_at else "" }}</td>
             <td>
                 <form action="/email/{{ email.email_id }}/release" method="POST" style="display:inline">
                     <button type="submit" class="btn btn-success">Lepaskan</button>
@@ -48,4 +64,18 @@
         {% endfor %}
     </tbody>
 </table>
+
+<script>
+function togglePreview(emailId) {
+    const el = document.getElementById('preview-' + emailId);
+    if (el.classList.contains('show')) {
+        el.classList.remove('show');
+        return;
+    }
+    el.classList.add('show');
+    if (el.textContent === 'Loading...') {
+        el.textContent = 'Preview tidak tersedia. Klik subjek untuk detail lengkap.';
+    }
+}
+</script>
 {% endblock %}

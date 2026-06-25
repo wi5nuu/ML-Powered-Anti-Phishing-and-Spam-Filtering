@@ -3,27 +3,33 @@
 <h2>Panel Metrik</h2>
 
 <div class="stats-bar">
-    <div class="stat">Total Diproses: <strong>{{ total }}</strong></div>
-    <div class="stat">Dikarantina: <strong>{{ quarantine_count }}</strong></div>
-    <div class="stat">Peringatan: <strong>{{ warn_count }}</strong></div>
-    <div class="stat">Laporan False Positive: <strong>{{ feedback_count }}</strong></div>
+    <div class="stat stat-total">
+        <span class="stat-label">Total Diproses</span>
+        <strong>{{ total }}</strong>
+    </div>
+    <div class="stat stat-clean">
+        <span class="stat-label">Bersih</span>
+        <strong>{{ clean_count }}</strong>
+    </div>
+    <div class="stat stat-quarantine">
+        <span class="stat-label">Dikarantina</span>
+        <strong>{{ quarantine_count }}</strong>
+    </div>
+    <div class="stat stat-warn">
+        <span class="stat-label">Peringatan</span>
+        <strong>{{ warn_count }}</strong>
+    </div>
+    <div class="stat">
+        <span class="stat-label">False Positive</span>
+        <strong>{{ feedback_count }}</strong>
+    </div>
 </div>
-
-<h3>Top 10 Pengirim Terblokir</h3>
-<table class="email-table">
-    <thead><tr><th>Pengirim</th><th>Jumlah</th></tr></thead>
-    <tbody>
-        {% for sender, count in top_senders %}
-        <tr><td>{{ sender or "(tidak diketahui)" }}</td><td>{{ count }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
 
 <h3>Distribusi Label</h3>
 <div class="distribution">
     <div class="bar-container">
-        <div class="bar bar-clean" style="width:{{ ((total - quarantine_count - warn_count) / max(total,1) * 100) | round }}%">
-            {{ ((total - quarantine_count - warn_count) / max(total,1) * 100) | round }}% Clean
+        <div class="bar bar-clean" style="width:{{ (clean_count / max(total,1) * 100) | round }}%">
+            {{ (clean_count / max(total,1) * 100) | round }}% Clean
         </div>
         <div class="bar bar-warn" style="width:{{ (warn_count / max(total,1) * 100) | round }}%">
             {{ (warn_count / max(total,1) * 100) | round }}% WARN
@@ -33,4 +39,36 @@
         </div>
     </div>
 </div>
+
+{% if daily_stats %}
+<h3 style="margin-top:24px;">Tren Harian (14 Hari Terakhir)</h3>
+<div class="distribution">
+    <div class="daily-chart">
+        {% set max_daily = daily_stats|map(attribute=1)|max or 1 %}
+        {% for day, count, qcount in daily_stats %}
+        <div class="daily-bar">
+            <div class="bar-fill bar-quarantine" style="height:{{ (qcount or 0) / max_daily * 100 }}%"></div>
+            <div class="bar-fill bar-clean" style="height:{{ ((count - (qcount or 0)) / max_daily * 100) }}%"></div>
+            <span class="bar-label">{{ day[5:] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div style="margin-top:8px; font-size:0.8rem; color:var(--text-secondary);">
+        <span style="color:var(--danger);">■ Karantina</span>
+        <span style="color:var(--success);margin-left:12px;">■ Bersih / WARN</span>
+    </div>
+</div>
+{% endif %}
+
+<h3 style="margin-top:24px;">Top 10 Pengirim Terblokir</h3>
+<table class="email-table">
+    <thead><tr><th>Pengirim</th><th>Jumlah</th></tr></thead>
+    <tbody>
+        {% for sender, count in top_senders %}
+        <tr><td>{{ sender or "(tidak diketahui)" }}</td><td>{{ count }}</td></tr>
+        {% else %}
+        <tr><td colspan="2">Belum ada data.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}
