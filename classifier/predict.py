@@ -40,6 +40,8 @@ class ModelState:
     scaler = None
     explainer = None
     anomaly = None      # Unsupervised detector
+    tfidf_feature_names: list = []
+    all_feature_names: list = []
 
 state = ModelState()
 
@@ -59,7 +61,11 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("SHAP explainer init failed: %s", e)
             state.explainer = None
-        logger.info("Supervised (XGBoost) model loaded.")
+        # Cache feature names (jangan panggil get_feature_names_out() per-request)
+        state.tfidf_feature_names = state.tfidf.get_feature_names_out().tolist()
+        state.all_feature_names = state.tfidf_feature_names + STRUCTURED_FEATURES
+        logger.info("Supervised (XGBoost) model loaded. TF-IDF vocab: %d words",
+                     len(state.tfidf_feature_names))
     except FileNotFoundError as e:
         logger.critical("Supervised model tidak ditemukan: %s", e)
         raise
@@ -71,6 +77,23 @@ async def lifespan(app: FastAPI):
         logger.info("Unsupervised anomaly detectors loaded.")
     else:
         logger.warning("Unsupervised model tidak ada — jalankan train_unsupervised.py dulu.")
+
+    # Warmup: paksa lazy initialization (tldextract, langdetect, Sastrawi)
+    logger.info("Warming up lazy initializations...")
+    try:
+        import tldextract as _tld
+        _tld.TLDExtract()("http://lodaya.id")
+        from langdetect import detect as _detect
+        _detect("test")
+        from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+        StemmerFactory().create_stemmer().stem("testing")
+        import numpy as np
+        if state.explainer is not None:
+            _dummy = np.zeros((1, len(state.all_feature_names)), dtype=np.float32)
+            state.explainer.shap_values(_dummy)
+        logger.info("  Lazy init complete")
+    except Exception as e:
+        logger.warning("Warmup failed (non-critical): %s", e)
 
     yield
     logger.info("Classifier service shutdown.")
@@ -167,8 +190,8 @@ def _predict_supervised_internal(raw_email: str, email_id: str) -> PredictRespon
     else:
         shap_vals = None
 
-    tfidf_names = state.tfidf.get_feature_names_out().tolist()
-    all_names = tfidf_names + STRUCTURED_FEATURES
+    tfidf_names = state.tfidf_feature_names
+    all_names = state.all_feature_names
 
     if shap_vals is not None:
         contrib_pairs = list(zip(all_names, shap_vals))
@@ -249,7 +272,10 @@ async def predict(req: EmailPredictRequest):
     if state.model is None:
         raise HTTPException(503, "Model belum diload.")
     try:
-        return _predict_supervised_internal(req.raw_email, req.email_id)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, _predict_supervised_internal, req.raw_email, req.email_id
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -286,62 +312,6 @@ async def predict_dual(req: EmailPredictRequest):
         loop.run_in_executor(None, _predict_supervised_internal, req.raw_email, req.email_id),
         loop.run_in_executor(None, _predict_unsupervised_internal, req.raw_email, req.email_id),
     )
-    return DualPredictResponse(
-        email_id=supervised.email_id,
-        spam_probability=supervised.spam_probability,
-        anomaly_score=unsupervised.anomaly_score,
-        is_anomaly=unsupervised.is_anomaly,
-        label=supervised.label,
-        top_reasons=supervised.top_reasons,
-        xai_summary=supervised.xai_summary,
-    )
-
-    return PredictResponse(
-        email_id=req.email_id or parsed.raw_id,
-        spam_probability=round(prob, 4),
-        is_spam=label in ("QUARANTINE", "WARN"),
-        label=label,
-        top_reasons=reasons,
-        xai_summary=xai_summary,
-    )
-
-
-# ─── Endpoint: Unsupervised ───────────────────────────────────────────────────
-
-@app.post("/predict-unsupervised", response_model=UnsupervisedPredictResponse)
-async def predict_unsupervised(req: EmailPredictRequest):
-    """Layer 2 — Unsupervised anomaly detection (Isolation Forest + One-Class SVM).
-
-    Tidak butuh data spam — hanya deteksi penyimpangan dari pola email normal.
-    """
-    if state.anomaly is None or not state.anomaly.is_fitted:
-        raise HTTPException(503, "Unsupervised model belum diload / belum di-train.")
-
-    try:
-        result = state.anomaly.predict(req.raw_email)
-    except Exception as e:
-        logger.error("Anomaly detection error: %s", e)
-        raise HTTPException(500, f"Anomaly detection error: {e}")
-
-    return UnsupervisedPredictResponse(
-        email_id=req.email_id or "unknown",
-        anomaly_score=result.anomaly_score,
-        is_anomaly=result.is_anomaly,
-        anomaly_type=result.anomaly_type,
-    )
-
-
-# ─── Endpoint: Dual Layer ─────────────────────────────────────────────────────
-
-@app.post("/predict-dual", response_model=DualPredictResponse)
-async def predict_dual(req: EmailPredictRequest):
-    """Dual-layer prediction: Supervised (XGBoost) + Unsupervised (IForest/OCSVM).
-
-    Untuk worker pipeline — mendapatkan kedua skor dalam satu panggilan.
-    """
-    supervised = await predict(req)
-    unsupervised = await predict_unsupervised(req)
-
     return DualPredictResponse(
         email_id=supervised.email_id,
         spam_probability=supervised.spam_probability,

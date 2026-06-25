@@ -33,8 +33,10 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = Path("classifier/models")
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-# Fitur yang dipakai untuk unsupervised (sama dengan supervised, tanpa TF-IDF)
-UNSUPERVISED_FEATURES = STRUCTURED_FEATURES  # 20 fitur
+# Fitur yang dipakai untuk unsupervised (subset dari STRUCTURED_FEATURES, tanpa TF-IDF)
+# Gunakan 20 fitur asli (exclude 8 business context features)
+ORIGINAL_FEATURES = STRUCTURED_FEATURES[:20]
+UNSUPERVISED_FEATURES = ORIGINAL_FEATURES  # 20 fitur
 
 # Kolom boolean yang perlu dikonversi float (untuk StandardScaler)
 BOOL_FEATURES = [
