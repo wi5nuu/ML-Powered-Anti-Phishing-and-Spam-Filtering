@@ -1,0 +1,22 @@
+# LTI Anti-Phishing — Caddy HTTPS reverse proxy
+dashboard.localhost {
+    reverse_proxy dashboard:8080
+}
+
+grafana.localhost {
+    reverse_proxy grafana:3000
+}
+
+prometheus.localhost {
+    reverse_proxy prometheus:9090
+}
+
+mailpit.localhost {
+    reverse_proxy mailpit:8025
+}
+
+# Production — uncomment and replace with your domain
+# dashboard.lti-antiphishing.com {
+#     reverse_proxy dashboard:8080
+#     tls your@email.com
+# }

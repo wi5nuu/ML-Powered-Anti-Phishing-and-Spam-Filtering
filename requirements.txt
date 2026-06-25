@@ -42,7 +42,7 @@ joblib>=1.4.0
 orjson>=3.9.0
 
 # Explainability
-shap>=0.45.0
+shap==0.44.1
 
 # Monitoring
 prometheus-fastapi-instrumentator>=6.1.0
@@ -52,3 +52,34 @@ spampy>=0.1.0
 
 # Logging
 structlog>=24.1.0
+
+# WebSocket
+websockets>=12.0
+
+# JWT Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+
+# Reporting
+weasyprint>=60.0
+wordcloud>=1.9.3
+networkx>=3.2.0
+matplotlib>=3.8.0
+
+# Rate Limiting
+slowapi>=0.1.9
+
+# A/B Testing & Drift
+scipy>=1.12.0
+evidently>=0.4.0
+
+# Threat Intelligence
+aiohttp>=3.9.0
+
+# Async PostgreSQL (production)
+asyncpg>=0.29.0
+sqlalchemy[asyncio]>=2.0.0
+
+# Load Testing
+locust>=2.24.0

@@ -1,0 +1,60 @@
+{
+  "title": "LTI Anti-Phishing — Real-Time Monitoring",
+  "version": 1,
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Email Throughput",
+      "type": "graph",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(classifier_predictions_total[1m])", "legendFormat": "predictions/s"}
+      ]
+    },
+    {
+      "title": "Label Distribution",
+      "type": "piechart",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "classifier_predictions_total{label='QUARANTINE'}", "legendFormat": "QUARANTINE"},
+        {"expr": "classifier_predictions_total{label='WARN'}", "legendFormat": "WARN"},
+        {"expr": "classifier_predictions_total{label='CLEAN'}", "legendFormat": "CLEAN"}
+      ]
+    },
+    {
+      "title": "Prediction Latency (p95)",
+      "type": "graph",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "classifier_prediction_duration_seconds{quantile='0.95'}", "legendFormat": "p95"}
+      ]
+    },
+    {
+      "title": "Anomaly Scores Over Time",
+      "type": "graph",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "avg(anomaly_score)", "legendFormat": "avg anomaly"},
+        {"expr": "max(anomaly_score)", "legendFormat": "max anomaly"}
+      ]
+    },
+    {
+      "title": "Service Health",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 16, "w": 8, "h": 6},
+      "targets": [
+        {"expr": "up{job='classifier'}", "legendFormat": "Classifier"},
+        {"expr": "up{job='worker'}", "legendFormat": "Worker"},
+        {"expr": "up{job='dashboard'}", "legendFormat": "Dashboard"}
+      ]
+    },
+    {
+      "title": "Top Features (SHAP Importance)",
+      "type": "bargauge",
+      "gridPos": {"x": 8, "y": 16, "w": 16, "h": 6},
+      "targets": [
+        {"expr": "topk(10, shap_importance_sum)", "legendFormat": "{{feature}}"}
+      ]
+    }
+  ]
+}

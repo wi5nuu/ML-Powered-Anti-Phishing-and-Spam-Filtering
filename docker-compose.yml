@@ -25,9 +25,9 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "1025:1025"  # SMTP untuk terima email
-      - "1143:1143"  # IMAP untuk fetcher
-      - "8025:8025"  # Web UI untuk melihat email
+      - "1025:1025"
+      - "1143:1143"
+      - "8025:8025"
     environment:
       MP_IMAP_AUTH_ALLOW_INSECURE: "true"
 
@@ -55,6 +55,11 @@ services:
     env_file: .env
     depends_on:
       redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   worker:
     build:
@@ -76,13 +81,66 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:latest
     ports: ["9090:9090"]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    volumes:
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_SECURITY_ADMIN_USER: ${ADMIN_USERNAME:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+    depends_on:
+      - prometheus
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./monitoring/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - dashboard
+      - grafana
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    ports: ["9100:9100"]
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
 
 volumes:
   pgdata:
   sa_rules:
+  prometheus_data:
+  grafana_data:
+  caddy_data:
