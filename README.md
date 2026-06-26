@@ -63,12 +63,15 @@ Dual-layer ML-powered anti-phishing and spam filtering for **Lodaya Technologies
 
 | Item | Detail |
 |---|---|
-| Model | XGBoost, 500 trees, GPU CUDA 12.9 |
-| Training data | 105,000 emails (Enron + synthetic + BEC + casual ham) |
-| Features | 28 structured + 50,000 TF-IDF tokens |
-| Accuracy | 100% (test set) |
-| False Positive Rate | 0.19% |
-| Latency | ~16ms/prediction (warm), ~2.5s cold start |
+| Model | XGBoost (n_estimators=300, max_depth=6, lr=0.05) |
+| Training data | 1,906 training emails / 337 test emails |
+| Features | 20 structured + TF-IDF (vocab: 46,577 terms) |
+| **ROC-AUC (CV)** | **0.9891** |
+| **ROC-AUC (Test)** | **0.9938** |
+| **Avg Precision** | **0.9936** |
+| **False Positive Rate** | **4.76%** |
+| **False Negative Rate** | **4.73%** |
+| Accuracy | **95.25%** (337 test samples) |
 
 **Structured features (28):**
 
@@ -168,20 +171,23 @@ See `docs/production-deployment.md` for full production guide.
 
 | Component | Technology |
 |---|---|
-| ML Framework | XGBoost (GPU), scikit-learn (Isolation Forest, OCSVM) |
-| Text Vectorization | TF-IDF (50k features) |
-| Inference API | FastAPI (port 8006) |
+| ML Framework | XGBoost, scikit-learn (Isolation Forest, OCSVM) |
+| Text Vectorization | TF-IDF (vocab: 46,577 terms) |
+| Inference API | FastAPI (port 8001) |
 | Task Queue | Redis (async, `email_pipeline` list) |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | SMTP Receiver | aiosmtpd (port 25) |
 | Email Forwarder | aiosmtplib (TLS to Gmail/Outlook) |
-| Dashboard | FastAPI + Jinja2 (port 8082) |
-| Auth | JWT (HS256), bcrypt, RBAC |
+| **Dashboard Backend** | **FastAPI v3.0 (port 8081)** |
+| **Dashboard Frontend** | **Vite + React 18 (port 5173 dev)** |
+| **UI Style** | **CSS Modules, Gmail-inspired design** |
+| Auth | JWT (HS256), bcrypt, RBAC (4 roles) |
 | Realtime | WebSocket + Redis Pub/Sub |
 | Explainability | SHAP TreeExplainer |
 | Rule Engine | Apache SpamAssassin |
+| **Domain Heuristics** | **Levenshtein + Jaro-Winkler + Homograph** |
 | Monitoring | Prometheus + Grafana |
-| Reverse Proxy | Caddy (auto TLS) |
+| Reverse Proxy | Nginx (SSL/TLS via Certbot) |
 | Containerization | Docker Compose |
 
 ---
@@ -205,27 +211,36 @@ lti-antiphishing/
 │   ├── smtp_receiver.py     # SMTP server (port 25)
 │   ├── email_forwarder.py   # Forward to Gmail/Outlook
 │   └── notifier.py          # Slack/Telegram/Email alerts
-├── dashboard/               # Web UI
-│   ├── app.py               # FastAPI (port 8082)
-│   ├── auth.py              # JWT + RBAC
+├── analysis/                # Heuristic domain analysis
+│   └── domain_checker.py    # Levenshtein/Jaro-Winkler/Homograph/DNS age
+├── dashboard/               # Web application
+│   ├── app.py               # FastAPI backend (port 8081, 18 endpoints)
+│   ├── auth.py              # JWT + RBAC (4 roles)
 │   ├── database.py          # DB session
-│   ├── templates/           # Jinja2 (quarantine, detail, metrics, docs)
-│   └── static/              # CSS
+│   └── frontend/            # Vite + React 18 SPA
+│       └── src/
+│           ├── pages/       # InboxPage, AnalyzerPage, SettingsPage, AuditPage
+│           ├── components/  # GmailShell, EmailList, CategoryTabs, StatsRibbon
+│           └── api/         # React Query hooks (auth, emails, metrics, analyzer)
 ├── database/                # Data layer
-│   └── models.py            # 7 SQLAlchemy tables
+│   └── models.py            # 9 SQLAlchemy tables (incl. model_versions, audit_trail)
 ├── scripts/                 # 30+ utility scripts
-│   ├── add_casual_ham.py    # 5k casual ham generator
+│   ├── add_casual_ham.py
 │   ├── convert_enron_to_eml.py
-│   ├── generate_extended.py # 74k BEC/extended emails
-│   ├── build_merged_metadata.py
-│   ├── extract_100k.py      # Feature extraction pipeline
+│   ├── generate_extended.py
 │   └── ...
 ├── docs/                    # Documentation
+│   ├── user_manual.md       # ★ Full user guide (11 sections)
+│   ├── API_REFERENCE.md     # ★ All 18 endpoints with examples
+│   ├── ML_MODEL_REPORT.md   # ★ Model metrics & SHAP analysis
+│   ├── DEPLOYMENT_GUIDE.md  # ★ Production deployment guide
 │   ├── system-documentation.md
-│   └── production-deployment.md
-├── monitoring/              # Prometheus + Grafana + Caddy + alerts
-├── docker/                  # Dockerfiles
-└── tests/                   # Unit tests
+│   └── evidence/            # Evaluation plots, confusion matrix, HTML report
+├── monitoring/              # Prometheus + Grafana + alerts
+├── tests/                   # Unit tests + fixtures
+│   ├── fixtures/            # ★ sample_spam.eml, sample_phishing.eml, etc.
+│   └── test_domain_checker.py  # ★ DomainChecker unit tests
+└── docker/                  # Dockerfiles
 ```
 
 ---

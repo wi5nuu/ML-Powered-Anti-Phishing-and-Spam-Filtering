@@ -1,0 +1,56 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from './client'
+
+export const useProfile = () =>
+  useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const { data } = await api.get('/auth/profile')
+      return data
+    },
+    retry: false,
+    staleTime: 60000,
+  })
+
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: ({ current_password, new_password }) =>
+      api.post('/auth/change-password', { current_password, new_password }),
+  })
+
+export const useApiKeys = () =>
+  useQuery({
+    queryKey: ['api-keys'],
+    queryFn: async () => {
+      const { data } = await api.get('/auth/api-keys')
+      return data
+    },
+    staleTime: 30000,
+  })
+
+export const useCreateApiKey = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, rate_limit }) =>
+      api.post('/auth/api-keys', { name, rate_limit }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  })
+}
+
+export const useDeleteApiKey = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (keyId) => api.delete(`/auth/api-keys/${keyId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  })
+}
+
+export const useActivity = () =>
+  useQuery({
+    queryKey: ['activity'],
+    queryFn: async () => {
+      const { data } = await api.get('/auth/activity')
+      return data
+    },
+    staleTime: 30000,
+  })

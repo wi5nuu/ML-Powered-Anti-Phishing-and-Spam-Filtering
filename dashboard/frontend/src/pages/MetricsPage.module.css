@@ -1,0 +1,328 @@
+.wrap {
+  padding: 24px;
+  font-family: 'Google Sans', Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--bg);
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+}
+
+/* Header */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--gmail-blue);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  width: max-content;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.1s;
+}
+.backBtn:hover {
+  background-color: var(--border-light);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.liveBadge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--border-light);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.cardTotal { border-left: 4px solid var(--text-muted); }
+.cardQuarantine { border-left: 4px solid var(--gmail-red); }
+.cardWarn { border-left: 4px solid var(--gmail-yellow); }
+.cardClean { border-left: 4px solid var(--gmail-green); }
+.cardFeedback { border-left: 4px solid var(--gmail-blue); }
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+.cardHeader h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.cardIcon {
+  color: var(--text-muted);
+}
+
+.value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.subtext {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Section Cards */
+.sectionCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Distribution Bar */
+.barContainer {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--border-light);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: width 0.3s ease;
+}
+
+.barClean { background-color: var(--gmail-green); }
+.barWarn { background-color: var(--gmail-yellow); color: #3c4043; text-shadow: none; }
+.barQuarantine { background-color: var(--gmail-red); }
+
+.legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.dotClean { color: var(--gmail-green); margin-right: 4px; }
+.dotWarn { color: var(--gmail-yellow); margin-right: 4px; }
+.dotQuarantine { color: var(--gmail-red); margin-right: 4px; }
+
+/* Daily Trend Chart */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 160px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 40px;
+  cursor: pointer;
+}
+
+.chartBars {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 24px;
+  height: 120px;
+  gap: 2px;
+}
+
+.chartFill {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease;
+}
+
+.chartClean { background-color: var(--gmail-green); }
+.chartQuarantine { background-color: var(--gmail-red); }
+
+.chartLabel {
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.chartLegend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Senders and Summary Layout */
+.rowLayout {
+  display: flex;
+  gap: 24px;
+}
+
+.sendersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.senderRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.senderAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gmail-red);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.senderName {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.senderBadge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--border-light);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+/* Summary Card */
+.summaryCard {
+  width: 350px;
+  flex-shrink: 0;
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.875rem;
+}
+.summaryRow span {
+  color: var(--text-muted);
+}
+
+.dualBadge {
+  background: var(--border-light);
+  color: var(--gmail-blue);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.inboxBtn {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--gmail-blue);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+.inboxBtn:hover {
+  background-color: #1557b0;
+}
+
+@media (max-width: 768px) {
+  .rowLayout {
+    flex-direction: column;
+  }
+  .summaryCard {
+    width: 100%;
+  }
+}

@@ -1,0 +1,20 @@
+From: "Cloud Services Invoice" <billing@external-provider-services.com>
+To: accounting@lodaya.id
+Subject: INVOICE INV-2026-8876: Payment Due Notice
+Date: Fri, 26 Jun 2026 10:10:00 +0700
+Message-ID: <invoice-8876@external-provider-services.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+    <p>Hello LTI Accounting,</p>
+    <p>This is a friendly reminder that invoice INV-2026-8876 for your monthly cloud subscription is now ready. The total amount due is $450.00 USD, payable by July 5, 2026.</p>
+    <p>You can review and download the detailed invoice PDF by accessing our client billing portal below:</p>
+    <p><a href="http://external-provider-services.com/billing/portal/invoices/8876">View Cloud Invoice Online</a></p>
+    <p>Note: Please ensure payment is processed on time to avoid temporary service suspension.</p>
+    <br/>
+    <p>Best regards,</p>
+    <p>Billing & Finance Department</p>
+</body>
+</html>

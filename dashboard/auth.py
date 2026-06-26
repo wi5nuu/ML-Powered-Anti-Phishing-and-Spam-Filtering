@@ -5,6 +5,9 @@ Authentication & Authorization module — JWT-based with RBAC.
 import os
 import logging
 import secrets
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -20,7 +23,11 @@ logger = logging.getLogger(__name__)
 _sk = os.getenv("DASHBOARD_SECRET_KEY")
 if not _sk:
     _sk = secrets.token_hex(32)
-    logger.warning("DASHBOARD_SECRET_KEY not set. Generated ephemeral key.")
+    logger.warning("=" * 60)
+    logger.warning("DASHBOARD_SECRET_KEY tidak disetel! Menggunakan kunci sementara.")
+    logger.warning("Set DASHBOARD_SECRET_KEY di .env agar sesi tetap valid")
+    logger.warning("setelah server restart. Contoh: DASHBOARD_SECRET_KEY=my-secure-key-123")
+    logger.warning("=" * 60)
 SECRET_KEY = _sk
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
@@ -66,7 +73,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 def require_role(role: UserRole):
     def checker(user: User = None):
-        if user.role not in (role.value, UserRole.ADMIN.value):
+        if user.role not in (role.value, UserRole.SUPERADMIN.value):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
     return checker

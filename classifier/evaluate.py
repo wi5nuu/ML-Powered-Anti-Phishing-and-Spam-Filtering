@@ -113,6 +113,191 @@ def evaluate(test_path: str, model_name: str = "latest"):
         json.dump(metrics, f, indent=2)
     logger.info("Metrics saved to %s", metrics_path)
 
+    # ─── Generate HTML report ────────────────────────────────────────────────────────
+    from datetime import datetime
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>LTI Anti-Phishing ML Model Evaluation Report</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+        }}
+        .container {{
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }}
+        h1 {{
+            color: #1a73e8;
+            border-bottom: 2px solid #eef2f6;
+            padding-bottom: 12px;
+            margin-top: 0;
+        }}
+        h2 {{
+            color: #3c4043;
+            margin-top: 30px;
+            border-left: 4px solid #34a853;
+            padding-left: 10px;
+        }}
+        .meta-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+        }}
+        .meta-item b {{
+            color: #5f6368;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }}
+        .meta-item span {{
+            font-size: 1.1rem;
+            font-weight: 600;
+        }}
+        .metrics-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }}
+        .card {{
+            background: #fff;
+            border: 1px solid #dadce0;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }}
+        .card.primary {{
+            border-top: 4px solid #1a73e8;
+        }}
+        .card.success {{
+            border-top: 4px solid #34a853;
+        }}
+        .card.warning {{
+            border-top: 4px solid #f29900;
+        }}
+        .card.danger {{
+            border-top: 4px solid #ea4335;
+        }}
+        .card-val {{
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #202124;
+            margin: 8px 0;
+        }}
+        .card-label {{
+            font-size: 0.85rem;
+            color: #70757a;
+            text-transform: uppercase;
+        }}
+        .report-block {{
+            background: #202124;
+            color: #f1f3f4;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }}
+        .image-container {{
+            text-align: center;
+            margin: 30px 0;
+        }}
+        .image-container img {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .footer {{
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #70757a;
+            border-top: 1px solid #eef2f6;
+            padding-top: 20px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Laporan Evaluasi Model ML Anti-Phishing LTI</h1>
+        
+        <div class="meta-grid">
+            <div class="meta-item">
+                <b>Dataset Pengujian</b>
+                <span>{test_path}</span>
+            </div>
+            <div class="meta-item">
+                <b>Jumlah Sampel</b>
+                <span>{len(df):,}</span>
+            </div>
+            <div class="meta-item">
+                <b>Model Version</b>
+                <span>{model_name}</span>
+            </div>
+            <div class="meta-item">
+                <b>Waktu Evaluasi</b>
+                <span>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+            </div>
+        </div>
+
+        <h2>Metrik Utama</h2>
+        <div class="metrics-grid">
+            <div class="card primary">
+                <div class="card-label">ROC-AUC Score</div>
+                <div class="card-val">{roc_auc:.4f}</div>
+            </div>
+            <div class="card success">
+                <div class="card-label">Average Precision</div>
+                <div class="card-val">{avg_prec:.4f}</div>
+            </div>
+            <div class="card danger">
+                <div class="card-label">False Positive Rate</div>
+                <div class="card-val">{fpr:.2f}%</div>
+            </div>
+            <div class="card warning">
+                <div class="card-label">False Negative Rate</div>
+                <div class="card-val">{fnr:.2f}%</div>
+            </div>
+        </div>
+
+        <h2>Classification Report</h2>
+        <div class="report-block">{report_str}</div>
+
+        <h2>Visualisasi Kinerja</h2>
+        <div class="image-container">
+            <h3>Confusion Matrix, ROC, & Precision-Recall</h3>
+            <img src="evaluation_plots.png" alt="Evaluation Plots">
+        </div>
+
+        <div class="footer">
+            Sistem Deteksi Anti-Phishing & Spam LTI &bull; Final Project President University (Section 5.4)
+        </div>
+    </div>
+</body>
+</html>
+"""
+    html_path = EVAL_DIR / "evaluation_report.html"
+    with open(html_path, "w") as f:
+        f.write(html_content)
+    logger.info("HTML evaluation report saved to %s", html_path)
+
     return metrics
 
 

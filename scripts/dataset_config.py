@@ -35,27 +35,49 @@ def get_training_csv_path(dataset_name: str = None) -> Path:
     return ROOT / "data" / "processed" / f"train_{name}.csv"
 
 
-# ─── Label mapping ─────────────────────────────────────────────────
+# ─── 7 Category labels ─────────────────────────────────────────────
+# Transaction, Customer Service, Internal Document, B2B, Spam, Phishing, Malware
+CATEGORIES = [
+    "transaction",
+    "customer_service",
+    "internal_document",
+    "b2b",
+    "spam",
+    "phishing",
+    "malware",
+]
+
+CATEGORY_LABELS = {
+    "transaction": 0,
+    "customer_service": 0,
+    "internal_document": 0,
+    "b2b": 0,
+    "spam": 1,
+    "phishing": 1,
+    "malware": 1,
+}
+
 FOLDER_LABELS = {
     # Dataset 1
-    "chris": ("ham", "transaksi_cs"),
-    "ilham": ("ham", "internal_b2b"),
+    "chris": ("ham", "b2b"),
+    "ilham": ("ham", "internal_document"),
     "brian": ("spam", "spam"),
     "wisnu": ("phishing", "phishing"),
     "risly": ("malware", "malware"),
     # Extended
     "transaksi": ("ham", "transaction"),
     "cs": ("ham", "customer_service"),
-    "internal": ("ham", "internal_b2b"),
+    "internal": ("ham", "internal_document"),
+    "casual_ham": ("ham", "internal_document"),
     "spam": ("spam", "spam"),
     "phishing": ("phishing", "phishing"),
     "malware": ("malware", "malware"),
-    "bec": ("phishing", "bec"),
+    "bec": ("phishing", "phishing"),
     # Enron
-    "enron1_ham": ("ham", "enron_ham"),
-    "enron1_spam": ("spam", "enron_spam"),
-    "enron2_ham": ("ham", "enron_ham"),
-    "enron2_spam": ("spam", "enron_spam"),
+    "enron1_ham": ("ham", "internal_document"),
+    "enron1_spam": ("spam", "spam"),
+    "enron2_ham": ("ham", "b2b"),
+    "enron2_spam": ("spam", "spam"),
 }
 
 FOLDER_NAMES = list(FOLDER_LABELS.keys())
