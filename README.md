@@ -57,6 +57,249 @@ Dual-layer ML-powered anti-phishing and spam filtering for **Lodaya Technologies
 
 ---
 
+## Architecture Diagrams
+
+### Workflow Diagram
+
+End-to-end email processing from internet ingress through scoring, fusion, routing, and delivery.
+
+```mermaid
+flowchart TD
+    subgraph Ingress["Ingress"]
+        A[Internet Sender] --> B[DNS MX: mail.lodaya.id]
+        B --> C[SMTP Receiver<br/>worker/smtp_receiver :25]
+    end
+
+    C --> D[(Redis Queue<br/>email_pipeline)]
+
+    subgraph Worker["Pipeline Worker"]
+        D --> E[Dequeue Email]
+        E --> F{Parallel Scoring}
+        F --> G[SpamAssassin<br/>Layer 3 — Rules]
+        F --> H[Classifier API<br/>Layer 1 XGBoost + Layer 2 Anomaly]
+        G --> I[Decision Engine<br/>3-Way Fusion]
+        H --> I
+        I --> J{Label?}
+    end
+
+    J -->|CLEAN| K[Email Forwarder]
+    J -->|WARN| L[Inject X-Spam-Reason Header]
+    L --> K
+    J -->|QUARANTINE| M[Hold — No Forward]
+
+    K --> N[Gmail / Outlook Inbox]
+    L --> O[(Database<br/>QuarantineEmail)]
+    M --> O
+
+    O --> P[Redis Pub/Sub<br/>email:processed]
+    P --> Q[Dashboard WebSocket<br/>Live Feed]
+
+    M --> R[AlertManager]
+    R --> S[Slack / Telegram / Email]
+
+    style J fill:#f9f,stroke:#333
+    style I fill:#bbf,stroke:#333
+    style M fill:#fbb,stroke:#333
+    style K fill:#bfb,stroke:#333
+```
+
+### Sequence Diagram
+
+Component interactions for a single inbound email through the production pipeline.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Sender as External Sender
+    participant SMTP as SMTP Receiver
+    participant Redis as Redis Queue
+    participant Worker as Pipeline Worker
+    participant SA as SpamAssassin
+    participant API as Classifier API
+    participant DE as Decision Engine
+    participant DB as PostgreSQL / SQLite
+    participant FWD as Email Forwarder
+    participant Inbox as Gmail / Outlook
+    participant Alert as AlertManager
+    participant Dash as Dashboard (WebSocket)
+
+    Sender->>SMTP: SMTP DATA (raw .eml)
+    SMTP->>SMTP: Hash email_id (SHA-256)
+    SMTP->>Redis: RPUSH email_pipeline
+    SMTP-->>Sender: 250 OK: Queued
+
+    Worker->>Redis: BLPOP email_pipeline
+    Redis-->>Worker: payload {email_id, raw_email}
+
+    par Parallel scoring
+        Worker->>SA: SYMBOLS spamc protocol
+        SA-->>Worker: sa_score
+    and
+        Worker->>API: POST /predict-dual
+        API->>API: Parse + extract 28 features
+        API->>API: XGBoost + IForest/OCSVM
+        API-->>Worker: spam_probability, anomaly_score, SHAP/XAI
+    end
+
+    Worker->>DE: fuse(sa, ml, anomaly, SPF/DKIM/DMARC)
+    DE-->>Worker: FusionResult (label, fused_score)
+
+    alt WARN or QUARANTINE
+        Worker->>DB: INSERT QuarantineEmail
+    end
+
+    Worker->>Redis: PUBLISH email:processed
+    Redis-->>Dash: Real-time event
+
+    alt QUARANTINE
+        Worker->>Alert: send_all(CRITICAL/HIGH)
+        Alert-->>Alert: Slack / Telegram / Email
+    else CLEAN or WARN
+        Worker->>FWD: forward_email (if FORWARDER_SMTP_HOST set)
+        FWD->>Inbox: Deliver to real inbox
+    end
+```
+
+### Class Diagram
+
+Core domain models, ML pipeline classes, and decision-engine types.
+
+```mermaid
+classDiagram
+    direction TB
+
+  %% ── Feature extraction ──
+    class EmailParser {
+        +parse(raw_email: str) ParsedEmail
+    }
+    class FeatureExtractor {
+        +extract(parsed: ParsedEmail) EmailFeatures
+    }
+    class ParsedEmail {
+        +sender: str
+        +subject: str
+        +body_text: str
+        +urls: list
+        +attachments: list
+    }
+    class EmailFeatures {
+        +structured: dict
+        +tfidf_vector: sparse
+    }
+    EmailParser --> ParsedEmail
+    FeatureExtractor --> EmailFeatures
+    EmailParser <.. FeatureExtractor
+
+  %% ── Classifier service ──
+    class ModelState {
+        +model: XGBClassifier
+        +tfidf: TfidfVectorizer
+        +scaler: StandardScaler
+        +explainer: TreeExplainer
+        +anomaly: AnomalyDetector
+    }
+    class AnomalyDetector {
+        +iforest: IsolationForest
+        +ocsvm: OneClassSVM
+        +load() void
+        +predict(features) AnomalyResult
+    }
+    class AnomalyResult {
+        +anomaly_score: float
+        +is_anomaly: bool
+        +anomaly_type: str
+    }
+    ModelState --> AnomalyDetector
+    AnomalyDetector --> AnomalyResult
+    FeatureExtractor ..> ModelState : feeds features
+
+  %% ── Decision engine ──
+    class FusionResult {
+        +sa_score: float
+        +ml_probability: float
+        +anomaly_score: float
+        +fused_score: float
+        +label: str
+        +routing_reason: str
+    }
+    class fuse {
+        <<function>>
+        +fuse(sa, ml, anomaly, auth) FusionResult
+    }
+    class RoutingDecision {
+        +action: str
+        +message: str
+    }
+    class route {
+        <<function>>
+        +route(fusion, features) RoutingDecision
+    }
+    fuse --> FusionResult
+    route --> RoutingDecision
+    route ..> FusionResult
+
+  %% ── Worker & alerts ──
+    class EmailReceiverHandler {
+        +handle_DATA(envelope) str
+    }
+    class AlertPayload {
+        +email_id: str
+        +fused_score: float
+        +severity: str
+        +xai_summary: str
+    }
+    class AlertManager {
+        +send_all(payload) void
+    }
+    AlertManager --> AlertPayload
+
+  %% ── Database models ──
+    class Organization {
+        +id: int
+        +name: str
+        +config: JSON
+    }
+    class User {
+        +id: int
+        +username: str
+        +role: UserRole
+        +organization_id: FK
+    }
+    class QuarantineEmail {
+        +email_id: str
+        +label: str
+        +fused_score: float
+        +ml_probability: float
+        +anomaly_score: float
+        +shap_json: Text
+        +status: EmailStatus
+    }
+    class PipelineMetrics {
+        +date: str
+        +total_processed: int
+        +total_quarantine: int
+        +avg_latency_ms: float
+    }
+    class AuditLog {
+        +user: str
+        +action: str
+        +email_id: str
+    }
+    class ModelVersion {
+        +version: str
+        +model_type: str
+        +metrics: JSON
+        +is_active: bool
+    }
+
+    Organization "1" --> "*" User
+    Organization "1" --> "*" QuarantineEmail
+    User --> AuditLog : performs actions
+    QuarantineEmail ..> FusionResult : stores scores
+```
+
+---
+
 ## Detection Layers
 
 ### Layer 1 — Supervised (XGBoost + TF-IDF)
