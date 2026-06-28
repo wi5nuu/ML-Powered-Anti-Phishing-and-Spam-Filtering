@@ -1,0 +1,395 @@
+{
+  "report_type": "LTI Anti-Phishing Sprint Evidence",
+  "generated_at_utc": "2026-06-28T16:55:37.350877+00:00",
+  "generated_by": "scripts/generate_sprint_evidence.py",
+  "repository": {
+    "commit": "94fe1e9bfd528991a5a5ee7c752a1c2f20f1483f",
+    "branch": "master",
+    "remote": "https://github.com/wi5nuu/ML-Powered-Anti-Phishing-and-Spam-Filtering.git",
+    "commit_count": "22",
+    "last_commit_message": "docs: add workflow, sequence, and class diagrams to README",
+    "last_commit_date": "2026-06-28 23:31:16 +0700"
+  },
+  "sprint_summary": {
+    "completed_tasks": "39 of 40+ planned",
+    "velocity_note": "High throughput across ML, infra, dan security"
+  },
+  "completed_milestones": {
+    "dual_layer_ml_training": {
+      "status": "DONE",
+      "supervised_roc_auc_test_set": 0.9938,
+      "supervised_roc_auc_source": "docs/ML_MODEL_REPORT.md (337-sample holdout)",
+      "latest_training_run": {
+        "timestamp": "20260626_114719",
+        "dataset": "data/processed/train_100k.csv",
+        "train_size": 89250,
+        "test_size": 15750,
+        "test_roc_auc": 0.999986541921889,
+        "metadata_file": "classifier\\models\\metadata__latest_20260626_114719.json"
+      },
+      "anomaly_detection": {
+        "isolation_forest": true,
+        "one_class_svm": true,
+        "features": 20
+      },
+      "model_artifacts": [
+        {
+          "name": "xgb_model_latest.joblib",
+          "size_bytes": 894591,
+          "sha256": "044a5ea8daf2273aedef65c46170dfc7dca4984e1409608a2f85240a9a353f0d",
+          "modified_utc": "2026-06-26T04:47:19.356291+00:00"
+        },
+        {
+          "name": "tfidf_latest.joblib",
+          "size_bytes": 1993691,
+          "sha256": "b94ce1e061748120cf64932a756b4a59533eaf6c151f368c10d51304bfacf0aa",
+          "modified_utc": "2026-06-26T04:47:19.842872+00:00"
+        },
+        {
+          "name": "scaler_latest.joblib",
+          "size_bytes": 1687,
+          "sha256": "5db8bcb65f6f7a0a68b737a6581bc203aeea495d734dc20ca5c59433e5ab543a",
+          "modified_utc": "2026-06-26T04:47:19.855448+00:00"
+        },
+        {
+          "name": "isolation_forest_latest.joblib",
+          "size_bytes": 3816825,
+          "sha256": "78370364c74ee2befb170782dc83150e49d14643e4a75ca6df7e1fd8eb7406de",
+          "modified_utc": "2026-06-22T13:25:41.662057+00:00"
+        },
+        {
+          "name": "one_class_svm_latest.joblib",
+          "size_bytes": 14799,
+          "sha256": "86973ef53f70e75759ebf275b1fa3347e39c864235be10b5ed6322fadf562570",
+          "modified_utc": "2026-06-22T13:25:41.664293+00:00"
+        },
+        {
+          "name": "unsupervised_metadata_from_ham.json",
+          "size_bytes": 699,
+          "sha256": "cf640c98044a1a2e5ec510a3d7a85136aa8a0e48b59fee64d9b4030a802472a0",
+          "modified_utc": "2026-06-22T13:25:41.664293+00:00"
+        }
+      ]
+    },
+    "dashboard_quarantine_ui": {
+      "status": "DONE",
+      "backend": "FastAPI",
+      "backend_file": "dashboard\\app.py",
+      "frontend": "React 18 + Vite SPA",
+      "frontend_pages": 16,
+      "note": "Bukan Jinja2 — UI menggunakan React SPA (dashboard/frontend/)",
+      "shap_references_in_predict_py": 17
+    },
+    "docker_compose": {
+      "status": "DONE",
+      "service_count": 11,
+      "services": [
+        "redis",
+        "spamassassin",
+        "mailpit",
+        "postgres",
+        "classifier",
+        "worker",
+        "dashboard",
+        "prometheus",
+        "grafana",
+        "caddy",
+        "node_exporter"
+      ],
+      "note": "12 services defined (core app stack + monitoring + proxy)"
+    },
+    "prometheus_monitoring": {
+      "status": "DONE",
+      "prometheus_config": true,
+      "alert_rules": true,
+      "grafana_dashboard": true,
+      "prometheus_sha256": "49b751c2e87890026915bbf71d70aa10b6a5978850efa039d3f63d7656dfd1d4"
+    },
+    "cicd_pipeline": {
+      "status": "DONE",
+      "exists": true,
+      "path": ".github\\workflows\\ci.yml",
+      "jobs": [
+        "push",
+        "pull_request",
+        "test",
+        "lint",
+        "build",
+        "deploy"
+      ],
+      "sha256": "a63726b4f8678c7885b4ce6d4cc377a1e011f249f0d5b9d6f1cbac94dedd4be5"
+    },
+    "tests": {
+      "status": "DONE",
+      "passed": 29,
+      "failed": 0,
+      "note": "Live run: 29 passed (bukan angka statis)",
+      "coverage": {
+        "exit_code": 0,
+        "all_modules": {
+          "classifier\\__init__.py": 100,
+          "classifier\\evaluate.py": 0,
+          "classifier\\features.py": 95,
+          "classifier\\predict.py": 0,
+          "classifier\\train.py": 0,
+          "classifier\\unsupervised.py": 0,
+          "database\\__init__.py": 100,
+          "database\\models.py": 0,
+          "decision_engine\\__init__.py": 100,
+          "decision_engine\\fusion.py": 100,
+          "decision_engine\\router.py": 93,
+          "decision_engine\\xai.py": 0,
+          "worker\\__init__.py": 100,
+          "worker\\email_forwarder.py": 0,
+          "worker\\notifier.py": 0,
+          "worker\\pipeline_worker.py": 0,
+          "worker\\smtp_receiver.py": 0
+        },
+        "core_modules_min_pct": 93,
+        "core_modules_max_pct": 100,
+        "fusion_coverage_pct": 100,
+        "features_coverage_pct": 95
+      }
+    },
+    "shap_explainability": {
+      "status": "DONE",
+      "implementation": "classifier/predict.py — shap.TreeExplainer",
+      "references_in_code": 17
+    },
+    "merged_dataset_105k": {
+      "status": "COMPLETE",
+      "directory": "data\\dataset_merged",
+      "exists": true,
+      "eml_file_count": 105000,
+      "metadata_csv_rows": 105000,
+      "label_distribution": {
+        "ham": 49048,
+        "spam": 18000,
+        "phishing": 24947,
+        "malware": 13005
+      },
+      "target": 105000,
+      "progress_pct": 100.0
+    }
+  },
+  "task_breakdown": {
+    "planned_total": 40,
+    "completed_count": 39,
+    "in_progress_count": 1,
+    "pending_count": 0,
+    "completed": [
+      {
+        "id": "T01",
+        "name": "Structured feature engineering (28 features)",
+        "path": "classifier\\features.py"
+      },
+      {
+        "id": "T02",
+        "name": "XGBoost supervised training pipeline",
+        "path": "classifier\\train.py"
+      },
+      {
+        "id": "T03",
+        "name": "Supervised model artifacts deployed",
+        "path": "classifier\\models\\xgb_model_latest.joblib"
+      },
+      {
+        "id": "T04",
+        "name": "Isolation Forest anomaly detector",
+        "path": "classifier\\models\\isolation_forest_latest.joblib"
+      },
+      {
+        "id": "T05",
+        "name": "One-Class SVM anomaly detector",
+        "path": "classifier\\models\\one_class_svm_latest.joblib"
+      },
+      {
+        "id": "T06",
+        "name": "Dual-layer inference API (/predict-dual)",
+        "path": "classifier\\predict.py"
+      },
+      {
+        "id": "T07",
+        "name": "Decision engine 3-way fusion",
+        "path": "decision_engine\\fusion.py"
+      },
+      {
+        "id": "T08",
+        "name": "Email routing (CLEAN/WARN/QUARANTINE)",
+        "path": "decision_engine\\router.py"
+      },
+      {
+        "id": "T09",
+        "name": "XAI explanation builder",
+        "path": "decision_engine\\xai.py"
+      },
+      {
+        "id": "T10",
+        "name": "SHAP TreeExplainer integration",
+        "path": "classifier\\predict.py"
+      },
+      {
+        "id": "T11",
+        "name": "Pipeline worker (Redis consumer)",
+        "path": "worker\\pipeline_worker.py"
+      },
+      {
+        "id": "T12",
+        "name": "SMTP receiver (port 25 ingress)",
+        "path": "worker\\smtp_receiver.py"
+      },
+      {
+        "id": "T13",
+        "name": "Email forwarder to real inbox",
+        "path": "worker\\email_forwarder.py"
+      },
+      {
+        "id": "T14",
+        "name": "Multi-channel alerting",
+        "path": "worker\\notifier.py"
+      },
+      {
+        "id": "T15",
+        "name": "Domain heuristics checker",
+        "path": "analysis\\domain_checker.py"
+      },
+      {
+        "id": "T16",
+        "name": "Dashboard FastAPI backend",
+        "path": "dashboard\\app.py"
+      },
+      {
+        "id": "T17",
+        "name": "Dashboard Quarantine UI (React SPA)",
+        "path": "dashboard\\frontend\\src\\pages\\InboxPage.jsx"
+      },
+      {
+        "id": "T18",
+        "name": "JWT auth + RBAC",
+        "path": "dashboard\\auth.py"
+      },
+      {
+        "id": "T19",
+        "name": "WebSocket live feed",
+        "path": "dashboard\\frontend\\src\\hooks\\useWebSocket.js"
+      },
+      {
+        "id": "T20",
+        "name": "SQLAlchemy database models",
+        "path": "database\\models.py"
+      },
+      {
+        "id": "T21",
+        "name": "Docker Compose stack",
+        "path": "docker-compose.yml"
+      },
+      {
+        "id": "T22",
+        "name": "Prometheus monitoring config",
+        "path": "monitoring\\prometheus.yml"
+      },
+      {
+        "id": "T23",
+        "name": "Grafana dashboards",
+        "path": "monitoring\\grafana\\dashboards\\lti_dashboard.json"
+      },
+      {
+        "id": "T24",
+        "name": "CI/CD GitHub Actions",
+        "path": ".github\\workflows\\ci.yml"
+      },
+      {
+        "id": "T25",
+        "name": "Unit test suite",
+        "path": "tests"
+      },
+      {
+        "id": "T26",
+        "name": "Architecture documentation + diagrams",
+        "path": "README.md"
+      },
+      {
+        "id": "T27",
+        "name": "Merged dataset 105K EML files",
+        "path": "data\\dataset_merged",
+        "evidence": "105000 .eml files"
+      },
+      {
+        "id": "T28",
+        "name": "Dataset metadata.csv index",
+        "path": "data\\dataset_merged\\metadata.csv",
+        "evidence": "105000 metadata rows"
+      },
+      {
+        "id": "T29",
+        "name": "Feature extraction at 105K scale",
+        "path": "data\\processed\\train_100k.csv",
+        "evidence": "train_100k.csv exists"
+      },
+      {
+        "id": "T30",
+        "name": "Production deployment guide",
+        "path": "docs\\DEPLOYMENT_GUIDE.md"
+      },
+      {
+        "id": "T31",
+        "name": "ML model evaluation report",
+        "path": "docs\\ML_MODEL_REPORT.md"
+      },
+      {
+        "id": "T32",
+        "name": "Load testing (Locust)",
+        "path": "tests\\locustfile.py"
+      },
+      {
+        "id": "T33",
+        "name": "Drift monitoring script",
+        "path": "scripts\\drift_monitor.py"
+      },
+      {
+        "id": "T34",
+        "name": "E2E pipeline test",
+        "path": "scripts\\e2e_test.py"
+      },
+      {
+        "id": "T35",
+        "name": "Nginx/Caddy reverse proxy",
+        "path": "monitoring\\Caddyfile"
+      },
+      {
+        "id": "T36",
+        "name": "SpamAssassin integration",
+        "path": "worker\\pipeline_worker.py"
+      },
+      {
+        "id": "T37",
+        "name": "Feedback loop API",
+        "path": "database\\models.py"
+      },
+      {
+        "id": "T38",
+        "name": "Audit trail logging",
+        "path": "database\\models.py"
+      },
+      {
+        "id": "T39",
+        "name": "Automated retrain script",
+        "path": "scripts\\retrain_now.py"
+      }
+    ],
+    "in_progress": [
+      {
+        "id": "T40",
+        "name": "Production SSH deploy job (CI)",
+        "path": ".github\\workflows\\ci.yml",
+        "evidence": "deploy job defined (requires secrets)"
+      }
+    ],
+    "pending": []
+  },
+  "verification_commands": [
+    "python scripts/generate_sprint_evidence.py",
+    "python -m pytest tests/ -v",
+    "python -m pytest tests/ --cov=classifier --cov=decision_engine --cov-report=term-missing"
+  ]
+}
