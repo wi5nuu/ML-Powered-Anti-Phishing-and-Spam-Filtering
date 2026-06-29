@@ -61,3 +61,4 @@ htmlcov/
 # OS
 Thumbs.db
 .DS_Store
+phishing_model.pkl
