@@ -199,11 +199,11 @@ erDiagram
     ORGANIZATIONS ||--o{ API_KEYS : "physical constraint (organization_id)"
     
     %% Logical constraints (Application code / Index level)
-    USERS ..o{ AUDIT_LOGS : "logical reference (username)"
-    USERS ..o{ REPORTS : "logical reference (username)"
+    USERS ||..o{ AUDIT_LOGS : "logical reference (username)"
+    USERS ||..o{ REPORTS : "logical reference (username)"
     
-    QUARANTINE_EMAILS ..o{ FEEDBACK : "logical reference (email_id)"
-    QUARANTINE_EMAILS ..o{ AUDIT_LOGS : "logical reference (email_id)"
+    QUARANTINE_EMAILS ||..o{ FEEDBACK : "logical reference (email_id)"
+    QUARANTINE_EMAILS ||..o{ AUDIT_LOGS : "logical reference (email_id)"
 
     ORGANIZATIONS {
         int id PK
@@ -441,17 +441,18 @@ flowchart TD
     ES[External Sender]
     SMTP[SMTP Receiver Port 25]
     Fetcher[Mailpit Fetcher Port 8025]
+    Mailpit[Mailpit Mail Server]
     SA_Daemon[SpamAssassin Daemon Port 783]
     ML_Service[Classifier Service Port 8001]
     Emp[Employee Inbox]
     Alerts[Alert Targets (Slack/Telegram/SMTP)]
 
     %% Sub-processes
-    P2_1((2.1 <br> Parser & <br> Header Extractor))
-    P2_2((2.2 <br> SpamAssassin <br> Scoring))
-    P2_3((2.3 <br> Dual-Layer ML <br> Classifier))
+    P2_1((2.1 <br> Parser & <br> Auth Result Extractor))
+    P2_2((2.2 <br> SpamAssassin <br> Client))
+    P2_3((2.3 <br> ML Classifier <br> Client))
     P2_4((2.4 <br> Fusion Decision <br> Engine))
-    P2_5((2.5 <br> Email Router & <br> Header Injector))
+    P2_5((2.5 <br> Email Router & <br> Archiver))
 
     %% Data Stores & Queues
     D_Queue[(D1: Redis email_pipeline)]
@@ -460,30 +461,35 @@ flowchart TD
     D_Model[(D9: model_versions)]
 
     %% Flow
-    ES -->|Inbound SMTP stream| SMTP
-    Fetcher -.->|Poll HTTP API| Fetcher
-    SMTP -->|Payload JSON| P2_1
-    Fetcher -->|Payload JSON| P2_1
-    P2_1 -->|rpush raw_email & email_id| D_Queue
+    ES -->|1. Deliver SMTP email stream| SMTP
+    Fetcher -->|2. HTTP GET raw messages| Mailpit
+    Mailpit -->|3. Return JSON raw content| Fetcher
     
-    D_Queue -->|Fetch blpop queue item| P2_2
-    D_Queue -->|Fetch blpop queue item| P2_3
+    SMTP -->|4. Push raw payload| D_Queue
+    Fetcher -->|5. Push raw payload| D_Queue
     
-    P2_2 <-->|Send raw body (SPAMC protocol) & Get sa_score| SA_Daemon
+    D_Queue -->|6. blpop raw payload| P2_1
     
-    P2_3 -->|Fetch active model config| D_Model
-    P2_3 <-->|Send JSON {raw_email, email_id} & Get ml_probability + anomaly_score| ML_Service
+    P2_1 -->|7. Send raw email body| P2_2
+    P2_2 -->|8. TCP SYMBOLS SPAMC request| SA_Daemon
+    SA_Daemon -->|9. Return SA evaluation score| P2_2
+    P2_2 -->|10. Output sa_score| P2_4
     
-    P2_2 -->|sa_score| P2_4
-    P2_3 -->|ml_probability, anomaly_score, XAI json| P2_4
+    P2_1 -->|11. Send raw email & email_id| P2_3
+    D_Model -->|12. Read active model version| P2_3
+    P2_3 -->|13. HTTP POST /predict-dual request| ML_Service
+    ML_Service -->|14. Return ml_probability & anomaly_score| P2_3
+    P2_3 -->|15. Output supervised & unsupervised scores| P2_4
     
-    P2_4 -->|Fused score, label, routing_reason| P2_5
+    P2_1 -->|16. Output parsed SPF/DKIM/DMARC flags| P2_4
     
-    P2_5 -->|Insert record (status: released/pending)| D_Quarantine
-    P2_5 -->|Append performance logs| D_Metrics
+    P2_4 -->|17. Output combined score, label, routing_reason| P2_5
     
-    P2_5 -->|If label = CLEAN/WARN: Send SMTP mail| Emp
-    P2_5 -.->|If label = QUARANTINE: Trigger alerts| Alerts
+    P2_5 -->|18. Write email status, HTML body & XAI summary| D_Quarantine
+    P2_5 -->|19. Write throughput & latency record| D_Metrics
+    
+    P2_5 -->|20. If label = CLEAN/WARN: Send SMTP mail| Emp
+    P2_5 -.->|21. If label = QUARANTINE: Dispatch alerts| Alerts
 ```
 
 #### Activity B: Quarantine Review & Action (Process 4.0 - Admin Management)
