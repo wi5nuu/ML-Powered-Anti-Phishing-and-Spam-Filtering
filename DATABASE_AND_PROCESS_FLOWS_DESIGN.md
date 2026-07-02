@@ -354,13 +354,13 @@ The Context Diagram defines the boundary of CogniMail, showing how external enti
 flowchart TD
     %% Entities
     ES[External Email Sender]
-    Emp[Employee / Recipient Inbox]
-    Adm[Admin / Analyst Dashboard]
-    Mon[Monitoring Engine (Prometheus/Grafana)]
-    Alerts[Alert Targets (Slack Webhook / Telegram Bot API / SMTP Alert Relays)]
+    Emp["Employee / Recipient Inbox"]
+    Adm["Admin / Analyst Dashboard"]
+    Mon["Monitoring Engine (Prometheus/Grafana)"]
+    Alerts["Alert Targets (Slack Webhook / Telegram Bot API / SMTP Alert Relays)"]
     
     %% System
-    Sys((0.0 <br> Anti-Phishing & Spam <br> Filtering System))
+    Sys(("0.0: Anti-Phishing & Spam Filtering System"))
 
     %% Flows
     ES -->|1. Incoming raw email (SMTP/Mailpit)| Sys
@@ -383,23 +383,23 @@ flowchart TD
     %% External Entities
     ES[External Sender]
     Emp[Employee Inbox]
-    Adm[Admin / Reviewer]
+    Adm["Admin / Reviewer"]
     Mon[Monitoring Engine]
-    Alerts[Alert Targets (Slack/Telegram/SMTP)]
+    Alerts["Alert Targets (Slack/Telegram/SMTP)"]
 
     %% Processes
-    P1((1.0 <br> Email Ingestion <br> & Queue Management))
-    P2((2.0 <br> Threat Classification <br> & Fusion Engine))
-    P3((3.0 <br> Quarantine <br> & Forwarding))
-    P4((4.0 <br> Admin APIs <br> & WebSocket Bridge))
+    P1(("1.0: Email Ingestion & Queue Management"))
+    P2(("2.0: Threat Classification & Fusion Engine"))
+    P3(("3.0: Quarantine & Forwarding"))
+    P4(("4.0: Admin APIs & WebSocket Bridge"))
 
     %% Data Stores
-    D1[(D1: Redis Queue - email_pipeline)]
-    D2[(D2: quarantine_emails)]
-    D3[(D3: feedback)]
-    D4[(D4: pipeline_metrics)]
-    D5[(D5: users / audit_logs)]
-    D6[(D6: reports / settings)]
+    D1[("D1: Redis Queue - email_pipeline")]
+    D2[("D2: quarantine_emails")]
+    D3[("D3: feedback")]
+    D4[("D4: pipeline_metrics")]
+    D5[("D5: users / audit_logs")]
+    D6[("D6: reports / settings")]
 
     %% Flows
     ES -->|1. Inbound SMTP mail (Port 25) / Mailpit fetch| P1
@@ -439,26 +439,26 @@ Shows the complete ingestion flow, SMTP capture, parsing, SpamAssassin TCP scori
 flowchart TD
     %% External Entities & Hardware Ports
     ES[External Sender]
-    SMTP[SMTP Receiver Port 25]
-    Fetcher[Mailpit Fetcher Port 8025]
+    SMTP["SMTP Receiver Port 25"]
+    Fetcher["Mailpit Fetcher Port 8025"]
     Mailpit[Mailpit Mail Server]
-    SA_Daemon[SpamAssassin Daemon Port 783]
-    ML_Service[Classifier Service Port 8001]
+    SA_Daemon["SpamAssassin Daemon Port 783"]
+    ML_Service["Classifier Service Port 8001"]
     Emp[Employee Inbox]
-    Alerts[Alert Targets (Slack/Telegram/SMTP)]
+    Alerts["Alert Targets (Slack/Telegram/SMTP)"]
 
     %% Sub-processes
-    P2_1((2.1 <br> Parser & <br> Auth Result Extractor))
-    P2_2((2.2 <br> SpamAssassin <br> Client))
-    P2_3((2.3 <br> ML Classifier <br> Client))
-    P2_4((2.4 <br> Fusion Decision <br> Engine))
-    P2_5((2.5 <br> Email Router & <br> Archiver))
+    P2_1(("2.1: Parser & Auth Result Extractor"))
+    P2_2(("2.2: SpamAssassin Client"))
+    P2_3(("2.3: ML Classifier Client"))
+    P2_4(("2.4: Fusion Decision Engine"))
+    P2_5(("2.5: Email Router & Archiver"))
 
     %% Data Stores & Queues
-    D_Queue[(D1: Redis email_pipeline)]
-    D_Quarantine[(D2: quarantine_emails)]
-    D_Metrics[(D4: pipeline_metrics)]
-    D_Model[(D9: model_versions)]
+    D_Queue[("D1: Redis email_pipeline")]
+    D_Quarantine[("D2: quarantine_emails")]
+    D_Metrics[("D4: pipeline_metrics")]
+    D_Model[("D9: model_versions")]
 
     %% Flow
     ES -->|1. Deliver SMTP email stream| SMTP
@@ -498,21 +498,21 @@ Details user/analyst authentication, quarantine table retrieval, XAI forensic vi
 ```mermaid
 flowchart TD
     %% Entities
-    Adm[Admin / Analyst]
+    Adm["Admin / Analyst"]
     Emp[Employee Inbox]
 
     %% Sub-processes
-    P4_1((4.1 <br> JWT Authentication <br> & RBAC))
-    P4_2((4.2 <br> Query & Filter <br> Quarantine List))
-    P4_3((4.3 <br> XAI Forensics <br> & Detail View))
-    P4_4((4.4 <br> Quarantine Release <br> (SMTP Forward)))
-    P4_5((4.5 <br> False Positive <br> Reporting))
+    P4_1(("4.1: JWT Authentication & RBAC"))
+    P4_2(("4.2: Query & Filter Quarantine List"))
+    P4_3(("4.3: XAI Forensics & Detail View"))
+    P4_4(("4.4: Quarantine Release (SMTP Forward)"))
+    P4_5(("4.5: False Positive Reporting"))
 
     %% Data Stores
-    D_User[(D5: users)]
-    D_Quarantine[(D2: quarantine_emails)]
-    D_Feedback[(D3: feedback)]
-    D_Audit[(D11: audit_logs)]
+    D_User[("D5: users")]
+    D_Quarantine[("D2: quarantine_emails")]
+    D_Feedback[("D3: feedback")]
+    D_Audit[("D11: audit_logs")]
 
     %% Flow
     Adm -->|1. Submit username & password| P4_1
@@ -549,15 +549,15 @@ flowchart TD
     Grafana[Grafana Dashboard]
 
     %% Sub-processes
-    P4_6((4.6 <br> File Support <br> Ticket / Report))
-    P4_7((4.7 <br> Manage & Reply <br> Reports))
-    P4_8((4.8 <br> Redis Pub/Sub <br> WS Bridge))
-    P4_9((4.9 <br> Prometheus <br> Scraper App))
+    P4_6(("4.6: File Support Ticket / Report"))
+    P4_7(("4.7: Manage & Reply Reports"))
+    P4_8(("4.8: Redis Pub/Sub WS Bridge"))
+    P4_9(("4.9: Prometheus Scraper App"))
 
     %% Data Stores
-    D_Reports[(D7: reports)]
-    D_Metrics[(D6: pipeline_metrics)]
-    D_Redis_PS[(D12: Redis Pub/Sub)]
+    D_Reports[("D7: reports")]
+    D_Metrics[("D6: pipeline_metrics")]
+    D_Redis_PS[("D12: Redis Pub/Sub")]
 
     %% Flow
     User -->|1. Submit subject & message| P4_6
