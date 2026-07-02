@@ -363,13 +363,13 @@ flowchart TD
     Sys(("0.0: Anti-Phishing & Spam Filtering System"))
 
     %% Flows
-    ES -->|1. Incoming raw email (SMTP/Mailpit)| Sys
-    Sys -->|2. Forwarded clean/warned email| Emp
+    ES -->|1. Incoming raw email via SMTP or Mailpit| Sys
+    Sys -->|2. Forwarded clean or warned email| Emp
     Sys -->|3. Dashboard authentication request| Adm
-    Adm -->|4. Read emails, config settings, model trigger, feedback| Sys
+    Adm -->|4. Read emails, config, model trigger, feedback| Sys
     Sys -->|5. Real-time updates via WS, audit logs, forensic report| Adm
-    Sys -->|6. Latency & queue metrics| Mon
-    Sys -->|7. Send Threat Alerts (CRITICAL/HIGH)| Alerts
+    Sys -->|6. Latency and queue metrics| Mon
+    Sys -->|7. Send Threat Alerts: CRITICAL or HIGH| Alerts
 ```
 
 ---
@@ -402,22 +402,22 @@ flowchart TD
     D6[("D6: reports / settings")]
 
     %% Flows
-    ES -->|1. Inbound SMTP mail (Port 25) / Mailpit fetch| P1
+    ES -->|1. Inbound SMTP mail Port-25 or Mailpit fetch| P1
     P1 -->|2. Push JSON payload| D1
     D1 -->|3. Poll payload| P2
     
-    P2 -->|4. Parallel scoring: SA Daemon & Classifier ML Service| P2
-    P2 -->|5. Calculate 3-Way Fusion & Check overrides| P2
+    P2 -->|4. Parallel scoring: SA Daemon and Classifier ML| P2
+    P2 -->|5. Calculate 3-Way Fusion and Check overrides| P2
     
-    P2 -->|6. Write Detection Result (Status: released/pending)| D2
+    P2 -->|6. Write Detection Result: released or pending| D2
     P2 -->|7. Record latency metrics| D4
-    P2 -->|8. Trigger Alert/Routing| P3
+    P2 -->|8. Trigger Alert and Routing| P3
     
     P3 -->|9. Send notifications| Alerts
     P3 -->|10. Read Forwarding Config| D6
-    P3 -->|11. Forward clean/warned email| Emp
+    P3 -->|11. Forward clean or warned email| Emp
     
-    Adm -->|12. JWT Login / API Request| P4
+    Adm -->|12. JWT Login or API Request| P4
     P4 -->|13. Read & Write| D5
     P4 -->|14. Query Emails & Details| D2
     P4 -->|15. Write Feedback| D3
@@ -477,18 +477,18 @@ flowchart TD
     
     P2_1 -->|11. Send raw email & email_id| P2_3
     D_Model -->|12. Read active model version| P2_3
-    P2_3 -->|13. HTTP POST /predict-dual request| ML_Service
-    ML_Service -->|14. Return ml_probability & anomaly_score| P2_3
-    P2_3 -->|15. Output supervised & unsupervised scores| P2_4
+    P2_3 -->|13. HTTP POST predict-dual request| ML_Service
+    ML_Service -->|14. Return ml_probability and anomaly_score| P2_3
+    P2_3 -->|15. Output supervised and unsupervised scores| P2_4
     
-    P2_1 -->|16. Output parsed SPF/DKIM/DMARC flags| P2_4
+    P2_1 -->|16. Output parsed SPF-DKIM-DMARC flags| P2_4
     
     P2_4 -->|17. Output combined score, label, routing_reason| P2_5
     
-    P2_5 -->|18. Write email status, HTML body & XAI summary| D_Quarantine
-    P2_5 -->|19. Write throughput & latency record| D_Metrics
+    P2_5 -->|18. Write email status, HTML body and XAI summary| D_Quarantine
+    P2_5 -->|19. Write throughput and latency record| D_Metrics
     
-    P2_5 -->|20. If label = CLEAN/WARN: Send SMTP mail| Emp
+    P2_5 -->|20. If label is CLEAN or WARN: Send SMTP mail| Emp
     P2_5 -.->|21. If label = QUARANTINE: Dispatch alerts| Alerts
 ```
 
@@ -524,7 +524,7 @@ flowchart TD
     P4_2 -->|6. Return list| Adm
     
     Adm -->|7. Select email details| P4_3
-    P4_3 -->|8. Fetch body_html, shap_json, spf/dkim| D_Quarantine
+    P4_3 -->|8. Fetch body_html, shap_json, SPF-DKIM data| D_Quarantine
     P4_3 -->|9. Render force plot & XAI text| Adm
     
     Adm -->|10. Click RELEASE email| P4_4
@@ -549,7 +549,7 @@ flowchart TD
     Grafana[Grafana Dashboard]
 
     %% Sub-processes
-    P4_6(("4.6: File Support Ticket / Report"))
+    P4_6(("4.6: File Support Ticket and Report"))
     P4_7(("4.7: Manage & Reply Reports"))
     P4_8(("4.8: Redis Pub/Sub WS Bridge"))
     P4_9(("4.9: Prometheus Scraper App"))
