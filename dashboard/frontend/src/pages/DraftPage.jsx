@@ -5,11 +5,11 @@ import { FileText } from 'lucide-react'
 import { useState } from 'react'
 
 export default function DraftPage() {
-  const { data, isLoading, isError } = useEmails('all')
+  const { data, isLoading, isError } = useEmails('draft')
   const [selected, setSelected] = useState(new Set())
 
   const emails = data?.emails || []
-  const draftEmails = emails.filter((e) => e.label === 'draft' || e.status === 'pending')
+  const draftEmails = emails.filter((e) => e.label === 'DRAFT' || e.status === 'draft')
 
   const toggleSelect = (id) => {
     setSelected((prev) => {

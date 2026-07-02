@@ -9,6 +9,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 from datetime import datetime, timedelta
+
+# Workaround for bcrypt >= 4.1.0 compatibility with passlib in Python 3.13
+import bcrypt
+if not hasattr(bcrypt, "__about__"):
+    class About:
+        __version__ = getattr(bcrypt, "__version__", "4.0.0")
+    bcrypt.__about__ = About()
+
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status

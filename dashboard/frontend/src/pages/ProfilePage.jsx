@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   User, Shield, Key, Clock, Copy, Check, Eye, EyeOff,
   Plus, Trash2, Loader2, Activity, ArrowLeft, Mail, Calendar
@@ -12,17 +12,18 @@ import {
   useActivity
 } from '../api/profile'
 import { useToast } from '../hooks/useToast'
+import { getActiveMailbox } from '../utils/mailbox'
 import styles from './ProfilePage.module.css'
 
 const ROLE_LABELS = {
   superadmin: 'Super Admin',
   admin: 'Admin',
-  mail_reviewer: 'Mail Reviewer',
   user: 'User',
 }
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { showToast } = useToast()
   const { data: me } = useMe()
   const { data: profile, isLoading: profileLoading } = useProfile()
@@ -51,8 +52,8 @@ export default function ProfilePage() {
       setPwError('New passwords do not match')
       return
     }
-    if (newPw.length < 8) {
-      setPwError('Password must be at least 8 characters')
+    if (newPw.length < 4) {
+      setPwError('Password must be at least 4 characters')
       return
     }
     changePassword({ current_password: currentPw, new_password: newPw }, {
@@ -99,6 +100,10 @@ export default function ProfilePage() {
 
   const role = me?.user?.role || 'user'
   const roleLabel = ROLE_LABELS[role] || role
+  const activeMailbox = getActiveMailbox(searchParams)
+  const displayName = activeMailbox || profile?.username || 'N/A'
+  const displayRole = activeMailbox ? 'Mailbox perusahaan' : roleLabel
+  const displayInitial = (displayName || 'U')[0].toUpperCase()
 
   if (profileLoading) {
     return (
@@ -132,20 +137,27 @@ export default function ProfilePage() {
             <div className={styles.card}>
               <div className={styles.profileHeader}>
                 <div className={styles.profileAvatar}>
-                  {profile?.username?.[0]?.toUpperCase() || 'U'}
+                  {displayInitial}
                 </div>
                 <div>
-                  <div className={styles.profileName}>{profile?.username || 'N/A'}</div>
+                  <div className={styles.profileName}>{displayName}</div>
                   <div className={styles.profileRole}>
                     <Shield size={14} />
-                    {roleLabel}
+                    {displayRole}
                   </div>
                 </div>
               </div>
               <div className={styles.divider} />
+              {activeMailbox && (
+                <div className={styles.infoRow}>
+                  <Mail size={15} className={styles.infoIcon} />
+                  <span className={styles.infoLabel}>Email Aktif</span>
+                  <span className={styles.infoValue}>{activeMailbox}</span>
+                </div>
+              )}
               <div className={styles.infoRow}>
                 <Mail size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>Username</span>
+                <span className={styles.infoLabel}>Operator Login</span>
                 <span className={styles.infoValue}>{profile?.username}</span>
               </div>
               <div className={styles.infoRow}>
@@ -206,7 +218,7 @@ export default function ProfilePage() {
                       value={newPw}
                       onChange={(e) => setNewPw(e.target.value)}
                       required
-                      placeholder="Min. 8 characters"
+                      placeholder="Min. 4 characters"
                     />
                   </div>
                   <div className={styles.field}>

@@ -1,12 +1,12 @@
 """
-Unsupervised Anomaly Detection Layer untuk LTI Anti-Phishing Classifier.
+Unsupervised Anomaly Detection Layer untuk CogniMail Classifier.
 
 Layer 2 — Unsupervised (Unknown / Zero-day threats):
   - Isolation Forest: dilatih HANYA dengan email bersih
   - One-Class SVM: alternatif yang lebih sensitif
 
 Email yang "tidak normal" menurut baseline = anomali = waspada.
-Tidak perlu data spam berlabel — cukup email bersih dari operasional LTI.
+Tidak perlu data spam berlabel — cukup email bersih dari operasional organisasi.
 
 Feature set (22 fitur numerik):
   Sama dengan STRUCTURED_FEATURES tapi tanpa TF-IDF — cocok untuk tree-based anomaly.

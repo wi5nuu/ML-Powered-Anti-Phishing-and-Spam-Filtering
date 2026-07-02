@@ -1,5 +1,5 @@
 groups:
-  - name: lti_antiphishing
+  - name: cognimail
     interval: 30s
     rules:
       - alert: HighQuarantineRate

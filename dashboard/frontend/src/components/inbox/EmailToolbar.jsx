@@ -1,7 +1,9 @@
-import { RefreshCw, Trash2, Archive, MoreVertical, ChevronDown, Pencil } from 'lucide-react'
-import { useDeleteEmail, useReleaseEmail } from '../../api/emails'
-import { useMe } from '../../api/auth'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { ChevronDown, MailCheck, MailOpen, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { useDeleteEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
+import ConfirmDialog from '../common/ConfirmDialog'
 import styles from './EmailToolbar.module.css'
 
 const PAGE_SIZE = 50
@@ -16,51 +18,51 @@ export default function EmailToolbar({
   onSelectAll,
   onRefresh,
 }) {
+  const [selectMenuOpen, setSelectMenuOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [searchParams] = useSearchParams()
+  const selectMenuRef = useRef(null)
+  const moreMenuRef = useRef(null)
   const allSelected = selected.size === allIds.length && allIds.length > 0
   const someSelected = selected.size > 0 && !allSelected
+  const isTrashFolder = searchParams.get('folder') === 'trash'
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
-  const { data: meData } = useMe()
   const { mutateAsync: deleteEmail } = useDeleteEmail()
-  const { mutateAsync: releaseEmail } = useReleaseEmail()
   const { showToast } = useToast()
 
-  const role = meData?.user?.role || 'user'
+  useEffect(() => {
+    const closeMenus = (e) => {
+      if (!selectMenuRef.current?.contains(e.target)) setSelectMenuOpen(false)
+      if (!moreMenuRef.current?.contains(e.target)) setMoreMenuOpen(false)
+    }
+    document.addEventListener('mousedown', closeMenus)
+    return () => document.removeEventListener('mousedown', closeMenus)
+  }, [])
 
   const handleBulkDelete = async () => {
-    if (role !== 'superadmin' && role !== 'admin') {
-      showToast('Aksi ditolak: Hanya Super Admin & Admin yang dapat menghapus email', 'error')
+    if (selected.size === 0) {
+      showToast('Pilih email terlebih dahulu', 'info')
       return
     }
-    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selected.size} email terpilih secara permanen?`)) {
-      try {
-        const promises = Array.from(selected).map(id => deleteEmail(id))
-        await Promise.all(promises)
-        showToast(`🗑️ ${selected.size} email berhasil dihapus`, 'success')
-        onSelectAll(false)
-        onRefresh()
-      } catch (err) {
-        showToast('❌ Gagal menghapus beberapa email', 'error')
-      }
-    }
+    setDeleteDialogOpen(true)
   }
 
-  const handleBulkArchive = async () => {
-    if (role !== 'superadmin' && role !== 'admin') {
-      showToast('Aksi ditolak: Peran user tidak memiliki izin untuk mengelola karantina', 'error')
-      return
-    }
+  const confirmBulkDelete = async () => {
     try {
-      const promises = Array.from(selected).map(id => releaseEmail(id))
+      const promises = Array.from(selected).map((id) => deleteEmail(id))
       await Promise.all(promises)
-      showToast(`✅ ${selected.size} email dilepaskan ke inbox`, 'success')
+      if (isTrashFolder) showToast(`${selected.size} email dihapus permanen`, 'success')
+      setDeleteDialogOpen(false)
       onSelectAll(false)
       onRefresh()
     } catch (err) {
-      showToast('❌ Gagal melepaskan beberapa email', 'error')
+      showToast('Gagal menghapus beberapa email', 'error')
     }
   }
 
@@ -68,15 +70,29 @@ export default function EmailToolbar({
     window.dispatchEvent(new CustomEvent('open-compose'))
   }
 
-  const handleMoreActions = () => {
-    showToast('Opsi tambahan disimulasikan', 'info')
+  const handleRefreshClick = async () => {
+    setRefreshing(true)
+    try {
+      await onRefresh?.()
+    } finally {
+      setTimeout(() => setRefreshing(false), 350)
+    }
+  }
+
+  const handleMark = (type) => {
+    if (selected.size === 0) {
+      showToast('Pilih email terlebih dahulu', 'info')
+      return
+    }
+    showToast(`${selected.size} email ditandai ${type}`, 'success')
+    setMoreMenuOpen(false)
   }
 
   return (
-    <div className={styles.toolbar}>
-      {/* LEFT: checkbox + refresh + bulk actions */}
+    <>
+      <div className={styles.toolbar}>
       <div className={styles.left}>
-        <div className={styles.checkWrap}>
+        <div className={styles.checkWrap} ref={selectMenuRef}>
           <input
             type="checkbox"
             id="select-all-checkbox"
@@ -88,59 +104,77 @@ export default function EmailToolbar({
           <button
             className={styles.chevronBtn}
             title="Opsi pilih"
-            onClick={() => onSelectAll(!allSelected)}
+            onClick={(e) => { e.stopPropagation(); setSelectMenuOpen((v) => !v) }}
           >
             <ChevronDown size={14} />
           </button>
+          {selectMenuOpen && (
+            <div className={styles.menu} style={{ left: 0 }}>
+              <button onClick={() => { onSelectAll(true); setSelectMenuOpen(false) }}>Semua</button>
+              <button onClick={() => { onSelectAll(false); setSelectMenuOpen(false) }}>Tidak ada</button>
+              <button onClick={() => { onSelectAll(!allSelected); setSelectMenuOpen(false) }}>
+                {allSelected ? 'Batal pilih halaman' : 'Pilih halaman ini'}
+              </button>
+            </div>
+          )}
         </div>
 
         <button
-          className={styles.iconBtn}
-          onClick={onRefresh}
+          className={`${styles.iconBtn} ${refreshing ? styles.spinning : ''}`}
+          onClick={handleRefreshClick}
           title="Refresh"
           id="toolbar-refresh-btn"
         >
           <RefreshCw size={16} />
         </button>
 
-        <button
-          className={styles.iconBtn}
-          onClick={handleMoreActions}
-          title="Opsi lainnya"
-          id="toolbar-more-btn"
-        >
-          <MoreVertical size={16} />
-        </button>
+        <div className={styles.moreWrap} ref={moreMenuRef}>
+          <button
+            className={styles.iconBtn}
+            onClick={(e) => { e.stopPropagation(); setMoreMenuOpen((v) => !v) }}
+            title="Opsi lainnya"
+            id="toolbar-more-btn"
+          >
+            <MoreVertical size={16} />
+          </button>
+          {moreMenuOpen && (
+            <div className={styles.menu}>
+              <button onClick={() => { handleComposeClick(); setMoreMenuOpen(false) }}>
+                <Pencil size={15} />
+                Tulis email
+              </button>
+              <button onClick={() => handleMark('sudah dibaca')}>
+                <MailOpen size={15} />
+                Tandai sudah dibaca
+              </button>
+              <button onClick={() => handleMark('belum dibaca')}>
+                <MailCheck size={15} />
+                Tandai belum dibaca
+              </button>
+            </div>
+          )}
+        </div>
 
         {selected.size > 0 && (
           <div className={styles.bulkActions}>
             <div className={styles.divider} />
             <button
               className={styles.iconBtn}
-              title="Hapus yang dipilih"
+              title={isTrashFolder ? 'Hapus permanen yang dipilih' : 'Pindahkan ke Sampah'}
               id="toolbar-delete-btn"
               onClick={handleBulkDelete}
             >
               <Trash2 size={16} />
-            </button>
-            <button
-              className={styles.iconBtn}
-              title="Arsipkan/Rilis yang dipilih"
-              id="toolbar-archive-btn"
-              onClick={handleBulkArchive}
-            >
-              <Archive size={16} />
             </button>
             <span className={styles.selCount}>{selected.size} dipilih</span>
           </div>
         )}
       </div>
 
-      {/* RIGHT: pagination + compose shortcut */}
       <div className={styles.right}>
         <div className={styles.pagination}>
           <span className={styles.paginationInfo}>
-            {total === 0 ? '0' : `${start}–${end}`} dari {total.toLocaleString('id-ID')}
+            {total === 0 ? '0' : `${start}-${end}`} dari {total.toLocaleString('id-ID')}
           </span>
           <button
             className={styles.iconBtn}
@@ -149,7 +183,7 @@ export default function EmailToolbar({
             title="Halaman sebelumnya"
             id="toolbar-prev-btn"
           >
-            ‹
+            {'<'}
           </button>
           <button
             className={styles.iconBtn}
@@ -158,7 +192,7 @@ export default function EmailToolbar({
             title="Halaman berikutnya"
             id="toolbar-next-btn"
           >
-            ›
+            {'>'}
           </button>
         </div>
 
@@ -171,6 +205,18 @@ export default function EmailToolbar({
           <Pencil size={16} />
         </button>
       </div>
-    </div>
+      </div>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Konfirmasi penghapusan pesan"
+        message={
+          isTrashFolder
+            ? `Tindakan ini akan menghapus permanen ${selected.size} email terpilih. Apakah Anda yakin ingin melanjutkan?`
+            : `Tindakan ini akan memindahkan ${selected.size} email terpilih ke Sampah. Apakah Anda yakin ingin melanjutkan?`
+        }
+        onCancel={() => setDeleteDialogOpen(false)}
+        onConfirm={confirmBulkDelete}
+      />
+    </>
   )
 }

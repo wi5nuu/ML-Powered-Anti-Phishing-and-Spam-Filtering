@@ -1,5 +1,5 @@
 """
-FastAPI inference service untuk LTI Anti-Phishing Classifier.
+FastAPI inference service untuk CogniMail Classifier.
 
 Endpoint:
   POST /predict            — Supervised XGBoost (TF-IDF + structured) + SHAP
@@ -24,7 +24,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from classifier.features import (
     EmailParser, FeatureExtractor, EmailFeatures, STRUCTURED_FEATURES
 )
-from classifier.train import build_feature_matrix
+from classifier.inference_matrix import build_feature_matrix
 from classifier.unsupervised import AnomalyDetector, AnomalyResult
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LTI Anti-Phishing Classifier",
+    title="CogniMail Classifier",
     version="2.0.0",       # Dual-layer version
     lifespan=lifespan,
 )

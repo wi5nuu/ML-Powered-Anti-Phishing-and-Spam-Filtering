@@ -1,5 +1,5 @@
 """
-SQLAlchemy models untuk LTI Anti-Phishing — Enterprise Edition.
+SQLAlchemy models untuk CogniMail — Enterprise Edition.
 """
 
 import datetime
@@ -16,14 +16,12 @@ class EmailStatus(str, enum.Enum):
     PENDING = "pending"
     RELEASED = "released"
     CONFIRMED_SPAM = "confirmed_spam"
+    TRASH = "trash"
 
 
 class UserRole(str, enum.Enum):
     SUPERADMIN = "superadmin"
     ADMIN = "admin"
-    SECURITY_ADMIN = "security_admin"
-    ANALYST = "analyst"
-    MAIL_REVIEWER = "mail_reviewer"
     USER = "user"
 
 
@@ -43,10 +41,23 @@ class User(Base):
     username = Column(String(64), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=True, index=True)
     hashed_password = Column(String(128), nullable=False)
-    role = Column(String(16), default=UserRole.ANALYST.value)
+    role = Column(String(16), default=UserRole.USER.value)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class AdminMailbox(Base):
+    __tablename__ = "admin_mailboxes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    domain = Column(String(255), nullable=False, index=True)
+    password_hash = Column(String(128), default="")
+    sender_name = Column(String(255), default="")
+    created_by = Column(String(64), nullable=False, index=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 
 class AuditLog(Base):
@@ -93,7 +104,12 @@ class QuarantineEmail(Base):
     routing_reason = Column(Text, default="")
     raw_content_hash = Column(String(64), default="")
     raw_content = Column(Text, default="")          # Raw email content (for forensics)
+    attachments_json = Column(Text, default="")
+    spf_result = Column(String(32), default="")
+    dkim_result = Column(String(32), default="")
+    dmarc_result = Column(String(32), default="")
     status = Column(String(16), default=EmailStatus.PENDING.value, index=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
     category = Column(String(32), default="", index=True)
     subject = Column(String(512), default="")
     sender = Column(String(256), default="", index=True)
@@ -183,7 +199,7 @@ class AuditTrail(Base):
     description = Column(Text, nullable=True)
 
 
-def init_db(db_url: str = "sqlite:///./lti_antiphishing.db"):
+def init_db(db_url: str = "sqlite:///./cognimail.db"):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     return engine

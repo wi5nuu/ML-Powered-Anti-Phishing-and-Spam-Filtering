@@ -1,5 +1,5 @@
 """
-Feature engineering pipeline untuk LTI Anti-Phishing Classifier.
+Feature engineering pipeline untuk CogniMail Classifier.
 
 Menghasilkan fitur hibrida: sparse (TF-IDF text) + dense (structured).
 Kedua tipe digabung sebelum masuk ke XGBoost.
@@ -53,7 +53,7 @@ URL_SHORTENERS = {
     "adf.ly", "shorte.st", "linktr.ee", "rb.gy", "cutt.ly", "is.gd"
 }
 
-# Domain LTI yang harus dilindungi
+# Domain organisasi yang harus dilindungi
 PROTECTED_DOMAIN = "lodaya.id"
 
 # ─── Fitur Terstruktur ───────────────────────────────────────────────────────
@@ -375,7 +375,7 @@ class FeatureExtractor:
         known_brands = {
             "bca", "mandiri", "bni", "bri", "permata", "cimb",
             "paypal", "google", "microsoft", "amazon", "apple",
-            "lodaya", "lti", "gojek", "grab", "shopee", "tokopedia"
+            "lodaya", "cognimail", "gojek", "grab", "shopee", "tokopedia"
         }
         if any(b in display_lower for b in known_brands):
             sender_ext = tldextract.extract(parsed.sender_domain)

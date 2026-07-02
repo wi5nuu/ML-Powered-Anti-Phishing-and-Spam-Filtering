@@ -33,12 +33,14 @@ FORWARDER_SMTP_HOST = os.getenv("FORWARDER_SMTP_HOST", "")
 FORWARDER_SMTP_PORT = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
 FORWARDER_SMTP_USER = os.getenv("FORWARDER_SMTP_USER", "")
 FORWARDER_SMTP_PASS = os.getenv("FORWARDER_SMTP_PASS", "")
-FORWARDER_FROM      = os.getenv("FORWARDER_FROM", "antiphishing@lodaya.id")
+FORWARDER_FROM      = os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
+FORWARDER_STARTTLS = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
 FORWARDER_DOMAIN_MAP = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
+FORWARDER_DESTINATION_OVERRIDE = os.getenv("FORWARDER_DESTINATION_OVERRIDE", "")
 
 # Header X-Spam untuk email WARN
 SPAM_HEADER = "X-Spam-Reason"
-SPAM_HEADER_VAL = "LTI Anti-Phishing: Potential spam (score {score:.2f})"
+SPAM_HEADER_VAL = "CogniMail: Potential spam (score {score:.2f})"
 
 # Regex untuk extract recipient domain
 RE_DOMAIN = re.compile(r"@([\w.-]+)")
@@ -94,7 +96,10 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
         return False
 
     # Parse recipients
-    recipients = _parse_recipients(raw_email, payload.get("recipients", []))
+    if FORWARDER_DESTINATION_OVERRIDE:
+        recipients = [FORWARDER_DESTINATION_OVERRIDE]
+    else:
+        recipients = _parse_recipients(raw_email, payload.get("recipients", []))
     if not recipients:
         logger.warning("No recipients found — cannot forward")
         return False
@@ -114,7 +119,7 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
             port=FORWARDER_SMTP_PORT,
             use_tls=FORWARDER_SMTP_PORT == 465,
         ) as smtp:
-            if FORWARDER_SMTP_PORT != 465:
+            if FORWARDER_SMTP_PORT != 465 and FORWARDER_STARTTLS:
                 await smtp.starttls()
             if FORWARDER_SMTP_USER and FORWARDER_SMTP_PASS:
                 await smtp.login(FORWARDER_SMTP_USER, FORWARDER_SMTP_PASS)

@@ -18,6 +18,18 @@ export const useChangePassword = () =>
       api.post('/auth/change-password', { current_password, new_password }),
   })
 
+export const useUpdateProfile = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ username, current_password, new_password }) =>
+      api.put('/auth/profile', { username, current_password, new_password }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile'] })
+      qc.invalidateQueries({ queryKey: ['me'] })
+    },
+  })
+}
+
 export const useApiKeys = () =>
   useQuery({
     queryKey: ['api-keys'],

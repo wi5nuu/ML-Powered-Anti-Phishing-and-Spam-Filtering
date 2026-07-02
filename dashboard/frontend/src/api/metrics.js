@@ -14,11 +14,14 @@ export const useStats = () =>
   })
 
 // ── Full metrics panel (charts, top senders, daily stats)
-export const useMetrics = () =>
+export const useMetrics = ({ mailbox, mailboxId } = {}) =>
   useQuery({
-    queryKey: ['metrics'],
+    queryKey: ['metrics', mailbox || '', mailboxId || ''],
     queryFn: async () => {
-      const { data } = await api.get('/metrics')
+      const params = {}
+      if (mailbox) params.mailbox = mailbox
+      if (mailboxId) params.mailbox_id = mailboxId
+      const { data } = await api.get('/metrics', { params })
       return data
     },
     refetchInterval: 30000,
@@ -76,7 +79,7 @@ export const downloadEmailsCsv = async (label) => {
   const link = document.createElement('a')
   link.href = url
   const date = new Date().toISOString().slice(0, 10)
-  link.setAttribute('download', `lti_emails_${date}.csv`)
+  link.setAttribute('download', `cognimail_emails_${date}.csv`)
   document.body.appendChild(link)
   link.click()
   link.remove()

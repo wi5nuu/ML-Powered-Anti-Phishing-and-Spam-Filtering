@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { useMe } from './api/auth'
-import WelcomePage from './pages/WelcomePage'
 import LoginPage from './pages/LoginPage'
+import MailboxLoginPage from './pages/MailboxLoginPage'
 import InboxPage from './pages/InboxPage'
 import EmailDetailPage from './pages/EmailDetailPage'
 import MetricsPage from './pages/MetricsPage'
@@ -16,9 +16,18 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import UserDashboardPage from './pages/UserDashboardPage'
+import { hasMailboxSessionFromSearch } from './utils/mailbox'
+
+function dashboardPathForRole(role) {
+  if (role === 'superadmin') return '/super-admin/dashboard'
+  if (role === 'admin') return '/admin/dashboard'
+  return '/user/dashboard'
+}
 
 function ProtectedRoute({ children }) {
   const { data, isLoading } = useMe()
+  const [searchParams] = useSearchParams()
 
   if (isLoading) {
     return (
@@ -36,36 +45,75 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  if (!data?.authenticated) {
+  if (!data?.authenticated && !hasMailboxSessionFromSearch(searchParams)) {
     return <Navigate to="/login" replace />
   }
 
   return children
 }
 
+function MailboxRoute({ children }) {
+  const { data, isLoading } = useMe()
+  const [searchParams] = useSearchParams()
+
+  if (isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontFamily: 'Google Sans, Roboto, sans-serif',
+        color: 'var(--text-muted)',
+        backgroundColor: 'var(--bg)'
+      }}>
+        Memeriksa autentikasi...
+      </div>
+    )
+  }
+
+  if (hasMailboxSessionFromSearch(searchParams)) return children
+
+  if (data?.authenticated) {
+    const role = data?.user?.role
+    if (role === 'superadmin' || role === 'admin') return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
+  }
+
+  return <Navigate to="/login" replace />
+}
+
 function UserRoute({ children }) {
   const { data, isLoading } = useMe()
+  const [searchParams] = useSearchParams()
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'Google Sans, Roboto, sans-serif', color: 'var(--text-muted)', backgroundColor: 'var(--bg)' }}>Memeriksa autentikasi...</div>
-  if (!data?.authenticated) return <Navigate to="/login" replace />
+  if (!data?.authenticated && !hasMailboxSessionFromSearch(searchParams)) return <Navigate to="/login" replace />
+  if (!data?.authenticated) return children
 
   const role = data?.user?.role
   if (role === 'superadmin' || role === 'admin') {
-    return <Navigate to="/admin" replace />
+    return <Navigate to={dashboardPathForRole(role)} replace />
   }
 
   return children
 }
 
-function AdminRoute({ children }) {
+function AdminRoute({ children, scope }) {
   const { data, isLoading } = useMe()
+  const [searchParams] = useSearchParams()
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'Google Sans, Roboto, sans-serif', color: 'var(--text-muted)', backgroundColor: 'var(--bg)' }}>Memeriksa autentikasi...</div>
   if (!data?.authenticated) return <Navigate to="/login" replace />
 
   const role = data?.user?.role
   if (role !== 'superadmin' && role !== 'admin') {
-    return <Navigate to="/inbox" replace />
+    return <Navigate to="/user/dashboard" replace />
+  }
+
+  const correctPath = dashboardPathForRole(role)
+  const qs = searchParams.toString()
+  if ((scope === 'superadmin' && role !== 'superadmin') || (scope === 'admin' && role !== 'admin')) {
+    return <Navigate to={qs ? `${correctPath}?${qs}` : correctPath} replace />
   }
 
   return children
@@ -77,20 +125,22 @@ function RootRoute() {
   if (isLoading) return null
   if (data?.authenticated) {
     const role = data?.user?.role
-    const target = (role === 'superadmin' || role === 'admin') ? '/admin' : '/inbox'
+    const target = dashboardPathForRole(role)
     const qs = searchParams.toString()
     return <Navigate to={qs ? `${target}?${qs}` : target} replace />
   }
-  return <WelcomePage />
+  return <Navigate to="/login" replace />
 }
 
 function RoleRedirect() {
   const { data, isLoading } = useMe()
+  const [searchParams] = useSearchParams()
   if (isLoading) return null
   if (!data?.authenticated) return <Navigate to="/login" replace />
   const role = data?.user?.role
-  if (role === 'superadmin' || role === 'admin') return <Navigate to="/admin" replace />
-  return <Navigate to="/inbox" replace />
+  const target = dashboardPathForRole(role)
+  const qs = searchParams.toString()
+  return <Navigate to={qs ? `${target}?${qs}` : target} replace />
 }
 
 export default function App() {
@@ -99,24 +149,32 @@ export default function App() {
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/mailbox-login" element={<MailboxLoginPage />} />
 
         {/* User routes — only for non-admin users */}
-        <Route path="/inbox" element={<UserRoute><InboxPage /></UserRoute>} />
-        <Route path="/email/:emailId" element={<UserRoute><EmailDetailPage /></UserRoute>} />
+        <Route path="/inbox" element={<MailboxRoute><InboxPage /></MailboxRoute>} />
+        <Route path="/email/:emailId" element={<MailboxRoute><EmailDetailPage /></MailboxRoute>} />
         <Route path="/metrics" element={<ProtectedRoute><MetricsPage /></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/audit" element={<AdminRoute><AuditPage /></AdminRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/starred" element={<UserRoute><StarredPage /></UserRoute>} />
-        <Route path="/sent" element={<UserRoute><SentPage /></UserRoute>} />
-        <Route path="/snoozed" element={<UserRoute><SnoozedPage /></UserRoute>} />
-        <Route path="/draft" element={<UserRoute><DraftPage /></UserRoute>} />
-        <Route path="/pembelian" element={<UserRoute><PembelianPage /></UserRoute>} />
-        <Route path="/analyzer" element={<UserRoute><AnalyzerPage /></UserRoute>} />
+        <Route path="/starred" element={<MailboxRoute><StarredPage /></MailboxRoute>} />
+        <Route path="/sent" element={<MailboxRoute><SentPage /></MailboxRoute>} />
+        <Route path="/snoozed" element={<MailboxRoute><SnoozedPage /></MailboxRoute>} />
+        <Route path="/draft" element={<MailboxRoute><DraftPage /></MailboxRoute>} />
+        <Route path="/pembelian" element={<MailboxRoute><PembelianPage /></MailboxRoute>} />
+        <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
-        {/* Admin route — only for superadmin/admin */}
-        <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        {/* User Dashboard — only for regular users */}
+        <Route path="/dashboard" element={<RoleRedirect />} />
+        <Route path="/user/dashboard" element={<UserRoute><UserDashboardPage /></UserRoute>} />
+
+        {/* Admin routes — split URL by role */}
+        <Route path="/admin" element={<RoleRedirect />} />
+        <Route path="/super-admin" element={<RoleRedirect />} />
+        <Route path="/super-admin/dashboard" element={<AdminRoute scope="superadmin"><AdminPage /></AdminRoute>} />
+        <Route path="/admin/dashboard" element={<AdminRoute scope="admin"><AdminPage /></AdminRoute>} />
 
         {/* Fallback — redirect based on role */}
         <Route path="*" element={<RoleRedirect />} />

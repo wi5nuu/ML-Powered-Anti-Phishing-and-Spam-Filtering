@@ -1,12 +1,20 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Shield, Activity, Mail, MessageSquare } from 'lucide-react'
 import GmailShell from '../components/layout/GmailShell'
 import { useMetrics } from '../api/metrics'
+import { getActiveMailbox, getActiveMailboxId, withMailbox } from '../utils/mailbox'
 import styles from './MetricsPage.module.css'
 
 export default function MetricsPage() {
   const navigate = useNavigate()
-  const { data: metrics, isLoading, isError } = useMetrics()
+  const [searchParams] = useSearchParams()
+  const activeMailbox = getActiveMailbox(searchParams)
+  const activeMailboxId = getActiveMailboxId(searchParams)
+  const inboxPath = withMailbox('/inbox', activeMailbox, activeMailboxId)
+  const { data: metrics, isLoading, isError } = useMetrics({
+    mailbox: activeMailbox,
+    mailboxId: activeMailboxId,
+  })
 
   if (isLoading) {
     return (
@@ -53,12 +61,12 @@ export default function MetricsPage() {
       <div className={styles.wrap}>
         {/* Header */}
         <div className={styles.header}>
-          <button className={styles.backBtn} onClick={() => navigate('/inbox')}>
+          <button className={styles.backBtn} onClick={() => navigate(inboxPath)}>
             <ArrowLeft size={20} />
             Kembali ke Inbox
           </button>
           <div className={styles.titleRow}>
-            <h1 className={styles.title}>Panel Metrik</h1>
+            <h1 className={styles.title}>{activeMailbox ? `Panel Metrik ${activeMailbox}` : 'Panel Metrik'}</h1>
             <span className={styles.liveBadge}>Real-time</span>
           </div>
         </div>
@@ -207,7 +215,7 @@ export default function MetricsPage() {
                 <span className={styles.dualBadge}>Dual ML + SA</span>
               </div>
             </div>
-            <button className={styles.inboxBtn} onClick={() => navigate('/inbox')}>
+            <button className={styles.inboxBtn} onClick={() => navigate(inboxPath)}>
               Lihat Kotak Masuk
             </button>
           </div>

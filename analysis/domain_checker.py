@@ -1,7 +1,7 @@
 """
-Heuristic Domain Lookalike Checker — LTI Anti-Phishing System.
+Heuristic Domain Lookalike Checker — CogniMail System.
 
-Mendeteksi serangan domain spoofing terhadap domain LTI (lodaya.id dll).
+Mendeteksi serangan domain spoofing terhadap domain organisasi (lodaya.id dll).
 
 Metode deteksi:
   1. Levenshtein distance — typosquatting (lodaya → lodoya, lodaya → Iodaya)
@@ -298,7 +298,7 @@ class DomainChecker:
     """
     Heuristic domain lookalike detector.
 
-    Cek URL / domain apakah mirip dengan protected domains LTI
+    Cek URL / domain apakah mirip dengan protected domains organisasi
     menggunakan kombinasi Levenshtein, Jaro-Winkler, homograph, dan combosquatting detection.
     """
 

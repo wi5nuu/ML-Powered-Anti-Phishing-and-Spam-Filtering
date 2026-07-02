@@ -26,8 +26,14 @@ export const useLogin = () => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
     },
-    onSuccess: async () => {
-      await qc.refetchQueries({ queryKey: ['me'] })
+    onSuccess: async (res) => {
+      if (res?.data?.role) {
+        qc.setQueryData(['me'], {
+          authenticated: true,
+          user: { username: res.data.username, role: res.data.role },
+        })
+      }
+      await qc.invalidateQueries({ queryKey: ['me'] })
     },
   })
 }

@@ -1,4 +1,0 @@
-{
-  "status": "ok",
-  "model_loaded": true
-}

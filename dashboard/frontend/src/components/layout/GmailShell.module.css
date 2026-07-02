@@ -235,6 +235,44 @@
 .logoutItem:hover { background: #fce8e6; }
 [data-theme='dark'] .logoutItem:hover { background: #4a0f0c; }
 
+.settingsWrap {
+  position: relative;
+}
+
+.settingsMenu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 260px;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(60,64,67,.25), 0 1px 4px rgba(60,64,67,.20);
+  z-index: 500;
+  overflow: hidden;
+  padding: 6px 0;
+  animation: menuIn 0.12s ease;
+}
+
+.settingsMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  font-family: 'Google Sans', sans-serif;
+}
+
+.settingsMenuItem:hover {
+  background: var(--border-light);
+}
+
 .loginBtn {
   background: #1a73e8;
   color: #fff;
@@ -318,9 +356,16 @@
 }
 .sidebarItem:hover { background: var(--border-light); }
 
+.sidebarButton {
+  width: calc(100% - 16px);
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: 'Roboto', sans-serif;
+}
+
 /* Active state */
-.sidebarItem.active,
-:global(.active).sidebarItem {
+.sidebarItem.active {
   background: #d3e3fd;
   font-weight: 700;
   color: #041e49;
@@ -351,6 +396,20 @@
   color: var(--text);
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.expandIcon {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.subNav .sidebarItem {
+  padding-left: 44px;
+  gap: 12px;
 }
 
 .labelDot {

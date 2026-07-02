@@ -21,17 +21,10 @@ scrape_configs:
       - targets: ["dashboard:8080"]
     metrics_path: /metrics
 
-  - job_name: "worker"
-    static_configs:
-      - targets: ["worker:8002"]
-    metrics_path: /metrics
-
   - job_name: "redis"
     static_configs:
-      - targets: ["redis:6379"]
-    metrics_path: /metrics
+      - targets: ["redis_exporter:9121"]
 
   - job_name: "postgres"
     static_configs:
-      - targets: ["postgres:9187"]
-    metrics_path: /metrics
+      - targets: ["postgres_exporter:9187"]

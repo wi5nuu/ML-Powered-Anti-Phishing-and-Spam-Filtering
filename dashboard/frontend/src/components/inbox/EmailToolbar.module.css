@@ -26,6 +26,7 @@
   align-items: center;
   gap: 0;
   margin-right: 2px;
+  position: relative;
 }
 
 .checkWrap input[type='checkbox'] {
@@ -71,6 +72,55 @@
 .iconBtn:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.spinning svg {
+  animation: spin 0.55s linear;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.moreWrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  min-width: 190px;
+  padding: 6px 0;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(60, 64, 67, 0.22);
+  z-index: 20;
+}
+
+.menu button {
+  width: 100%;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: var(--border-light);
+}
+
+.dangerItem {
+  color: #c5221f !important;
 }
 
 .divider {

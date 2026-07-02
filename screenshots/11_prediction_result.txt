@@ -1,8 +1,0 @@
-{
-  "email_id": "screenshot_test",
-  "spam_probability": 0.9692,
-  "is_spam": true,
-  "label": "QUARANTINE",
-  "top_reasons": [],
-  "xai_summary": "SpamProb=0.97; SPF:FAIL; DKIM:FAIL; URL-Shortener:DETECTED"
-}

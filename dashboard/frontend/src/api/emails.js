@@ -7,10 +7,13 @@ export const useEmails = (filter = 'all') =>
     queryKey: ['emails', filter],
     queryFn: async () => {
       const CATEGORIES = ['transaction','customer_service','internal_document','b2b','spam','phishing','malware']
+      const FOLDERS = ['allmail', 'draft', 'trash']
       const params = {}
       if (filter !== 'all') {
         if (CATEGORIES.includes(filter)) {
           params.category = filter
+        } else if (FOLDERS.includes(filter)) {
+          params.folder = filter === 'allmail' ? 'all' : filter
         } else {
           params.label = filter.toUpperCase()
         }
@@ -88,6 +91,14 @@ export const useDeleteEmail = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (emailId) => api.delete(`/emails/${emailId}`),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+  })
+}
+
+export const useRestoreEmail = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (emailId) => api.post(`/emails/${emailId}/restore`),
     onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
   })
 }

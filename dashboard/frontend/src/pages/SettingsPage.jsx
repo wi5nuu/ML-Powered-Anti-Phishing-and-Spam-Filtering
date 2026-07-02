@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Settings, Save, RefreshCw, TestTube, Plus, Trash2,
   Shield, Sliders, Wifi, CheckCircle, XCircle, Loader2,
-  User, Bell, Lock
+  User, Bell, Lock, Mail
 } from 'lucide-react'
 import GmailShell from '../components/layout/GmailShell'
 import { useMe } from '../api/auth'
 import { useSettings, useUpdateSettings, useTestImap } from '../api/metrics'
+import { useUpdateProfile } from '../api/profile'
 import { useToast } from '../hooks/useToast'
+import { getActiveMailbox, getMailDomain } from '../utils/mailbox'
 import styles from './SettingsPage.module.css'
 
 // ─── Section wrapper ─────────────────────────────────────────────────────────────
@@ -132,14 +134,26 @@ export default function SettingsPage() {
   const { data: remoteSettings, isLoading, isError } = useSettings()
   const { mutate: saveSettings, isPending: isSaving } = useUpdateSettings()
   const { mutate: testImap, isPending: isTesting, data: imapTestResult } = useTestImap()
+  const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const role = me?.user?.role
   const isAdmin = role === 'admin' || role === 'superadmin'
   const isSuper = role === 'superadmin'
+  const activeMailbox = getActiveMailbox(searchParams)
+  const activeMailDomain = getMailDomain()
 
   const [local, setLocal] = useState(DEFAULTS)
   const [dirty, setDirty] = useState(false)
+  const [accountUsername, setAccountUsername] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  useEffect(() => {
+    if (me?.user?.username) setAccountUsername(me.user.username)
+  }, [me?.user?.username])
 
   // Sync from server
   useEffect(() => {
@@ -194,6 +208,78 @@ export default function SettingsPage() {
     })
   }
 
+  const handleSaveAccount = () => {
+    if (!currentPassword) {
+      addToast('Masukkan password saat ini untuk menyimpan perubahan akun.', 'warning')
+      return
+    }
+    if (newPassword && newPassword !== confirmPassword) {
+      addToast('Konfirmasi password baru tidak cocok.', 'warning')
+      return
+    }
+    updateProfile({
+      username: accountUsername,
+      current_password: currentPassword,
+      new_password: newPassword,
+    }, {
+      onSuccess: () => {
+        addToast('Akun berhasil diperbarui.', 'success')
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      },
+      onError: (err) => {
+        addToast(err?.response?.data?.detail || 'Gagal memperbarui akun.', 'error')
+      },
+    })
+  }
+
+  const accountSection = (
+    <Section icon={User} title="Akun Login">
+      <FieldRow label="Username" hint="Username yang digunakan saat login.">
+        <input
+          className={styles.input}
+          value={accountUsername}
+          onChange={(e) => setAccountUsername(e.target.value)}
+          placeholder="Username"
+        />
+      </FieldRow>
+      <FieldRow label="Password Saat Ini" hint="Wajib diisi untuk mengganti username atau password.">
+        <input
+          className={styles.input}
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          placeholder="Password saat ini"
+        />
+      </FieldRow>
+      <FieldRow label="Password Baru" hint="Kosongkan jika tidak ingin mengganti password.">
+        <input
+          className={styles.input}
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Password baru"
+        />
+      </FieldRow>
+      <FieldRow label="Konfirmasi Password" hint="Ulangi password baru.">
+        <input
+          className={styles.input}
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Konfirmasi password baru"
+        />
+      </FieldRow>
+      <div className={styles.sectionActions}>
+        <button className={styles.btnPrimary} onClick={handleSaveAccount} disabled={isUpdatingProfile}>
+          {isUpdatingProfile ? <Loader2 size={15} className={styles.spin} /> : <Save size={15} />}
+          {isUpdatingProfile ? 'Menyimpan...' : 'Simpan Akun'}
+        </button>
+      </div>
+    </Section>
+  )
+
   if (meLoading || isLoading) {
     return (
       <GmailShell>
@@ -218,6 +304,17 @@ export default function SettingsPage() {
           </div>
 
           <div className={styles.layoutBottom}>
+            {activeMailbox && (
+              <Section icon={Mail} title="Mailbox Aktif">
+                <FieldRow label="Email aktif" hint="Pengaturan sedang dibuka dari dashboard mailbox ini.">
+                  <strong className={styles.readOnlyValue}>{activeMailbox}</strong>
+                </FieldRow>
+                <FieldRow label="Domain mailbox" hint="Domain perusahaan yang dipakai mailbox ini.">
+                  <strong className={styles.readOnlyValue}>@{activeMailDomain}</strong>
+                </FieldRow>
+              </Section>
+            )}
+            {accountSection}
             <Section icon={User} title="Informasi Profil">
               <div className={styles.fieldRow}>
                 <div className={styles.fieldLeft}>
@@ -324,6 +421,34 @@ export default function SettingsPage() {
             ⚠ Ada perubahan yang belum disimpan.
           </div>
         )}
+
+        {/* 3-column grid: Thresholds | Fusion Weights | IMAP */}
+        <div className={styles.layoutBottom}>
+          {activeMailbox && (
+            <Section icon={Mail} title="Mailbox Aktif">
+              <FieldRow label="Email aktif" hint="Pengaturan sedang dibuka dari dashboard mailbox ini.">
+                <strong className={styles.readOnlyValue}>{activeMailbox}</strong>
+              </FieldRow>
+              <FieldRow label="Domain mailbox" hint="Domain perusahaan yang dipakai mailbox ini.">
+                <strong className={styles.readOnlyValue}>@{activeMailDomain}</strong>
+              </FieldRow>
+            </Section>
+          )}
+          {accountSection}
+          <Section icon={Lock} title="Role & Akses">
+            <div className={styles.fieldRow}>
+              <div className={styles.fieldLeft}>
+                <label className={styles.fieldLabel}>Role</label>
+                <span className={styles.fieldHint}>{me?.user?.role || '-'}</span>
+              </div>
+              <div className={styles.fieldRight}>
+                <button className={styles.btnOutline} onClick={() => navigate('/profile')}>
+                  <User size={15} /> Lihat Profil
+                </button>
+              </div>
+            </div>
+          </Section>
+        </div>
 
         {/* 3-column grid: Thresholds | Fusion Weights | IMAP */}
         <div className={styles.layoutTop}>
@@ -498,19 +623,8 @@ export default function SettingsPage() {
                 <span className={styles.fieldHint}>Kelola user, laporan, dan aktivitas sistem</span>
               </div>
               <div className={styles.fieldRight}>
-                <button className={styles.btnPrimary} onClick={() => navigate('/admin')}>
+                <button className={styles.btnPrimary} onClick={() => navigate(isSuper ? '/super-admin/dashboard' : '/admin/dashboard')}>
                   <Lock size={15} /> Buka Admin Panel
-                </button>
-              </div>
-            </div>
-            <div className={styles.fieldRow}>
-              <div className={styles.fieldLeft}>
-                <label className={styles.fieldLabel}>Audit Log</label>
-                <span className={styles.fieldHint}>Lihat log aktivitas seluruh pengguna</span>
-              </div>
-              <div className={styles.fieldRight}>
-                <button className={styles.btnOutline} onClick={() => navigate('/audit')}>
-                  <Shield size={15} /> Buka Audit Log
                 </button>
               </div>
             </div>

@@ -5,7 +5,7 @@ import styles from './HelpPage.module.css'
 export default function HelpPage() {
   const { data: me } = useMe()
   const role = me?.user?.role || ''
-  const isAnalyst = role === 'analyst' || role === 'user'
+  const isUser = role === 'user'
   const isAdmin = role === 'admin'
   const isSuper = role === 'superadmin'
 
@@ -15,8 +15,8 @@ export default function HelpPage() {
         <h1 className={styles.title}>Bantuan & Dokumentasi Sistem</h1>
         <p className={styles.subtitle}>
           {isSuper && 'Panduan lengkap untuk Super Admin — kelola pengguna, pantau sistem, dan konfigurasi keamanan.'}
-          {isAdmin && 'Panduan untuk Security Admin — kelola laporan, release email, dan pantau aktivitas sistem.'}
-          {isAnalyst && 'Panduan untuk pengguna — cara membaca email, melapor masalah, dan menggunakan fitur filtering.'}
+          {isAdmin && 'Panduan untuk Admin - kelola laporan, release email, dan pantau aktivitas sistem.'}
+          {isUser && 'Panduan untuk User - cara membaca email, melapor masalah, dan menggunakan fitur filtering.'}
         </p>
 
         {/* ── 1. Alur Deteksi (semua role lihat) ── */}
@@ -131,10 +131,10 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ── 3. Panduan Analyst ── */}
-        {isAnalyst && (
+        {/* ── 3. Panduan User ── */}
+        {isUser && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>3. Panduan Penggunaan untuk Pengguna / Analyst</h2>
+            <h2 className={styles.sectionTitle}>3. Panduan Penggunaan untuk User</h2>
             <div className={styles.roleGuide}>
               <ol className={styles.roleSteps}>
                 <li><strong>Login:</strong> Buka halaman login, klik "Login dengan Google" atau masukkan kredensial dari admin.</li>
@@ -153,7 +153,7 @@ export default function HelpPage() {
         {/* ── 4. Panduan Admin ── */}
         {(isAdmin || isSuper) && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{isSuper ? '4.' : '3.'} Panduan untuk Security Admin</h2>
+            <h2 className={styles.sectionTitle}>{isSuper ? '4.' : '3.'} Panduan untuk Admin</h2>
             <div className={styles.roleGuide}>
               <ol className={styles.roleSteps}>
                 <li><strong>Akses Admin Panel:</strong> Klik "Admin Panel" di sidebar untuk dashboard.</li>
@@ -175,7 +175,7 @@ export default function HelpPage() {
               <ol className={styles.roleSteps}>
                 <li><strong>Manajemen User:</strong> Tab Users — tambah user baru, edit role, reset password, nonaktifkan/aktifkan akun.</li>
                 <li><strong>Hapus Email:</strong> Dapat menghapus email dari sistem secara permanen jika diperlukan.</li>
-                <li><strong>Semua akses Admin:</strong> Super Admin memiliki semua kemampuan yang dimiliki Security Admin.</li>
+                <li><strong>Semua akses Admin:</strong> Super Admin memiliki semua kemampuan yang dimiliki Admin.</li>
               </ol>
             </div>
           </section>
@@ -185,7 +185,7 @@ export default function HelpPage() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{isSuper ? '6.' : isAdmin ? '4.' : '3.'} Pertanyaan Umum</h2>
 
-          {isAnalyst && (
+          {isUser && (
             <>
               <div className={styles.faqItem}>
                 <div className={styles.faqQ}>Q: Email saya tidak masuk ke inbox, bagaimana?</div>
@@ -264,3 +264,4 @@ export default function HelpPage() {
     </GmailShell>
   )
 }
+

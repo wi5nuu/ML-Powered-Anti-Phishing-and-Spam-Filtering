@@ -1,10 +1,13 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { 
-  ArrowLeft, Reply, MoreVertical, Archive, Trash2, Mail, Clock, 
-  FolderSymlink, Tag, Printer, ExternalLink, Star, Smile, ShieldAlert,
-  ChevronLeft, ChevronRight, CornerUpRight, X
+  ArrowLeft, Reply, MoreVertical, Trash2, Mail,
+  Printer, ExternalLink, Star, ShieldAlert,
+  ChevronLeft, ChevronRight, CornerUpRight, ChevronDown, ChevronRight as ChevronRightIcon, X, Paperclip, Download,
+  Ban, Code2, Link, Image
 } from 'lucide-react'
+import api from '../api/client'
 import GmailShell from '../components/layout/GmailShell'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 import { 
   useEmail, 
   useEmails,
@@ -15,13 +18,73 @@ import {
 } from '../api/emails'
 import { useMe } from '../api/auth'
 import { useToast } from '../hooks/useToast'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getActiveMailbox, getActiveMailboxId } from '../utils/mailbox'
 import styles from './EmailDetailPage.module.css'
 
 const BADGE_CFG = {
   quarantine: { text: 'KARANTINA', cls: styles.badgeQ },
   warn: { text: 'PERINGATAN', cls: styles.badgeW },
   clean: { text: 'BERSIH', cls: styles.badgeC },
+}
+
+function formatBytes(bytes = 0) {
+  if (!bytes) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / Math.pow(1024, index)).toFixed(index === 0 ? 0 : 1)} ${units[index]}`
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function safeFilename(value = 'email') {
+  return `${(value || 'email').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120)}.eml`
+}
+
+function normalizeRecipients(value) {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function SecuritySection({ id, title, isOpen, onToggle, children }) {
+  return (
+    <div className={`${styles.card} ${!isOpen ? styles.cardClosed : ''}`}>
+      <button className={styles.cardToggle} onClick={() => onToggle(id)}>
+        <span>{title}</span>
+        {isOpen ? <ChevronDown size={18} /> : <ChevronRightIcon size={18} />}
+      </button>
+      {isOpen && <div className={styles.cardBody}>{children}</div>}
+    </div>
+  )
+}
+
+function SecurityPanelWrapper({ onClose, children }) {
+  return (
+    <div className={styles.securityWrapper}>
+      <div className={styles.securityWrapperHeader}>
+        <span>Panel Deteksi Keamanan</span>
+        <button className={styles.securityCloseBtn} onClick={onClose} title="Tutup panel">
+          <X size={18} />
+        </button>
+      </div>
+      <div className={styles.securityWrapperBody}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 const MOCK_BODIES = {
@@ -129,7 +192,7 @@ const MOCK_BODIES = {
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff; color: #333;">
       <h2 style="margin-top: 0; color: #1a73e8; font-size: 18px; border-bottom: 2px solid #1a73e8; padding-bottom: 8px;">Jadwal Rapat Update Proyek Besok</h2>
       <p>Halo Rekan-rekan,</p>
-      <p>Kita akan mengadakan rapat koordinasi untuk membahas update progress proyek LTI Anti-Phishing besok pagi:</p>
+      <p>Kita akan mengadakan rapat koordinasi untuk membahas update progress proyek CogniMail besok pagi:</p>
       <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
         <tr>
           <td style="padding: 6px 0; font-weight: bold; width: 100px;">Tanggal:</td>
@@ -146,7 +209,7 @@ const MOCK_BODIES = {
       </table>
       <p>Agenda rapat utama meliputi review model klasifikasi anomali, penanganan false positive, serta sinkronisasi visualisasi SHAP ke panel dashboard.</p>
       <p>Mohon siapkan file slide progress dari masing-masing divisi.</p>
-      <p style="margin-bottom: 0; font-size: 13px; color: #666;">Salam hangat,<br/><strong>Manajer Proyek LTI</strong></p>
+      <p style="margin-bottom: 0; font-size: 13px; color: #666;">Salam hangat,<br/><strong>Manajer Proyek CogniMail</strong></p>
     </div>
   `,
   'free money': `
@@ -210,7 +273,7 @@ const MOCK_BODIES = {
   're: strategy meeting': `
     <div style="font-family: Calibri, sans-serif; max-width: 600px; margin: 0 auto; padding: 16px; color: #2b2b2b;">
       <p>Hi team,</p>
-      <p>Good progress on the front-end mockup. Regarding the strategy meeting tomorrow, let's make sure we also invite the product design team to review the final layout of the LTI Anti-Phishing application dashboard.</p>
+      <p>Good progress on the front-end mockup. Regarding the strategy meeting tomorrow, let's make sure we also invite the product design team to review the final layout of the CogniMail application dashboard.</p>
       <p>We need to align on the user experience and ensure that standard roles do not see any of the advanced security statistics. The developer has updated the API endpoints to enforce this properly on backend side.</p>
       <p>See you all tomorrow at 10 AM. I will book the online link.</p>
       <p>Best regards,<br/><strong>Prasetyo</strong></p>
@@ -245,7 +308,7 @@ const MOCK_BODIES = {
         <a href="http://accounts.security-reset.lodaya.id.service-recovery.com/reset" target="_blank" rel="noopener noreferrer" style="background-color: #c62828; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block;">Reset Kata Sandi Saya</a>
       </div>
       <p>Jika Anda tidak melakukan verifikasi ini dalam waktu 24 jam, akun Anda akan dinonaktifkan secara permanen untuk alasan pencegahan penipuan.</p>
-      <p style="margin-top: 24px; font-size: 12px; color: #888;">Salam Keamanan,<br/>LTI Security Operation Center</p>
+      <p style="margin-top: 24px; font-size: 12px; color: #888;">Salam Keamanan,<br/>CogniMail Security Operation Center</p>
     </div>
   `
 }
@@ -272,7 +335,7 @@ const getMockBody = (subject, sender) => {
       <div style="line-height: 1.6; color: #202124; font-size: 14px;">
         <p>Halo,</p>
         <p>Anda menerima email penting dari <strong>${sender || 'sistem luar'}</strong>.</p>
-        <p>Ini adalah pesan terkait subjek <strong>"${subject || '(tanpa subjek)'}"</strong> yang telah disalurkan dan dievaluasi oleh sistem LTI Anti-Phishing Anda.</p>
+        <p>Ini adalah pesan terkait subjek <strong>"${subject || '(tanpa subjek)'}"</strong> yang telah disalurkan dan dievaluasi oleh sistem CogniMail Anda.</p>
         <p style="padding: 16px; background-color: #f8f9fa; border-radius: 4px; border-left: 4px solid #1a73e8; font-style: italic; color: #3c4043; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">
           Pesan ini mengandung informasi operasional standar. Jika ini adalah email ancaman karantina, silakan periksa parameter deteksi machine learning dan rincian SHAP di bilah analisis keamanan kanan.
         </p>
@@ -285,10 +348,29 @@ const getMockBody = (subject, sender) => {
 export default function EmailDetailPage() {
   const { emailId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { showToast } = useToast()
+  const fromPath = searchParams.get('from') || ''
+  const activeMailbox = getActiveMailbox(searchParams) || new URLSearchParams(fromPath.split('?')[1] || '').get('mailbox') || ''
+  const activeMailboxId = getActiveMailboxId(searchParams) || new URLSearchParams(fromPath.split('?')[1] || '').get('mailbox_id') || ''
+  const originalView = searchParams.get('original') === '1'
+  const getListFilter = (source) => {
+    if (source.startsWith('/sent')) return 'sent'
+    if (!source.startsWith('/inbox')) return 'all'
+    const query = source.split('?')[1] || ''
+    const params = new URLSearchParams(query)
+    const folder = params.get('folder')
+    const category = params.get('category')
+    if (folder === 'allmail') return 'allmail'
+    if (folder === 'trash') return 'trash'
+    if (folder === 'draft') return 'draft'
+    if (category) return category
+    return 'all'
+  }
   
   const { data: email, isLoading, isError } = useEmail(emailId)
-  const { data: emailsData } = useEmails('all')
+  const listFilter = getListFilter(fromPath)
+  const { data: emailsData } = useEmails(listFilter)
   const { data: meData } = useMe()
 
   const { mutate: release, isPending: releasing } = useReleaseEmail()
@@ -302,9 +384,32 @@ export default function EmailDetailPage() {
   const [replyTo, setReplyTo] = useState('')
   const [replySubject, setReplySubject] = useState('')
   const [replyBody, setReplyBody] = useState('')
+  const [messageMenuAnchor, setMessageMenuAnchor] = useState(null)
+  const [replyActionMenuOpen, setReplyActionMenuOpen] = useState(false)
+  const [replyLinkOpen, setReplyLinkOpen] = useState(false)
+  const [replyLinkText, setReplyLinkText] = useState('')
+  const [replyLinkUrl, setReplyLinkUrl] = useState('')
+  const [replyAttachments, setReplyAttachments] = useState([])
+  const [securityPanelOpen, setSecurityPanelOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [openPanels, setOpenPanels] = useState({
+    actions: true,
+    scores: true,
+    xai: true,
+    metadata: false,
+  })
 
   const [localStarred, setLocalStarred] = useState(null)
   const [isUnread, setIsUnread] = useState(false)
+
+  useEffect(() => {
+    try {
+      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
+      setIsUnread(!readIds.has(emailId))
+    } catch {
+      setIsUnread(false)
+    }
+  }, [emailId])
 
   if (isLoading) return (
     <GmailShell>
@@ -318,10 +423,25 @@ export default function EmailDetailPage() {
     </GmailShell>
   )
 
-  const role = meData?.user?.role || 'analyst'
+  const role = meData?.user?.role || 'user'
   const showSecurityPanel = true
 
   const label = (email.label || 'clean').toLowerCase()
+  const backPath = fromPath || (label === 'sent' ? '/sent' : '/inbox')
+  const detailFromQuery = encodeURIComponent(backPath)
+  const makeDetailUrl = (targetEmailId) => {
+    const params = new URLSearchParams({ from: backPath })
+    if (activeMailbox) params.set('mailbox', activeMailbox)
+    if (activeMailboxId) params.set('mailbox_id', activeMailboxId)
+    return `/email/${targetEmailId}?${params.toString()}`
+  }
+  const folderBadgeText = label === 'sent'
+    ? 'Terkirim'
+    : email.status === 'trash'
+    ? 'Sampah'
+    : label === 'quarantine' || ['spam', 'phishing', 'malware'].includes((email.category || '').toLowerCase())
+    ? 'Karantina'
+    : 'Kotak Masuk'
   const cfg = BADGE_CFG[label] || BADGE_CFG.clean
   const shap = email.shap_data
   const maxShap = shap?.features?.length
@@ -329,6 +449,25 @@ export default function EmailDetailPage() {
     : 1
 
   const emailBodyHTML = email.raw_content ? email.raw_content : getMockBody(email.subject, email.sender)
+  const recipients = normalizeRecipients(email.recipient_list)
+  const recipientText = recipients.length > 0
+    ? recipients.join(', ')
+    : meData?.user?.username || 'me'
+  const receivedText = email.received_at
+    ? new Date(email.received_at).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium' })
+    : 'N/A'
+  const originalMessage = [
+    `Message-ID: <${email.email_id}@cognimail.local>`,
+    `Date: ${receivedText}`,
+    `From: ${email.sender || ''}`,
+    `To: ${recipientText}`,
+    `Subject: ${email.subject || ''}`,
+    `SPF: ${email.spf_result || 'N/A'}`,
+    `DKIM: ${email.dkim_result || 'N/A'}`,
+    `DMARC: ${email.dmarc_result || 'N/A'}`,
+    '',
+    email.raw_content || '',
+  ].join('\n')
   const senderInitial = (email.sender || 'U')[0].toUpperCase()
 
   // Dynamic Avatar color
@@ -337,7 +476,15 @@ export default function EmailDetailPage() {
   const avatarBg = avatarColors[colorIndex]
 
   // Pagination logic
-  const emailList = emailsData?.emails || []
+  const emailList = (emailsData?.emails || []).filter((row) => {
+    if (!activeMailbox) return false
+    const target = activeMailbox.toLowerCase()
+    if (listFilter === 'sent') {
+      return String(row.sender || row.sender_email || '').toLowerCase() === target
+    }
+    return String(row.recipient_list || '').toLowerCase().includes(target)
+      || String(row.sender || row.sender_email || '').toLowerCase() === target
+  })
   const currentIndex = emailList.findIndex((e) => e.email_id === emailId)
   const prevEmail = currentIndex > 0 ? emailList[currentIndex - 1] : null
   const nextEmail = currentIndex >= 0 && currentIndex < emailList.length - 1 ? emailList[currentIndex + 1] : null
@@ -363,7 +510,7 @@ export default function EmailDetailPage() {
     release(emailId, {
       onSuccess: () => {
         showToast('Email dilepaskan ke inbox', 'success')
-        navigate('/inbox')
+        navigate(backPath)
       },
       onError: () => showToast('Gagal melepaskan email', 'error'),
     })
@@ -376,32 +523,43 @@ export default function EmailDetailPage() {
     }
     confirmSpam(emailId, {
       onSuccess: () => {
-        showToast('Dikonfirmasi sebagai spam', 'info')
-        navigate('/inbox')
+        showToast('Email dipindahkan ke kategori Spam', 'info')
+        navigate(backPath)
       },
       onError: () => showToast('Gagal mengkonfirmasi spam', 'error'),
     })
   }
 
   const handleDelete = () => {
-    if (role !== 'superadmin' && role !== 'admin') {
-      showToast('Aksi ditolak: Hanya Super Admin & Admin yang dapat menghapus email', 'error')
-      return
-    }
-    if (window.confirm('Apakah Anda yakin ingin menghapus email ini secara permanen dari sistem?')) {
-      deleteEmail(emailId, {
-        onSuccess: () => {
-          showToast('Email berhasil dihapus', 'success')
-          navigate('/inbox')
-        },
-        onError: () => showToast('Gagal menghapus email', 'error'),
-      })
-    }
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    const alreadyTrash = email.status === 'trash'
+    deleteEmail(emailId, {
+      onSuccess: () => {
+        if (alreadyTrash) showToast('Email berhasil dihapus permanen', 'success')
+        setDeleteDialogOpen(false)
+        navigate(backPath)
+      },
+      onError: (err) => showToast(err.response?.data?.detail || 'Gagal menghapus email', 'error'),
+    })
   }
 
   const handleToggleUnread = () => {
     const nextVal = !isUnread
     setIsUnread(nextVal)
+    try {
+      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
+      if (nextVal) {
+        readIds.delete(emailId)
+      } else {
+        readIds.add(emailId)
+      }
+      localStorage.setItem('cognimail.read', JSON.stringify(Array.from(readIds)))
+    } catch {
+      // Ignore localStorage failures; the visual state still updates for this view.
+    }
     showToast(nextVal ? 'Ditandai sebagai belum dibaca' : 'Ditandai sebagai sudah dibaca', 'info')
   }
 
@@ -417,38 +575,195 @@ export default function EmailDetailPage() {
     showToast('Fitur Label disimulasikan', 'info')
   }
 
-  const handleMoreActions = () => {
-    showToast('Opsi tambahan disimulasikan', 'info')
+  const closeMessageMenu = () => setMessageMenuAnchor(null)
+
+  const handleMoreActions = (e, anchor = 'message') => {
+    e?.stopPropagation()
+    setMessageMenuAnchor((openAnchor) => openAnchor === anchor ? null : anchor)
   }
 
   const handlePrint = () => {
-    window.print()
+    const printWindow = window.open('', '_blank', 'width=1120,height=820')
+    if (!printWindow) {
+      window.print()
+      return
+    }
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(email.subject || 'Cetak email')}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; color: #202124; background: #fff; }
+            .page { max-width: 940px; margin: 32px auto; padding: 0 28px; }
+            .brand { display: flex; justify-content: space-between; align-items: center; color: #5f6368; margin-bottom: 24px; }
+            .brand strong { font-size: 24px; color: #202124; }
+            h1 { font-size: 24px; margin: 0 0 14px; border-top: 1px solid #9aa0a6; border-bottom: 1px solid #9aa0a6; padding: 12px 0; }
+            .meta { display: flex; justify-content: space-between; gap: 24px; border-bottom: 1px solid #dadce0; padding-bottom: 14px; margin-bottom: 24px; }
+            .sender { font-weight: 700; }
+            .body { line-height: 1.55; }
+            @media print { .page { margin: 18px auto; } }
+          </style>
+        </head>
+        <body>
+          <main class="page">
+            <div class="brand"><strong>CogniMail</strong><span>${escapeHtml(recipientText)}</span></div>
+            <h1>${escapeHtml(email.subject || '(tanpa subjek)')}</h1>
+            <div class="meta">
+              <div><div class="sender">${escapeHtml(email.sender || 'Pengirim')}</div><div>Kepada: ${escapeHtml(recipientText)}</div></div>
+              <div>${escapeHtml(receivedText)}</div>
+            </div>
+            <div class="body">${emailBodyHTML}</div>
+          </main>
+          <script>window.onload = () => { window.print(); };</script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   const handleOpenNewWindow = () => {
-    window.open(window.location.href, '_blank')
+    window.open(`/email/${emailId}?from=${detailFromQuery}&original=1`, '_blank', 'width=1180,height=860')
   }
 
-  // Reply Draft Handlers
+  const handleDownloadMessage = () => {
+    const blob = new Blob([originalMessage], { type: 'message/rfc822;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = safeFilename(email.subject)
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleCopyOriginal = async () => {
+    try {
+      await navigator.clipboard.writeText(originalMessage)
+      showToast('Pesan asli disalin ke papan klip', 'success')
+    } catch {
+      showToast('Gagal menyalin pesan asli', 'error')
+    }
+  }
+
+  // Reply / Forward Handlers
   const handleOpenReply = (mode) => {
+    closeMessageMenu()
+    setReplyActionMenuOpen(false)
+    setReplyLinkOpen(false)
+    setReplyAttachments([])
     setReplyMode(mode)
-    setReplyTo(mode === 'reply' ? (email.sender || '') : '')
-    setReplySubject(mode === 'reply' ? `Re: ${email.subject || ''}` : `Fwd: ${email.subject || ''}`)
-    setReplyBody('')
+    if (mode === 'reply') {
+      setReplyTo(email.sender || '')
+      setReplySubject(`Re: ${email.subject || ''}`)
+      setReplyBody('')
+    } else if (mode === 'forward') {
+      setReplyTo('')
+      setReplySubject(`Fwd: ${email.subject || ''}`)
+      setReplyBody(`\n\n---------- Forwarded message ---------\nDari: ${email.sender || '-'}\nTanggal: ${email.received_at ? new Date(email.received_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}\nSubjek: ${email.subject || '(tanpa subjek)'}\nKepada: ${recipientText || 'saya'}\n\n${email.raw_content ? email.raw_content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''}`)
+    }
   }
 
-  const handleSendReply = () => {
+  const handleApplyReplyLink = () => {
+    if (!replyLinkUrl.trim()) return
+    const text = replyLinkText.trim() || replyLinkUrl.trim()
+    const url = replyLinkUrl.trim()
+    const linkText = `${text} (${url})`
+    setReplyBody((body) => body ? `${body}\n${linkText}` : linkText)
+    setReplyLinkText('')
+    setReplyLinkUrl('')
+    setReplyLinkOpen(false)
+  }
+
+  const handleSendReply = async () => {
     if (!replyTo) {
       showToast('Silakan tentukan penerima email', 'error')
       return
     }
-    showToast(
-      replyMode === 'reply' 
-        ? 'Balasan berhasil dikirim (simulasi)' 
-        : 'Email berhasil diteruskan (simulasi)', 
-      'success'
+    try {
+      if (replyAttachments.length > 0) {
+        const formData = new FormData()
+        formData.append('to', replyTo)
+        formData.append('from_email', activeMailbox)
+        formData.append('subject', replySubject)
+        formData.append('body', replyBody)
+        formData.append('reply_to_id', email.email_id)
+        formData.append('action', replyMode)
+        replyAttachments.forEach((file) => formData.append('attachments', file))
+        await api.post('/emails/send', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      } else {
+        await api.post('/emails/send', {
+          to: replyTo,
+          from_email: activeMailbox,
+          subject: replySubject,
+          body: replyBody,
+          reply_to_id: email.email_id,
+          action: replyMode,
+        })
+      }
+      showToast(
+        replyMode === 'reply' 
+          ? 'Balasan berhasil dikirim' 
+          : 'Email berhasil diteruskan', 
+        'success'
+      )
+      setReplyAttachments([])
+      setReplyMode(null)
+    } catch (err) {
+      showToast('Gagal mengirim: ' + (err.response?.data?.detail || err.message), 'error')
+    }
+  }
+
+  const renderMessageMenu = (placement = 'message') => (
+    <div className={`${styles.messageMenu} ${placement === 'toolbar' ? styles.messageMenuToolbar : ''}`}>
+      <button onClick={() => handleOpenReply('reply')}><Reply size={16} />Balas</button>
+      <button onClick={() => handleOpenReply('forward')}><CornerUpRight size={16} />Teruskan</button>
+      <div className={styles.menuDivider} />
+      <button onClick={() => { closeMessageMenu(); handleDelete() }}><Trash2 size={16} />Hapus</button>
+      <button onClick={() => { closeMessageMenu(); handleToggleUnread() }}><Mail size={16} />Tandai belum dibaca</button>
+      <div className={styles.menuDivider} />
+      <button onClick={() => { closeMessageMenu(); showToast(`Pengirim ${email.sender || 'ini'} diblokir`, 'info') }}><Ban size={16} />Blokir pengirim</button>
+      <button onClick={() => { closeMessageMenu(); handleSpam() }}><ShieldAlert size={16} />Laporkan spam</button>
+      <button onClick={() => { closeMessageMenu(); showToast('Dilaporkan sebagai phishing', 'warning') }}><ShieldAlert size={16} />Laporkan phishing</button>
+      <button onClick={() => { closeMessageMenu(); handlePrint() }}><Printer size={16} />Print</button>
+      <button onClick={() => { closeMessageMenu(); handleDownloadMessage() }}><Download size={16} />Download pesan</button>
+      <button onClick={() => { closeMessageMenu(); handleOpenNewWindow() }}><Code2 size={16} />Tampilkan versi asli</button>
+    </div>
+  )
+
+  const togglePanel = (panel) => {
+    setOpenPanels((prev) => ({ ...prev, [panel]: !prev[panel] }))
+  }
+
+  if (originalView) {
+    return (
+      <div className={styles.originalPage}>
+        <header className={styles.originalHeader}>
+          <div>
+            <h1>Pesan Asli</h1>
+            <p>{email.subject || '(tanpa subjek)'}</p>
+          </div>
+          <div className={styles.originalActions}>
+            <button onClick={handleDownloadMessage}>Download Pesan Asli</button>
+            <button onClick={handleCopyOriginal}>Salin ke papan klip</button>
+          </div>
+        </header>
+
+        <section className={styles.originalMeta}>
+          <div><span>ID Pesan</span><strong>&lt;{email.email_id}@cognimail.local&gt;</strong></div>
+          <div><span>Dibuat pada</span><strong>{receivedText}</strong></div>
+          <div><span>Dari</span><strong>{email.sender || '-'}</strong></div>
+          <div><span>Kepada</span><strong>{recipientText}</strong></div>
+          <div><span>Subjek</span><strong>{email.subject || '(tanpa subjek)'}</strong></div>
+          <div><span>SPF</span><strong>{email.spf_result || 'N/A'}</strong></div>
+          <div><span>DKIM</span><strong>{email.dkim_result || 'N/A'}</strong></div>
+          <div><span>DMARC</span><strong>{email.dmarc_result || 'N/A'}</strong></div>
+        </section>
+
+        <pre className={styles.originalRaw}>{originalMessage}</pre>
+      </div>
     )
-    setReplyMode(null)
   }
 
   return (
@@ -459,11 +774,8 @@ export default function EmailDetailPage() {
           {/* Gmail Toolbar */}
           <div className={styles.toolbar}>
             <div className={styles.toolbarLeft}>
-              <button className={styles.toolbarBtn} onClick={() => navigate('/inbox')} title="Kembali">
+              <button className={styles.toolbarBtn} onClick={() => navigate(backPath)} title="Kembali">
                 <ArrowLeft size={18} />
-              </button>
-              <button className={styles.toolbarBtn} onClick={handleArchive} title="Arsipkan / Lepaskan">
-                <Archive size={18} />
               </button>
               <button className={styles.toolbarBtn} onClick={handleSpam} title="Laporkan Spam">
                 <ShieldAlert size={18} />
@@ -478,25 +790,19 @@ export default function EmailDetailPage() {
               >
                 <Mail size={18} />
               </button>
-              <button className={styles.toolbarBtn} onClick={handleSnooze} title="Tunda">
-                <Clock size={18} />
-              </button>
-              <button className={styles.toolbarBtn} onClick={handleMoveTo} title="Pindahkan ke">
-                <FolderSymlink size={18} />
-              </button>
-              <button className={styles.toolbarBtn} onClick={handleAddLabel} title="Label">
-                <Tag size={18} />
-              </button>
-              <button className={styles.toolbarBtn} onClick={handleMoreActions} title="Lainnya">
-                <MoreVertical size={18} />
-              </button>
+              <div className={styles.moreMenuWrap}>
+                <button className={styles.toolbarBtn} onClick={(e) => handleMoreActions(e, 'toolbar')} title="Lainnya">
+                  <MoreVertical size={18} />
+                </button>
+                {messageMenuAnchor === 'toolbar' && renderMessageMenu('toolbar')}
+              </div>
             </div>
             <div className={styles.toolbarRight}>
               <span className={styles.pagerText}>{pagerText}</span>
               <button 
                 className={styles.toolbarBtn} 
                 disabled={!prevEmail} 
-                onClick={() => prevEmail && navigate(`/email/${prevEmail.email_id}`)}
+                onClick={() => prevEmail && navigate(makeDetailUrl(prevEmail.email_id))}
                 title="Lebih baru"
               >
                 <ChevronLeft size={18} />
@@ -504,7 +810,7 @@ export default function EmailDetailPage() {
               <button 
                 className={styles.toolbarBtn} 
                 disabled={!nextEmail} 
-                onClick={() => nextEmail && navigate(`/email/${nextEmail.email_id}`)}
+                onClick={() => nextEmail && navigate(makeDetailUrl(nextEmail.email_id))}
                 title="Lebih lama"
               >
                 <ChevronRight size={18} />
@@ -516,7 +822,7 @@ export default function EmailDetailPage() {
           <div className={styles.subjectRow}>
             <h1 className={styles.subjectTitle}>
               {email.subject || '(tanpa subjek)'}
-              <span className={styles.badgeInbox}>Kotak Masuk x</span>
+              <span className={styles.badgeInbox}>{folderBadgeText} x</span>
             </h1>
             <div className={styles.subjectActions}>
               <button className={styles.toolbarBtn} onClick={handlePrint} title="Cetak semua">
@@ -564,9 +870,7 @@ export default function EmailDetailPage() {
                   <div className={styles.recipientRow}>
                     <span className={styles.recipientLabel}>Kepada:</span>
                     <span className={styles.recipientValue}>
-                      {email.recipient_list && email.recipient_list.length > 0
-                        ? email.recipient_list.join(', ')
-                        : meData?.user?.username || 'me'}
+                      {recipientText}
                     </span>
                   </div>
                   <div className={styles.recipientRow}>
@@ -600,59 +904,183 @@ export default function EmailDetailPage() {
               <button className={styles.toolbarBtn} onClick={() => handleOpenReply('reply')} title="Balas">
                 <Reply size={16} />
               </button>
-              <button className={styles.toolbarBtn} onClick={handleMoreActions} title="Lainnya">
-                <MoreVertical size={16} />
-              </button>
+              <div className={styles.moreMenuWrap}>
+                <button className={styles.toolbarBtn} onClick={(e) => handleMoreActions(e, 'message')} title="Lainnya">
+                  <MoreVertical size={16} />
+                </button>
+                {messageMenuAnchor === 'message' && renderMessageMenu('message')}
+              </div>
             </div>
           </div>
 
           {/* Email Content Frame */}
           <div className={styles.emailBodyWrapper}>
             <div className={styles.emailBodyCard} dangerouslySetInnerHTML={{ __html: emailBodyHTML }} />
+            {email.attachments?.length > 0 && (
+              <div className={styles.attachments}>
+                <div className={styles.attachmentsTitle}>
+                  <Paperclip size={16} />
+                  <span>{email.attachments.length} lampiran</span>
+                </div>
+                <div className={styles.attachmentGrid}>
+                  {email.attachments.map((attachment) => (
+                    <a
+                      key={attachment.index}
+                      className={`${styles.attachmentItem} ${!attachment.stored ? styles.attachmentDisabled : ''}`}
+                      href={attachment.stored ? `/api/emails/${email.email_id}/attachments/${attachment.index}` : undefined}
+                      title={attachment.stored ? 'Download lampiran' : 'Lampiran terlalu besar untuk disimpan'}
+                    >
+                      <Paperclip size={18} />
+                      <span className={styles.attachmentName}>{attachment.filename}</span>
+                      <span className={styles.attachmentMeta}>{formatBytes(attachment.size)}</span>
+                      {attachment.stored && <Download size={16} />}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Reply / Forward Box Form */}
           {replyMode && (
-            <div className={styles.replyBox}>
-              <div className={styles.replyBoxHeader}>
-                <span>{replyMode === 'reply' ? 'Balas Email' : 'Teruskan Email'}</span>
-                <button 
-                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
-                  onClick={() => setReplyMode(null)}
-                >
-                  <X size={16} />
-                </button>
+            <div className={styles.gmailReplyRow}>
+              <div className={styles.replyAvatar} style={{ backgroundColor: avatarBg }}>
+                {senderInitial}
               </div>
-              <div className={styles.replyBoxBody}>
-                <div className={styles.replyField}>
-                  <span className={styles.replyFieldLabel}>Kepada:</span>
-                  <input 
-                    type="text" 
-                    className={styles.replyFieldInput} 
-                    value={replyTo} 
-                    onChange={(e) => setReplyTo(e.target.value)} 
-                    placeholder="nama@contoh.com"
+              <div className={styles.replyBox}>
+                <div className={styles.replyTopLine}>
+                  <div className={styles.replyActionWrap}>
+                    <button
+                      className={styles.replyActionBtn}
+                      onClick={() => setReplyActionMenuOpen((open) => !open)}
+                      title="Pilih aksi"
+                    >
+                      {replyMode === 'reply' ? <Reply size={16} /> : <CornerUpRight size={16} />}
+                      <ChevronDown size={14} />
+                    </button>
+                    {replyActionMenuOpen && (
+                      <div className={styles.replyActionMenu}>
+                        <button onClick={() => handleOpenReply('reply')}><Reply size={16} />Balas</button>
+                        <button onClick={() => handleOpenReply('forward')}><CornerUpRight size={16} />Teruskan</button>
+                        <div className={styles.menuDivider} />
+                        <button onClick={() => showToast('Subjek sudah bisa diedit di kolom subjek', 'info')}>Edit subjek</button>
+                        <button onClick={() => { setReplyMode(null); setReplyActionMenuOpen(false) }}>Lepaskan balasan</button>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    className={styles.replyToInput}
+                    value={replyTo}
+                    onChange={(e) => setReplyTo(e.target.value)}
+                    placeholder="Kepada"
                   />
+                  <button className={styles.replyIconBtn} onClick={() => setReplyMode(null)} title="Tutup">
+                    <X size={16} />
+                  </button>
                 </div>
-                <div className={styles.replyField}>
-                  <span className={styles.replyFieldLabel}>Subjek:</span>
-                  <input 
-                    type="text" 
-                    className={styles.replyFieldInput} 
-                    value={replySubject} 
-                    onChange={(e) => setReplySubject(e.target.value)}
-                  />
-                </div>
-                <textarea 
-                  className={styles.replyTextarea} 
-                  value={replyBody} 
-                  onChange={(e) => setReplyBody(e.target.value)} 
-                  placeholder={replyMode === 'reply' ? 'Tulis balasan Anda di sini...' : 'Tulis pesan pengantar di sini...'}
+                <input
+                  type="text"
+                  className={styles.replySubjectInput}
+                  value={replySubject}
+                  onChange={(e) => setReplySubject(e.target.value)}
+                  placeholder="Subjek"
                 />
-              </div>
-              <div className={styles.replyBoxFooter}>
-                <button className={styles.btnReplyCancel} onClick={() => setReplyMode(null)}>Batal</button>
-                <button className={styles.btnReplySend} onClick={handleSendReply}>Kirim</button>
+                <textarea
+                  className={styles.replyTextarea}
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  placeholder={replyMode === 'reply' ? '' : 'Tulis pesan pengantar di sini'}
+                />
+                {replyAttachments.length > 0 && (
+                  <div className={styles.replyAttachmentList}>
+                    {replyAttachments.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className={styles.replyAttachmentChip}>
+                        <Paperclip size={14} />
+                        <span>{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setReplyAttachments((prev) => prev.filter((_, i) => i !== index))}
+                          title="Hapus lampiran"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className={styles.replyBoxFooter}>
+                  <button className={styles.btnReplySend} onClick={handleSendReply}>
+                    Kirim
+                  </button>
+                  <label className={styles.replyToolBtn} title="Lampirkan file">
+                    <Paperclip size={17} />
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                  <div className={styles.replyLinkWrap}>
+                    <button
+                      className={`${styles.replyToolBtn} ${replyLinkOpen ? styles.replyToolBtnActive : ''}`}
+                      title="Sisipkan link"
+                      onClick={() => setReplyLinkOpen((open) => !open)}
+                    >
+                      <Link size={17} />
+                    </button>
+                    {replyLinkOpen && (
+                      <div className={styles.replyLinkPopover}>
+                        <div className={styles.replyLinkField}>
+                          <span className={styles.replyLinkIcon}>≡</span>
+                          <input
+                            value={replyLinkText}
+                            onChange={(e) => setReplyLinkText(e.target.value)}
+                            placeholder="Teks"
+                            autoFocus
+                          />
+                        </div>
+                        <div className={styles.replyLinkField}>
+                          <Link size={16} />
+                          <input
+                            value={replyLinkUrl}
+                            onChange={(e) => setReplyLinkUrl(e.target.value)}
+                            placeholder="Ketik atau tempelkan link"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleApplyReplyLink()
+                              if (e.key === 'Escape') setReplyLinkOpen(false)
+                            }}
+                          />
+                          <button
+                            className={styles.replyLinkApply}
+                            onClick={handleApplyReplyLink}
+                            disabled={!replyLinkUrl.trim()}
+                          >
+                            Terapkan
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <label className={styles.replyToolBtn} title="Sisipkan gambar">
+                    <Image size={17} />
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => {
+                        setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                  <button className={`${styles.replyToolBtn} ${styles.replyTrashBtn}`} onClick={() => { setReplyAttachments([]); setReplyMode(null) }} title="Buang draft">
+                    <Trash2 size={17} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -668,19 +1096,24 @@ export default function EmailDetailPage() {
                 <CornerUpRight size={16} className={styles.bottomBtnIcon} />
                 <span>Teruskan</span>
               </button>
-              <button className={styles.toolbarBtn} onClick={() => showToast('Reaksi emoji disimulasikan', 'info')} title="Reaksi Emoji">
-                <Smile size={18} />
-              </button>
             </div>
           )}
         </div>
 
-        {/* Right Pane: Security Analyst tools (Hidden for standard 'user') */}
+        {/* Right Pane: Admin security tools (Hidden for standard 'user') */}
         {showSecurityPanel && (
-          <div className={styles.securityPane}>
+          <>
+          <button
+            className={`${styles.securityDrawerToggle} ${securityPanelOpen ? styles.securityDrawerToggleOpen : ''}`}
+            onClick={() => setSecurityPanelOpen((open) => !open)}
+            title={securityPanelOpen ? 'Tutup Panel Deteksi Keamanan' : 'Buka Panel Deteksi Keamanan'}
+          >
+            {securityPanelOpen ? <ChevronRight size={20} /> : <ShieldAlert size={20} />}
+          </button>
+          <div className={`${styles.securityPane} ${securityPanelOpen ? styles.securityPaneOpen : ''}`}>
+            <SecurityPanelWrapper onClose={() => setSecurityPanelOpen(false)}>
             {/* Actions Panel */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Tindakan Karantina</h3>
+            <SecuritySection id="actions" title="Tindakan Karantina" isOpen={openPanels.actions} onToggle={togglePanel}>
               <div className={styles.actionHeader}>
                 <span className={`${styles.badge} ${cfg.cls}`}>{cfg.text}</span>
                 {email.anomaly_score > 0
@@ -692,7 +1125,7 @@ export default function EmailDetailPage() {
                 <button
                   className={`${styles.btn} ${styles.btnGreen}`}
                   onClick={() => release(emailId, {
-                    onSuccess: () => { showToast('Email dilepaskan ke inbox', 'success'); navigate('/inbox') },
+                    onSuccess: () => { showToast('Email dilepaskan ke inbox', 'success'); navigate(backPath) },
                     onError: () => showToast('Gagal melepaskan', 'error'),
                   })}
                   disabled={releasing}
@@ -702,7 +1135,7 @@ export default function EmailDetailPage() {
                 <button
                   className={`${styles.btn} ${styles.btnRed}`}
                   onClick={() => confirmSpam(emailId, {
-                    onSuccess: () => { showToast('Dikonfirmasi sebagai spam', 'info'); navigate('/inbox') },
+                    onSuccess: () => { showToast('Dikonfirmasi sebagai spam', 'info'); navigate(backPath) },
                     onError: () => showToast('Gagal mengkonfirmasi', 'error'),
                   })}
                   disabled={spamming}
@@ -720,7 +1153,7 @@ export default function EmailDetailPage() {
                   <button
                     className={`${styles.btn} ${styles.btnYellow}`}
                     onClick={() => reportFP({ emailId, notes: fpNotes }, {
-                      onSuccess: () => { showToast('False positive dilaporkan', 'warning'); navigate('/inbox') },
+                      onSuccess: () => { showToast('False positive dilaporkan', 'warning'); navigate(backPath) },
                       onError: () => showToast('Gagal melaporkan', 'error'),
                     })}
                     disabled={reporting}
@@ -729,11 +1162,10 @@ export default function EmailDetailPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </SecuritySection>
 
             {/* Score Grid Panel */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Skor Deteksi</h3>
+            <SecuritySection id="scores" title="Skor Deteksi" isOpen={openPanels.scores} onToggle={togglePanel}>
               <div className={styles.scoreGrid}>
                 <div className={styles.scoreCard}>
                   <div className={styles.scoreValue}>{email.fused_score?.toFixed(3)}</div>
@@ -752,48 +1184,21 @@ export default function EmailDetailPage() {
                   <div className={styles.scoreLabel}>Skor Anomali</div>
                 </div>
               </div>
-            </div>
+            </SecuritySection>
 
             {/* XAI Panel */}
             {email.human_reasons?.length > 0 && (
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Penjelasan AI (XAI)</h3>
+              <SecuritySection id="xai" title="Penjelasan AI (XAI)" isOpen={openPanels.xai} onToggle={togglePanel}>
                 <div className={styles.xaiList}>
                   {email.human_reasons.map((r, i) => (
                     <div key={i} className={styles.xaiItem}>• {r}</div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* SHAP Feature Panel */}
-            {shap?.features?.length > 0 && (
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>SHAP Feature Importance</h3>
-                <div className={styles.shapList}>
-                  {shap.features.slice(0, 5).map((feat, i) => (
-                    <div key={i} className={styles.shapBar}>
-                      <span className={styles.shapLabel}>{feat.name?.slice(0, 15)}</span>
-                      <div className={styles.shapTrack}>
-                        <div
-                          className={`${styles.shapFill} ${feat.shap > 0 ? styles.spam : styles.ham}`}
-                          style={{ width: `${Math.abs(feat.shap) / maxShap * 100}%` }}
-                        />
-                      </div>
-                      <span className={styles.shapVal}>{feat.shap.toFixed(4)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.shapLegend}>
-                  <span>Gelap = SPAM</span>
-                  <span>Terang = HAM</span>
-                </div>
-              </div>
+              </SecuritySection>
             )}
 
             {/* Metadata Detail Table */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Metadata Deteksi</h3>
+            <SecuritySection id="metadata" title="Metadata Deteksi" isOpen={openPanels.metadata} onToggle={togglePanel}>
               <div className={styles.meta}>
                 <div className={styles.metaRow}>
                   <span className={styles.metaLabel}>Kategori</span>
@@ -814,10 +1219,25 @@ export default function EmailDetailPage() {
                   <span className={styles.metaValue}>{email.routing_reason || 'N/A'}</span>
                 </div>
               </div>
-            </div>
+            </SecuritySection>
+            </SecurityPanelWrapper>
           </div>
+          </>
         )}
       </div>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Konfirmasi penghapusan pesan"
+        message={
+          email.status === 'trash'
+            ? 'Tindakan ini akan menghapus permanen percakapan ini. Apakah Anda yakin ingin melanjutkan?'
+            : 'Tindakan ini akan memindahkan percakapan ini ke Sampah. Apakah Anda yakin ingin melanjutkan?'
+        }
+        onCancel={() => setDeleteDialogOpen(false)}
+        onConfirm={confirmDelete}
+        busy={deleting}
+      />
     </GmailShell>
   )
 }
+

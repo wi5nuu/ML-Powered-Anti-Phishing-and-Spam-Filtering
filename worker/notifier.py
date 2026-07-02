@@ -1,5 +1,5 @@
 """
-Multi-channel alerting for LTI Anti-Phishing.
+Multi-channel alerting for CogniMail.
 Supports Slack, Telegram, and Email alerts with severity levels.
 """
 
@@ -70,8 +70,9 @@ class AlertManager:
             return
         await self.ensure_session()
         emoji = {"CRITICAL": "\u26a0\ufe0f", "HIGH": "\u2757", "MEDIUM": "\ud83d\udd35"}
+        severity_icon = emoji.get(payload.severity, "\u2757")
         text = (
-            f"{emoji.get(payload.severity, '\u2757')} *[{payload.severity}] Phishing Alert*\n"
+            f"{severity_icon} *[{payload.severity}] Phishing Alert*\n"
             f"Subject: {payload.subject}\n"
             f"Sender: {payload.sender}\n"
             f"Score: {payload.fused_score:.3f} | ML: {payload.ml_probability:.4f} | Anom: {payload.anomaly_score:.4f}\n"
@@ -92,7 +93,7 @@ class AlertManager:
         if not SMTP_HOST or not SMTP_USER:
             return
         body = (
-            f"LTI Anti-Phishing Alert — {payload.severity}\n\n"
+            f"CogniMail Alert — {payload.severity}\n\n"
             f"Email ID: {payload.email_id}\n"
             f"Subject: {payload.subject}\n"
             f"Sender: {payload.sender}\n"
@@ -104,7 +105,7 @@ class AlertManager:
             f"Dashboard: http://localhost:8081/email/{payload.email_id}"
         )
         msg = MIMEText(body)
-        msg["Subject"] = f"[{payload.severity}] LTI Anti-Phishing Alert — {payload.subject[:40]}"
+        msg["Subject"] = f"[{payload.severity}] CogniMail Alert — {payload.subject[:40]}"
         msg["From"] = SMTP_USER
         msg["To"] = SMTP_USER
         try:

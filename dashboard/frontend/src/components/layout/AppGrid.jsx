@@ -4,51 +4,37 @@ import { useStats } from '../../api/metrics'
 import styles from './AppGrid.module.css'
 
 const USER_APPS = {
-  analyst: {
+  user: {
     favorite: [
-      { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: 'quarantine' },
-      { id: 'karantina', label: 'Karantina', path: '/inbox?filter=quarantine', bg: '#ea4335', emoji: '🛡️', badgeKey: 'quarantine' },
-      { id: 'peringatan', label: 'Peringatan', path: '/inbox?filter=warn', bg: '#f29900', emoji: '⚠️', badgeKey: 'warn' },
-      { id: 'metrik', label: 'Metrik', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
-      { id: 'dokumentasi', label: 'Dokumentasi', path: '/help', bg: '#4285f4', emoji: '📖', badgeKey: null },
-      { id: 'laporan', label: 'Laporan', path: '/metrics', bg: '#9c27b0', emoji: '📄', badgeKey: null },
+      { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: 'ðŸ“§', badgeKey: null },
+      { id: 'allmail', label: 'Semua Email', path: '/inbox?folder=allmail', bg: '#43a047', emoji: 'Mail', badgeKey: null },
+      { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: 'ðŸ”§', badgeKey: null },
     ],
     more: [
-      { id: 'starred', label: 'Berbintang', path: '/starred', bg: '#f4b400', emoji: '⭐', badgeKey: null },
-      { id: 'sent', label: 'Terkirim', path: '/sent', bg: '#00bcd4', emoji: '📤', badgeKey: null },
-      { id: 'snoozed', label: 'Ditunda', path: '/snoozed', bg: '#ff7043', emoji: '🕐', badgeKey: null },
-      { id: 'bersih', label: 'Email Bersih', path: '/inbox?filter=clean', bg: '#43a047', emoji: '✅', badgeKey: 'clean' },
-      { id: 'spam', label: 'Spam', path: '/inbox?filter=all', bg: '#e53935', emoji: '🚨', badgeKey: null },
-      { id: 'api', label: 'API Docs', path: null, external: 'http://localhost:8081/docs', bg: '#00897b', emoji: '🔌', badgeKey: null },
+      { id: 'sent', label: 'Terkirim', path: '/sent', bg: '#00bcd4', emoji: 'ðŸ“¤', badgeKey: null },
     ],
   },
   admin: {
     favorite: [
-      { id: 'admin-panel', label: 'Admin Panel', path: '/admin', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
+      { id: 'admin-panel', label: 'Admin Panel', path: '/admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
       { id: 'metrik', label: 'Metrik', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
-      { id: 'audit', label: 'Audit Log', path: '/audit', bg: '#ea4335', emoji: '📋', badgeKey: null },
-      { id: 'dokumentasi', label: 'Dokumentasi', path: '/help', bg: '#4285f4', emoji: '📖', badgeKey: null },
       { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
-      { id: 'laporan', label: 'Laporan', path: '/admin?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
+      { id: 'laporan', label: 'Laporan', path: '/admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
     ],
     more: [
       { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
-      { id: 'api', label: 'API Docs', path: null, external: 'http://localhost:8081/docs', bg: '#00897b', emoji: '🔌', badgeKey: null },
     ],
   },
   superadmin: {
     favorite: [
-      { id: 'admin-panel', label: 'Admin Panel', path: '/admin', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
-      { id: 'users', label: 'Users', path: '/admin?tab=users', bg: '#0d47a1', emoji: '👥', badgeKey: null },
-      { id: 'audit', label: 'Audit Log', path: '/audit', bg: '#ea4335', emoji: '📋', badgeKey: null },
+      { id: 'admin-panel', label: 'Superadmin Panel', path: '/super-admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
+      { id: 'users', label: 'Users', path: '/super-admin/dashboard?tab=users', bg: '#0d47a1', emoji: '👥', badgeKey: null },
       { id: 'metrik', label: 'Metrik', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
       { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
-      { id: 'dokumentasi', label: 'Dokumentasi', path: '/help', bg: '#4285f4', emoji: '📖', badgeKey: null },
     ],
     more: [
-      { id: 'laporan', label: 'Laporan', path: '/admin?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
+      { id: 'laporan', label: 'Laporan', path: '/super-admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
       { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
-      { id: 'api', label: 'API Docs', path: null, external: 'http://localhost:8081/docs', bg: '#00897b', emoji: '🔌', badgeKey: null },
     ],
   },
 }
@@ -81,8 +67,8 @@ export default function AppGrid({ open, onClose, user }) {
   if (!open) return null
 
   const role = user?.role || 'user'
-  const roleKey = role === 'superadmin' ? 'superadmin' : role === 'admin' ? 'admin' : 'analyst'
-  const apps = USER_APPS[roleKey] || USER_APPS.analyst
+  const roleKey = role === 'superadmin' ? 'superadmin' : role === 'admin' ? 'admin' : 'user'
+  const apps = USER_APPS[roleKey] || USER_APPS.user
 
   const handleAppClick = (app) => {
     onClose()
@@ -121,10 +107,11 @@ export default function AppGrid({ open, onClose, user }) {
 
         <div className={styles.footer}>
           <div className={styles.footerInfo}>
-            LTI Anti-Phishing & Spam Filtering System
+            CogniMail Email Security System
           </div>
         </div>
       </div>
     </>
   )
 }
+

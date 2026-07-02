@@ -5,9 +5,9 @@ import styles from './SearchFilterPanel.module.css'
 
 const SEARCH_IN_OPTIONS = [
   { value: 'all', label: 'Semua email' },
-  { value: 'quarantine', label: 'Karantina' },
-  { value: 'warn', label: 'Peringatan' },
-  { value: 'clean', label: 'Bersih' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'phishing', label: 'Phishing' },
+  { value: 'malware', label: 'Malware' },
 ]
 
 const SIZE_OPERATOR_OPTIONS = [
@@ -56,7 +56,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
     if (sizeVal)   params.set('size', `${sizeOp}:${sizeVal}${sizeUnit}`)
     if (dateFrom)  params.set('after', dateFrom)
     if (dateTo)    params.set('before', dateTo)
-    if (searchIn !== 'all') params.set('filter', searchIn)
+    if (searchIn !== 'all') params.set('category', searchIn)
     if (hasAttachment) params.set('has', 'attachment')
     if (excludeChat) params.set('excludeChat', '1')
 
