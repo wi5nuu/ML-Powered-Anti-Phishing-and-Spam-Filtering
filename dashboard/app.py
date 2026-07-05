@@ -1798,25 +1798,34 @@ async def api_analyze_email(
 @app.get("/api/admin/users")
 async def api_get_users(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage users")
-    users = db.query(User).all()
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
+    if user_info["role"] == "admin":
+        users = db.query(User).filter(User.role == "user").all()
+    else:
+        users = db.query(User).all()
     return [{"username": u.username, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
 
 
 @app.post("/api/admin/users")
 async def api_create_user(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage users")
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     username = payload.get("username")
     password = payload.get("password")
     role = payload.get("role", "user")
     email = payload.get("email", "")
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password are required")
-    if role not in ALLOWED_ROLES:
-        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Enforce role restrictions
+    if user_info["role"] == "admin":
+        role = "user"  # Admin can only create 'user' role
+    elif user_info["role"] == "superadmin":
+        if role not in ("admin", "user"):
+            raise HTTPException(status_code=403, detail="Superadmin can only create admin or user role")
+            
     existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -1846,8 +1855,8 @@ async def api_change_settings(request: Request, payload: dict, db: Session = Dep
 @app.get("/api/admin/mailboxes")
 async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
-        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     rows = db.query(AdminMailbox).filter(AdminMailbox.is_active == True).order_by(AdminMailbox.email.asc()).all()
     return [
         {
@@ -1865,8 +1874,8 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 @app.post("/api/admin/mailboxes")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
-        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     email = str(payload.get("email", "")).strip().lower()
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
     password = str(payload.get("password", ""))
@@ -1930,8 +1939,8 @@ async def api_login_mailbox(payload: dict, db: Session = Depends(get_db)):
 @app.delete("/api/admin/mailboxes/{mailbox_id}")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
-        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
@@ -1944,14 +1953,24 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
 @app.put("/api/admin/users/{username}")
 async def api_update_user(username: str, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage users")
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Enforce update role checks
+    if user_info["role"] == "admin":
+        if user.role != "user":
+            raise HTTPException(status_code=403, detail="Admin can only edit users with 'user' role")
+        if "role" in payload and payload["role"] != "user":
+            raise HTTPException(status_code=403, detail="Admin can only set user role to 'user'")
+    elif user_info["role"] == "superadmin":
+        if "role" in payload:
+            if payload["role"] not in ("admin", "user"):
+                raise HTTPException(status_code=403, detail="Superadmin can only set role to admin or user")
+                
     if "role" in payload:
-        if payload["role"] not in ALLOWED_ROLES:
-            raise HTTPException(status_code=400, detail="Invalid role")
         user.role = payload["role"]
     if "email" in payload:
         user.email = payload["email"] or None
@@ -1966,11 +1985,17 @@ async def api_update_user(username: str, request: Request, payload: dict, db: Se
 @app.delete("/api/admin/users/{username}")
 async def api_delete_user(username: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage users")
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Enforce delete restrictions
+    if user_info["role"] == "admin":
+        if user.role != "user":
+            raise HTTPException(status_code=403, detail="Admin can only disable users with 'user' role")
+            
     user.is_active = False
     db.commit()
     return {"ok": True, "message": f"User {username} disabled"}

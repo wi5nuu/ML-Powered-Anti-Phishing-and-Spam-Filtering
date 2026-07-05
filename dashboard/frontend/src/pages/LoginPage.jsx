@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Mail } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -62,47 +62,79 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page}>
+      {/* Background decorative elements */}
+      <div className={styles.bgDecor1} />
+      <div className={styles.bgDecor2} />
+      <div className={styles.bgDecor3} />
+
       <div className={styles.card}>
-        <div className={styles.logoRow}>
-          <svg width="44" height="44" viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="20" fill="#f6f8fc"/>
-            <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13 6.88-1.26 12-6.93 12-13v-9L20 6z" fill="#EA4335"/>
-            <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13V6z" fill="#c5221f"/>
-            <path d="M16 20l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className={styles.logoText}>CogniMail</span>
+        {/* Logo & Brand */}
+        <div className={styles.brand}>
+          <div className={styles.brandIcon}>
+            <Shield size={22} strokeWidth={2.5} />
+          </div>
+          <div className={styles.brandText}>
+            <span className={styles.brandName}>CogniMail</span>
+            <span className={styles.brandSub}>Security Platform</span>
+          </div>
         </div>
 
-        <h1 className={styles.title}>{mode === 'login' ? 'Masuk ke Dashboard' : 'Lupa Password'}</h1>
-        <p className={styles.subtitle}>
-          {mode === 'login'
-            ? 'Gunakan akun organisasi yang sudah terdaftar.'
-            : 'Masukkan username atau email untuk meminta reset password.'}
-        </p>
+        <div className={styles.divider} />
 
-        {error && <div className={styles.error}>{error}</div>}
-        {resetMessage && <div className={styles.success}>{resetMessage}</div>}
+        {/* Title */}
+        <div className={styles.titleBlock}>
+          <h1 className={styles.title}>
+            {mode === 'login' ? 'Selamat Datang' : 'Reset Password'}
+          </h1>
+          <p className={styles.subtitle}>
+            {mode === 'login'
+              ? 'Masuk dengan akun organisasi Anda yang telah terdaftar.'
+              : 'Masukkan username atau email untuk meminta reset password.'}
+          </p>
+        </div>
+
+        {error && (
+          <div className={styles.alert}>
+            <span className={styles.alertIcon}>!</span>
+            <span>{error}</span>
+          </div>
+        )}
+        {resetMessage && (
+          <div className={styles.alertSuccess}>
+            <span className={styles.alertIcon}>✓</span>
+            <span>{resetMessage}</span>
+          </div>
+        )}
 
         {mode === 'login' ? (
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
-              <label htmlFor="username">Email atau Username</label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="super atau email@company.com"
-                required
-                autoFocus
-                autoComplete="username"
-              />
+              <label htmlFor="username" className={styles.fieldLabel}>
+                Email atau Username
+              </label>
+              <div className={styles.inputWrap}>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username atau email@company.com"
+                  required
+                  autoFocus
+                  autoComplete="username"
+                  className={styles.input}
+                />
+              </div>
             </div>
 
             <div className={styles.field}>
               <div className={styles.labelRow}>
-                <label htmlFor="password">Password</label>
-                <button type="button" className={styles.linkBtn} onClick={() => { setMode('forgot'); setError(''); setResetMessage('') }}>
+                <label htmlFor="password" className={styles.fieldLabel}>Password</label>
+                <button
+                  type="button"
+                  className={styles.forgotBtn}
+                  onClick={() => { setMode('forgot'); setError(''); setResetMessage('') }}
+                >
                   Lupa password?
                 </button>
               </div>
@@ -115,8 +147,14 @@ export default function LoginPage() {
                   placeholder="Masukkan password"
                   required
                   autoComplete="current-password"
+                  className={styles.input}
                 />
-                <button type="button" className={styles.eyeBtn} onClick={() => setShowPwd((v) => !v)}>
+                <button
+                  type="button"
+                  className={styles.eyeBtn}
+                  onClick={() => setShowPwd((v) => !v)}
+                  tabIndex={-1}
+                >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -126,28 +164,33 @@ export default function LoginPage() {
               {isPending ? (
                 <span className={styles.spinner} />
               ) : (
-                <Mail size={18} />
+                <Lock size={17} />
               )}
-              {isPending ? 'Memproses...' : 'Masuk'}
+              {isPending ? 'Memproses...' : 'Masuk ke Dashboard'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleForgotPassword} className={styles.form}>
             <div className={styles.field}>
-              <label htmlFor="resetIdentity">Username atau Email</label>
-              <input
-                id="resetIdentity"
-                type="text"
-                value={resetIdentity}
-                onChange={(e) => setResetIdentity(e.target.value)}
-                placeholder="super atau email@company.com"
-                required
-                autoFocus
-                autoComplete="username"
-              />
+              <label htmlFor="resetIdentity" className={styles.fieldLabel}>
+                Username atau Email
+              </label>
+              <div className={styles.inputWrap}>
+                <input
+                  id="resetIdentity"
+                  type="text"
+                  value={resetIdentity}
+                  onChange={(e) => setResetIdentity(e.target.value)}
+                  placeholder="username atau email@company.com"
+                  required
+                  autoFocus
+                  autoComplete="username"
+                  className={styles.input}
+                />
+              </div>
             </div>
             <button type="submit" className={styles.submitBtn}>
-              <KeyRound size={18} />
+              <KeyRound size={17} />
               Minta Reset Password
             </button>
             <button
@@ -156,13 +199,23 @@ export default function LoginPage() {
               onClick={() => { setMode('login'); setError(''); setResetMessage('') }}
             >
               <ArrowLeft size={16} />
-              Kembali ke login
+              Kembali ke Login
             </button>
           </form>
         )}
 
         <div className={styles.footer}>
-          <p>ML-Powered Email Security & Spam Filtering</p>
+          <div className={styles.footerBadges}>
+            <span className={styles.footerBadge}>
+              <Shield size={12} />
+              ML-Powered
+            </span>
+            <span className={styles.footerBadge}>
+              <Lock size={12} />
+              End-to-End Encrypted
+            </span>
+          </div>
+          <p className={styles.footerNote}>ML-Powered Anti-Phishing &amp; Spam Filtering System</p>
         </div>
       </div>
     </div>

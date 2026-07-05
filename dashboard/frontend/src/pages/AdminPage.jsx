@@ -22,12 +22,24 @@ export default function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'overview'
   const isSuper = me?.user?.role === 'superadmin'
-  // Safety: redirect non-superadmin away from users tab
+  const isAdmin = me?.user?.role === 'admin'
+  // Safety: redirect unauthorized users away from tabs
   useEffect(() => {
-    if (tab === 'users' && !isSuper && me) {
+    if (tab === 'users' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
-  }, [tab, isSuper, me])
+    if (tab === 'email' && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+  }, [tab, isSuper, isAdmin, me])
+
+  useEffect(() => {
+    if (isSuper) {
+      setNewRole('admin')
+    } else {
+      setNewRole('user')
+    }
+  }, [isSuper])
   const [users, setUsers] = useState([])
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
@@ -729,18 +741,20 @@ export default function AdminPage() {
             {/* Toolbar: search + role filter + add */}
             <div className={styles.sectionHeader}>
               <input className={styles.searchInput} placeholder="Cari username atau email..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                {['all', ...ROLES].map((r) => (
-                  <button
-                    key={r}
-                    className={styles.filterChip}
-                    style={{ background: roleFilter === r ? '#1a73e8' : 'transparent', color: roleFilter === r ? '#fff' : 'var(--text-muted)' }}
-                    onClick={() => setRoleFilter(r)}
-                  >
-                    {r === 'all' ? 'Semua' : ROLE_LABELS[r]}
-                  </button>
-                ))}
-              </div>
+              {isSuper && (
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {['all', ...ROLES].map((r) => (
+                    <button
+                      key={r}
+                      className={styles.filterChip}
+                      style={{ background: roleFilter === r ? '#1a73e8' : 'transparent', color: roleFilter === r ? '#fff' : 'var(--text-muted)' }}
+                      onClick={() => setRoleFilter(r)}
+                    >
+                      {r === 'all' ? 'Semua' : ROLE_LABELS[r]}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button className={styles.addBtn} onClick={() => setShowAdd(true)}><Plus size={16} /> Tambah User</button>
             </div>
 
@@ -748,11 +762,12 @@ export default function AdminPage() {
             {showAdd && (
               <div className={styles.addForm}>
                 <input placeholder="Email (contoh: user@company.com)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-                <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-                  {ROLES.map((role) => (
-                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
-                  ))}
-                </select>
+                {isSuper && (
+                  <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                  </select>
+                )}
                 <button className={styles.saveBtn} onClick={handleAddUser}><Check size={16} /> Simpan</button>
                 <button className={styles.cancelBtn} onClick={() => setShowAdd(false)}><X size={16} /></button>
               </div>
@@ -763,7 +778,7 @@ export default function AdminPage() {
                 <tr>
                   <th>Username</th>
                   <th>Email</th>
-                  <th>Role</th>
+                  {isSuper && <th>Role</th>}
                   <th>Status</th>
                   <th>Aksi</th>
                 </tr>
@@ -773,7 +788,7 @@ export default function AdminPage() {
                   <tr key={u.username}>
                     <td className={styles.usernameCell}>{u.username}</td>
                     <td className={styles.mono}>{u.email || '-'}</td>
-                    <td>{roleBadge(u.role)}</td>
+                    {isSuper && <td>{roleBadge(u.role)}</td>}
                     <td>
                       <span className={`${styles.statusDot} ${u.is_active ? styles.active : styles.inactive}`} />
                       {u.is_active ? 'Aktif' : 'Nonaktif'}
@@ -801,19 +816,20 @@ export default function AdminPage() {
                     <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}><X size={16} /></button>
                   </div>
                   <div className={styles.editModalBody}>
-                    <div className={styles.fieldRow}>
-                      <div className={styles.fieldLeft}>
-                        <label className={styles.fieldLabel}>Role</label>
-                        <span className={styles.fieldHint}>Saat ini: {editUser.role}</span>
+                    {isSuper && (
+                      <div className={styles.fieldRow}>
+                        <div className={styles.fieldLeft}>
+                          <label className={styles.fieldLabel}>Role</label>
+                          <span className={styles.fieldHint}>Saat ini: {editUser.role}</span>
+                        </div>
+                        <div className={styles.fieldRight}>
+                          <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className={styles.editSelect}>
+                            <option value="admin">Admin</option>
+                            <option value="user">User</option>
+                          </select>
+                        </div>
                       </div>
-                      <div className={styles.fieldRight}>
-                        <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className={styles.editSelect}>
-                          {ROLES.map((role) => (
-                            <option key={role} value={role}>{ROLE_LABELS[role]}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
                     <div className={styles.fieldRow}>
                       <div className={styles.fieldLeft}>
                         <label className={styles.fieldLabel}>Reset Password</label>
@@ -1142,10 +1158,7 @@ export default function AdminPage() {
                 </div>
                 {domainError && <div className={styles.formError}>{domainError}</div>}
               </div>
-              <div className={styles.settingRow}>
-                <span>Role aktif</span>
-                <strong>{ROLE_LABELS[me?.user?.role] || me?.user?.role}</strong>
-              </div>
+
               <div className={styles.settingRow}>
                 <span>Login admin</span>
                 <strong>{me?.user?.username}</strong>

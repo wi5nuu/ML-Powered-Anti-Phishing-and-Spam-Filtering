@@ -208,7 +208,7 @@ export default function GmailShell({ children }) {
               <div
                 className={styles.avatar}
                 onClick={() => setUserMenuOpen((v) => !v)}
-                title={`${displayIdentity} · ${displayRole}`}
+                title={displayIdentity}
                 id="user-avatar-btn"
               >
                 {displayInitial}
@@ -221,7 +221,7 @@ export default function GmailShell({ children }) {
                     </div>
                     <div>
                       <div className={styles.userMenuName}>{displayIdentity}</div>
-                      <div className={styles.userMenuRole}>{displayRole}</div>
+                      {activeMailbox && <div className={styles.userMenuRole}>{displayRole}</div>}
                     </div>
                   </div>
                   <div className={styles.userMenuDivider} />
