@@ -226,3 +226,52 @@
     display: none;
   }
 }
+
+/* ── Thread count badge (e.g. "3") ─────────────────────────────────── */
+.threadCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 8px;
+  background: #dadce0;
+  color: #3c4043;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadCountBadge {
+  background: #3c4043;
+  color: #e8eaed;
+}
+
+/* ── Draft indicator on thread rows ────────────────────────────────── */
+.threadDraftIndicator {
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: 3px;
+  background: rgba(251, 188, 4, 0.18);
+  color: #b06000;
+  border: 1px solid rgba(251, 188, 4, 0.35);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadDraftIndicator {
+  color: #fbbc04;
+  background: rgba(251, 188, 4, 0.15);
+  border-color: rgba(251, 188, 4, 0.3);
+}
+

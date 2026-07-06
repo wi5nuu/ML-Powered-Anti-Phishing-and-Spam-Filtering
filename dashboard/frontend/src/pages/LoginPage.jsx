@@ -8,6 +8,7 @@ import styles from './LoginPage.module.css'
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('expired') === '1'
   const { mutateAsync: login, isPending } = useLogin()
   const { data: me } = useMe()
   const [username, setUsername] = useState('')
@@ -21,12 +22,14 @@ export default function LoginPage() {
   useEffect(() => {
     const err = searchParams.get('error')
     if (err) setError(decodeURIComponent(err))
-  }, [searchParams])
+    else if (sessionExpired) setError('Sesi sudah berakhir. Silakan masuk kembali.')
+  }, [searchParams, sessionExpired])
 
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
-    return '/user/dashboard'
+    if (role === 'user') return '/user/dashboard'
+    return '/mailbox-login'
   }
 
   useEffect(() => {

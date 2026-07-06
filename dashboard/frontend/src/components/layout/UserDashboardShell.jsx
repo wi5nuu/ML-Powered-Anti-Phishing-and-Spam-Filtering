@@ -5,6 +5,7 @@ import {
   Shield, Mail, LogOut, BarChart2, ChevronRight,
   Inbox, Lock, Settings, Bell, Home, Flag
 } from 'lucide-react'
+import { getMailboxIdByEmail } from '../../utils/mailbox'
 import styles from './UserDashboardShell.module.css'
 
 export default function UserDashboardShell({ children }) {
@@ -15,6 +16,9 @@ export default function UserDashboardShell({ children }) {
   const location = useLocation()
   const user = me?.user
   const initials = (user?.username || 'U').slice(0, 2).toUpperCase()
+  const userMailboxId = getMailboxIdByEmail(user?.email) || user?.email || user?.username || ''
+  const inboxPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/inbox` : '/inbox'
+  const metricsPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/metrics` : '/metrics'
 
   const NavItem = ({ to, icon, label, external }) => {
     const isActive = location.pathname === to
@@ -69,10 +73,10 @@ export default function UserDashboardShell({ children }) {
         <nav className={styles.nav}>
           <div className={styles.sectionLabel}>MAILBOX</div>
           <NavItem to="/user/dashboard" icon={<Home size={17} />} label="Dashboard" />
-          <NavItem to="/inbox" icon={<Inbox size={17} />} label="Open Inbox" />
+          <NavItem to={inboxPath} icon={<Inbox size={17} />} label="Open Inbox" />
 
           <div className={styles.sectionLabel}>SECURITY</div>
-          <NavItem to="/metrics" icon={<BarChart2 size={17} />} label="Security Report" />
+          <NavItem to={metricsPath} icon={<BarChart2 size={17} />} label="Security Report" />
           <NavItem to="/analyzer" icon={<Lock size={17} />} label="Email Analyzer" />
 
           <div className={styles.sectionLabel}>ACCOUNT</div>

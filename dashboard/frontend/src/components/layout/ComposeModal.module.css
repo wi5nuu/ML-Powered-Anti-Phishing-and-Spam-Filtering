@@ -45,6 +45,21 @@
 .title {
   font-size: 0.875rem;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.draftBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(251, 188, 4, 0.25);
+  color: #fbbc04;
+  border: 1px solid rgba(251, 188, 4, 0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .actions {

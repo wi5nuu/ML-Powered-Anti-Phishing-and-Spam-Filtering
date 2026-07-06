@@ -5,20 +5,22 @@ import { useDeleteEmail, useReleaseEmail, useRestoreEmail } from '../../api/emai
 import { useToast } from '../../hooks/useToast'
 import api from '../../api/client'
 import ConfirmDialog from '../common/ConfirmDialog'
+import { APP_TIME_ZONE, formatAppDate } from '../../utils/time'
+import { getActiveMailboxId } from '../../utils/mailbox'
 import styles from './EmailRow.module.css'
 
 function timeAgo(date) {
   const value = new Date(date)
   if (Number.isNaN(value.getTime())) return ''
   const now = new Date()
-  const sameDay = value.toDateString() === now.toDateString()
+  const sameDay = value.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE }) === now.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE })
   if (sameDay) {
-    return value.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.')
+    return value.toLocaleTimeString('id-ID', { timeZone: APP_TIME_ZONE, hour: '2-digit', minute: '2-digit' }).replace(':', '.')
   }
-  if (value.getFullYear() === now.getFullYear()) {
-    return value.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+  if (value.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE, year: 'numeric' }) === now.toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE, year: 'numeric' })) {
+    return formatAppDate(value, { day: '2-digit', month: 'short' })
   }
-  return value.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatAppDate(value, { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 export default function EmailRow({
@@ -30,6 +32,7 @@ export default function EmailRow({
   onToggleStar,
   onSetRead,
   senderLabel,
+  openDraftMode = 'compose',
 }) {
   const navigate = useNavigate()
   const [localReadIds, setLocalReadIds] = useState(() => {
@@ -49,7 +52,12 @@ export default function EmailRow({
   const isDraft = (email.label || '').toUpperCase() === 'DRAFT' || email.status === 'draft'
   const effectiveIsRead = typeof isRead === 'boolean' ? isRead : localReadIds.has(email.email_id)
   const isTrash = email.status === 'trash'
-  const displaySender = senderLabel || email.sender || email.sender_email || 'unknown'
+  const draftRecipients = String(email.recipient_list || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(', ')
+  const displaySender = senderLabel || (isDraft ? draftRecipients : (email.sender || email.sender_email || ''))
 
   const setRead = (shouldRead) => {
     setLocalReadIds((prev) => {
@@ -78,7 +86,19 @@ export default function EmailRow({
   }
 
   const htmlToPlainText = (value) => {
-    const normalized = String(value || '')
+    const original = String(value || '')
+    const normalizedText = original.replace(/\r\n/g, '\n')
+    const splitAt = normalizedText.indexOf('\n\n')
+    const firstBlock = splitAt === -1 ? '' : normalizedText.slice(0, splitAt)
+    const looksLikeHeader = firstBlock
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .some((line) => /^(from|to|subject|date|message-id|reply-to|cc|bcc|spf|dkim|dmarc):\s*/i.test(line))
+    const withoutHeaders = splitAt !== -1 && looksLikeHeader
+      ? normalizedText.slice(splitAt + 2)
+      : original
+    const normalized = withoutHeaders
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<\/div>/gi, '\n')
@@ -120,6 +140,27 @@ export default function EmailRow({
   const handleRowClick = (e) => {
     if (e.target.closest(`.${styles.checkboxWrap}, .${styles.starBtn}, .${styles.quickBtn}`)) return
     if (isDraft) {
+      if (openDraftMode === 'detail') {
+        // For reply drafts: navigate to the PARENT thread, not the draft itself.
+        // The target email is parent_email_id → original_email_id → fallback to email_id
+        const targetEmailId = email.parent_email_id || email.original_email_id || email.email_id
+        markAsRead()
+        const from = `${window.location.pathname}${window.location.search}`
+        const currentParams = new URLSearchParams(window.location.search)
+        const detailParams = new URLSearchParams({ from })
+        const mailboxId = getActiveMailboxId(currentParams)
+        if (mailboxId) detailParams.set('mailbox_id', mailboxId)
+        // Attach draft context so EmailDetailPage can pre-load the draft in reply composer
+        if (email.email_id !== targetEmailId) {
+          detailParams.set('open_draft_id', email.email_id)
+        }
+        navigate(
+          mailboxId
+            ? `/mail/${encodeURIComponent(mailboxId)}/email/${targetEmailId}?${detailParams.toString()}`
+            : `/email/${targetEmailId}?${detailParams.toString()}`
+        )
+        return
+      }
       openDraftCompose()
       return
     }
@@ -127,11 +168,9 @@ export default function EmailRow({
     const from = `${window.location.pathname}${window.location.search}`
     const currentParams = new URLSearchParams(window.location.search)
     const detailParams = new URLSearchParams({ from })
-    const mailbox = currentParams.get('mailbox')
-    const mailboxId = currentParams.get('mailbox_id')
-    if (mailbox) detailParams.set('mailbox', mailbox)
+    const mailboxId = getActiveMailboxId(currentParams)
     if (mailboxId) detailParams.set('mailbox_id', mailboxId)
-    navigate(`/email/${email.email_id}?${detailParams.toString()}`)
+    navigate(mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/email/${email.email_id}?${detailParams.toString()}` : `/email/${email.email_id}?${detailParams.toString()}`)
   }
 
   const handleQuickDelete = async (e) => {
@@ -141,7 +180,10 @@ export default function EmailRow({
 
   const confirmQuickDelete = async () => {
     try {
-      await deleteEmail(email.email_id)
+      const deleteIds = Array.isArray(email.thread_email_ids) && email.thread_email_ids.length > 0
+        ? email.thread_email_ids
+        : [email.email_id]
+      await Promise.all(deleteIds.map((id) => deleteEmail(id)))
       setDeleteDialogOpen(false)
     } catch (err) {
       showToast(err.response?.data?.detail || 'Gagal menghapus email', 'error')
@@ -195,7 +237,17 @@ export default function EmailRow({
       </div>
 
       <div className={styles.body}>
-        <span className={styles.subject}>{email.subject || '(no subject)'}</span>
+        <span className={styles.subject}>
+          {email.subject || '(no subject)'}
+          {/* Thread count badge */}
+          {email._threadCount > 1 && (
+            <span className={styles.threadCountBadge}>{email._threadCount}</span>
+          )}
+          {/* Draft indicator for threads with active draft */}
+          {email._hasDraftInThread && (
+            <span className={styles.threadDraftIndicator}>Draf</span>
+          )}
+        </span>
         <span className={styles.separator}>-</span>
         <span className={styles.preview}>
           {email.body_preview || email.body_text?.slice(0, 120) || ''}
@@ -236,7 +288,9 @@ export default function EmailRow({
       <ConfirmDialog
         open={deleteDialogOpen}
         title="Konfirmasi penghapusan pesan"
-        message="Email ini akan dipindahkan ke Sampah. Anda yakin ingin melanjutkan?"
+        message={isDraft
+          ? 'Draf ini akan dihapus permanen. Anda yakin ingin melanjutkan?'
+          : 'Email ini akan dipindahkan ke Sampah. Anda yakin ingin melanjutkan?'}
         onCancel={() => setDeleteDialogOpen(false)}
         onConfirm={confirmQuickDelete}
       />

@@ -141,6 +141,7 @@ export default function SettingsPage() {
   const role = me?.user?.role
   const isAdmin = role === 'admin' || role === 'superadmin'
   const isSuper = role === 'superadmin'
+  const isMailbox = role === 'mailbox'
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailDomain = getMailDomain()
 
@@ -234,7 +235,7 @@ export default function SettingsPage() {
     })
   }
 
-  const accountSection = (
+  const accountSection = !isMailbox ? (
     <Section icon={User} title="Akun Login">
       <FieldRow label="Username" hint="Username yang digunakan saat login.">
         <input
@@ -278,7 +279,7 @@ export default function SettingsPage() {
         </button>
       </div>
     </Section>
-  )
+  ) : null
 
   if (meLoading || isLoading) {
     return (
@@ -312,6 +313,14 @@ export default function SettingsPage() {
                 <FieldRow label="Domain mailbox" hint="Domain perusahaan yang dipakai mailbox ini.">
                   <strong className={styles.readOnlyValue}>@{activeMailDomain}</strong>
                 </FieldRow>
+                {isMailbox && (
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldLeft}>
+                      <label className={styles.fieldLabel}>Akses akun</label>
+                      <span className={styles.fieldHint}>Mailbox menggunakan kredensial yang dikelola administrator.</span>
+                    </div>
+                  </div>
+                )}
               </Section>
             )}
             {accountSection}

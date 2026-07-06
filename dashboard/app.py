@@ -29,6 +29,7 @@ import secrets as _secrets
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 import httpx
 import redis.asyncio as aio_redis
 import uuid
@@ -39,6 +40,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 from email import policy
 from email.parser import Parser
+from email.utils import getaddresses
 
 from pydantic import BaseModel
 import csv
@@ -66,6 +68,38 @@ from dashboard.auth import (
 )
 
 logger = logging.getLogger(__name__)
+APP_TIMEZONE = ZoneInfo(os.getenv("APP_TIMEZONE", "Asia/Jakarta"))
+
+
+def app_now() -> datetime:
+    return datetime.now(APP_TIMEZONE)
+
+
+def app_now_iso() -> str:
+    return app_now().isoformat(timespec="seconds")
+
+THREAT_RETENTION_DAYS = int(os.getenv("MAX_QUARANTINE_DAYS", "30"))
+THREAT_CATEGORIES = ["spam", "phishing", "malware"]
+
+
+def purge_expired_emails(db: Session) -> int:
+    cutoff = app_now() - timedelta(days=THREAT_RETENTION_DAYS)
+    trash_deleted = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status == "trash",
+        QuarantineEmail.deleted_at < cutoff,
+    ).delete(synchronize_session=False)
+
+    threat_deleted = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status != "trash",
+        QuarantineEmail.status != "released",
+        QuarantineEmail.label.notin_(["DRAFT", "SENT", "CLEAN"]),
+        QuarantineEmail.created_at < cutoff,
+        or_(
+            QuarantineEmail.label == "QUARANTINE",
+            QuarantineEmail.category.in_(THREAT_CATEGORIES),
+        ),
+    ).delete(synchronize_session=False)
+    return (trash_deleted or 0) + (threat_deleted or 0)
 
 DASHBOARD_SECRET_KEY = os.getenv("DASHBOARD_SECRET_KEY")
 if not DASHBOARD_SECRET_KEY:
@@ -99,7 +133,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        if request.url.path.startswith("/api/emails/") and "/attachments/" in request.url.path:
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
@@ -262,10 +299,7 @@ def seed_admin():
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''"))
         if "dmarc_result" not in columns:
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''"))
-    db.query(QuarantineEmail).filter(
-        QuarantineEmail.status == "trash",
-        QuarantineEmail.deleted_at < datetime.utcnow() - timedelta(days=30),
-    ).delete(synchronize_session=False)
+    purge_expired_emails(db)
     db.query(QuarantineEmail).filter(
         QuarantineEmail.status == "released",
         QuarantineEmail.label.in_(["WARN", "QUARANTINE"]),
@@ -313,6 +347,24 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"authenticated": False, "user": None})
     try:
         payload = decode_token(token)
+        if payload.get("role") == "mailbox":
+            mailbox = resolve_active_mailbox(
+                db,
+                payload.get("mailbox_id"),
+                payload.get("mailbox_email"),
+                missing_status_code=401,
+                missing_detail="Mailbox is disabled or inactive",
+                inactive_detail="Mailbox is disabled or inactive",
+            )
+            return JSONResponse({
+                "authenticated": True,
+                "user": {
+                    "username": mailbox.email.lower(),
+                    "role": "mailbox",
+                    "mailbox_id": str(mailbox.id),
+                    "mailbox_email": mailbox.email.lower(),
+                }
+            })
         user = db.query(User).filter(User.username == payload.get("sub")).first()
         if not user or not user.is_active:
             logger.warning(f"auth_me: user {payload.get('sub')} not found/inactive")
@@ -466,6 +518,22 @@ async def get_profile(request: Request, db: Session = Depends(get_db)):
     if not token:
         raise HTTPException(401, "Not authenticated")
     payload = decode_token(token)
+    if payload.get("role") == "mailbox":
+        mailbox = resolve_active_mailbox(
+            db,
+            payload.get("mailbox_id"),
+            payload.get("mailbox_email"),
+        )
+        return {
+            "username": mailbox.email.lower(),
+            "role": "mailbox",
+            "is_active": mailbox.is_active,
+            "created_at": str(mailbox.created_at) if mailbox.created_at else None,
+            "mailbox_id": str(mailbox.id),
+            "mailbox_email": mailbox.email.lower(),
+            "domain": mailbox.domain,
+            "sender_name": mailbox.sender_name or "",
+        }
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -626,7 +694,10 @@ async def get_activity(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/feedback-export")
-async def feedback_export(db: Session = Depends(get_db)):
+async def feedback_export(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     feedbacks = db.query(Feedback).all()
     return [
         {
@@ -717,11 +788,28 @@ def get_authenticated_api_user(request: Request, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         payload = decode_token(token)
+        if payload.get("role") == "mailbox":
+            mailbox = resolve_active_mailbox(
+                db,
+                payload.get("mailbox_id"),
+                payload.get("mailbox_email"),
+                missing_status_code=401,
+                missing_detail="Mailbox is disabled or inactive",
+                inactive_detail="Mailbox is disabled or inactive",
+            )
+            return {
+                "username": mailbox.email.lower(),
+                "role": "mailbox",
+                "mailbox_id": str(mailbox.id),
+                "mailbox_email": mailbox.email.lower(),
+            }
         user = db.query(User).filter(User.username == payload.get("sub")).first()
         if not user or not user.is_active:
             logger.warning(f"get_authenticated_api_user: user {payload.get('sub')} not found or inactive")
             raise HTTPException(status_code=401, detail="Account is disabled or inactive")
         return {"username": user.username, "role": user.role}
+    except HTTPException:
+        raise
     except Exception:
         logger.warning(f"get_authenticated_api_user: token decode failed")
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
@@ -740,6 +828,72 @@ CATEGORY_LABEL_MAP = {
     "phishing": "QUARANTINE",
     "malware": "QUARANTINE",
 }
+
+
+def email_belongs_to_identity(email_record: QuarantineEmail, identity: str = "") -> bool:
+    target = (identity or "").strip().lower()
+    if not target:
+        return False
+
+    def _addresses(value: str) -> list[str]:
+        return [addr.lower() for _, addr in getaddresses([value or ""]) if addr]
+
+    return target in _addresses(email_record.recipient_list) or target in _addresses(email_record.sender)
+
+
+def _mailbox_identity_filters(column, identity: str):
+    target = (identity or "").strip().lower()
+    if not target:
+        return []
+    variants = {
+        target,
+        f"{target},%",
+        f"%, {target}",
+        f"%, {target},%",
+        f"{target};%",
+        f"%; {target}",
+        f"%; {target};%",
+    }
+    return [column.ilike(pattern) for pattern in variants]
+
+
+def resolve_active_mailbox(
+    db: Session,
+    mailbox_id: str | int | None = None,
+    mailbox_email: str | None = None,
+    *,
+    missing_status_code: int = 404,
+    missing_detail: str = "Mailbox not found",
+    inactive_detail: str = "Mailbox is disabled or inactive",
+) -> AdminMailbox:
+    mailbox_query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
+    normalized_email = (mailbox_email or "").strip().lower()
+    mailbox_identifier = str(mailbox_id).strip().lower() if mailbox_id not in (None, "") else ""
+    lookup_email = normalized_email
+
+    if mailbox_identifier:
+        try:
+            mailbox_query = mailbox_query.filter(AdminMailbox.id == int(mailbox_identifier))
+        except (TypeError, ValueError):
+            lookup_email = lookup_email or mailbox_identifier
+
+    if lookup_email:
+        mailbox_query = mailbox_query.filter(AdminMailbox.email == lookup_email)
+
+    mailbox = mailbox_query.first()
+    if not mailbox:
+        raise HTTPException(status_code=missing_status_code, detail=missing_detail)
+    if lookup_email and mailbox.email.lower() != lookup_email:
+        raise HTTPException(status_code=missing_status_code, detail=inactive_detail)
+    return mailbox
+
+
+def ensure_email_access(email_record: QuarantineEmail, user_info: dict):
+    if user_info["role"] in ["superadmin", "admin"]:
+        return
+    if email_belongs_to_identity(email_record, user_info.get("mailbox_email") or user_info.get("username")):
+        return
+    raise HTTPException(status_code=403, detail="You do not have permission to access this email")
 
 CATEGORY_ICONS = {
     "transaction": "receipt",
@@ -772,21 +926,228 @@ def linkify_plain_text(content: str) -> str:
     return linked.replace("\n", "<br>")
 
 
+def plain_email_body(content: str = "") -> str:
+    body = (content or "").replace("\r\n", "\n")
+    if "\n\n" in body:
+        first_block, rest = body.split("\n\n", 1)
+        looks_like_header = any(
+            re.match(r"^(from|to|subject|date|message-id|reply-to|cc|bcc|spf|dkim|dmarc):\s*", line.strip(), re.I)
+            for line in first_block.split("\n")
+            if line.strip()
+        )
+        if looks_like_header:
+            body = rest
+    body = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", body)
+    body = re.sub(r"(?s)<[^>]+>", " ", body)
+    return " ".join(html.unescape(body).split())
+
+
+def append_thread_context(body: str, original: QuarantineEmail, action: str) -> str:
+    if not original:
+        return body
+    marker = "---------- Forwarded message ---------" if action == "forward" else "---------- Original message ---------"
+    if marker in (body or ""):
+        return body
+    return "\n".join([
+        body or "",
+        "",
+        marker,
+        f"Dari: {original.sender or '-'}",
+        f"Tanggal: {original.received_at or '-'}",
+        f"Subjek: {original.subject or '(tanpa subjek)'}",
+        f"Kepada: {original.recipient_list or '-'}",
+        "",
+        plain_email_body(original.raw_content),
+    ])
+
+
+THREAD_PREFIX_RE = re.compile(r"^\s*(re|fw|fwd)\s*:\s*", re.I)
+EMAIL_ADDRESS_RE = re.compile(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}", re.I)
+
+
+def normalize_thread_subject(subject: str = "") -> str:
+    value = (subject or "").strip()
+    while True:
+        next_value = THREAD_PREFIX_RE.sub("", value).strip()
+        if next_value == value:
+            return next_value.lower()
+        value = next_value
+
+
+def thread_participants(email_record: QuarantineEmail) -> set[str]:
+    text = f"{email_record.sender or ''}, {email_record.recipient_list or ''}"
+    return {match.lower() for match in EMAIL_ADDRESS_RE.findall(text)}
+
+
+def thread_sort_value(email_record: QuarantineEmail) -> float:
+    value = email_record.received_at or email_record.created_at
+    if hasattr(value, "timestamp"):
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=APP_TIMEZONE)
+        return value.timestamp()
+    if value:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=APP_TIMEZONE)
+            return parsed.timestamp()
+        except Exception:
+            return 0.0
+    return 0.0
+
+
+def thread_message_payload(email_record: QuarantineEmail) -> dict:
+    timestamp = email_record.received_at.isoformat() if hasattr(email_record.received_at, "isoformat") else str(email_record.received_at) if email_record.received_at else None
+    label = (email_record.label or "").upper()
+    return {
+        "email_id": email_record.email_id,
+        "sender": email_record.sender,
+        "subject": email_record.subject,
+        "label": email_record.label,
+        "category": display_category(email_record),
+        "status": email_record.status,
+        "direction": "draft" if label == "DRAFT" else "sent" if label == "SENT" else "incoming",
+        "received_at": timestamp,
+        "raw_content": email_record.raw_content,
+        "recipient_list": email_record.recipient_list,
+        "attachments": attachment_summaries(email_record),
+    }
+
+
+def find_thread_messages(db: Session, email_record: QuarantineEmail) -> list[QuarantineEmail]:
+    base_subject = normalize_thread_subject(email_record.subject)
+    if not base_subject:
+        return [email_record]
+    participants = thread_participants(email_record)
+    candidates = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status != "trash",
+    ).all()
+    messages = []
+    seen = set()
+    for candidate in candidates:
+        if candidate.email_id in seen:
+            continue
+        if normalize_thread_subject(candidate.subject) != base_subject:
+            continue
+        candidate_participants = thread_participants(candidate)
+        if participants and candidate_participants and not (participants & candidate_participants):
+            continue
+        seen.add(candidate.email_id)
+        messages.append(candidate)
+    if not messages:
+        return [email_record]
+    messages.sort(key=thread_sort_value)
+    return messages
+
+
+def delivery_failure_body(recipients: list[str], reason: str) -> str:
+    recipient_text = ", ".join(recipients)
+    safe_reason = reason or "Server tujuan menolak atau tidak dapat menerima pesan."
+    return (
+        "Alamat tidak dapat ditemukan\n\n"
+        f"Pesan Anda tidak terkirim ke {recipient_text}.\n\n"
+        "Kemungkinan penyebab:\n"
+        "- alamat email salah ketik,\n"
+        "- domain email tidak ditemukan,\n"
+        "- mailbox tujuan tidak dapat menerima email,\n"
+        "- atau server SMTP menolak pengiriman.\n\n"
+        f"Tanggapan server:\n{safe_reason}"
+    )
+
+
+def save_delivery_failure(
+    db: Session,
+    sender_address: str,
+    recipients: list[str],
+    subject: str,
+    body: str,
+    reason: str,
+    username: str,
+    request: Request,
+) -> str:
+    failure_id = f"failed_{uuid.uuid4().hex[:12]}"
+    failure_subject = f"Alamat tidak dapat ditemukan: {subject or '(tanpa subjek)'}"
+    failure_content = delivery_failure_body(recipients, reason)
+    failure_entry = QuarantineEmail(
+        email_id=failure_id,
+        received_at=app_now_iso(),
+        label="CLEAN",
+        fused_score=0.0,
+        sa_score=0.0,
+        ml_probability=0.0,
+        anomaly_score=0.0,
+        xai_summary="Outbound delivery failed",
+        routing_reason=f"Delivery failed to {', '.join(recipients)}",
+        raw_content=linkify_plain_text(failure_content),
+        attachments_json="[]",
+        status="pending",
+        category="delivery_failed",
+        subject=failure_subject,
+        sender="mailer-daemon@cognimail.local",
+        recipient_list=sender_address,
+        spf_result="SYSTEM",
+        dkim_result="SYSTEM",
+        dmarc_result="SYSTEM",
+        created_at=app_now(),
+    )
+    db.add(failure_entry)
+    log_audit(
+        db,
+        username,
+        "send_email_failed",
+        failure_id,
+        request.client.host if request.client else None,
+        f"Failed to send to {', '.join(recipients)}: {reason}",
+    )
+    db.commit()
+    return failure_id
+
+
+def validate_recipient_domains(recipients: list[str]) -> None:
+    try:
+        import dns.resolver
+        import dns.exception
+    except Exception:
+        return
+
+    invalid_domains = []
+    resolver = dns.resolver.Resolver()
+    resolver.lifetime = 5.0
+    resolver.timeout = 3.0
+    for recipient in recipients:
+        domain = recipient.rsplit("@", 1)[-1]
+        try:
+            resolver.resolve(domain, "MX")
+            continue
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers, dns.exception.Timeout):
+            try:
+                resolver.resolve(domain, "A")
+                continue
+            except Exception:
+                invalid_domains.append(domain)
+        except Exception:
+            continue
+    if invalid_domains:
+        unique_domains = sorted(set(invalid_domains))
+        raise ValueError(f"Domain email tidak dapat ditemukan: {', '.join(unique_domains)}")
+
+
 def attachment_summaries(email_record: QuarantineEmail) -> list[dict]:
     try:
         attachments = json.loads(email_record.attachments_json or "[]")
     except Exception:
         return []
-    return [
-        {
+    summaries = []
+    for idx, item in enumerate(attachments):
+        data = item.get("data") or item.get("content_base64") or ""
+        summaries.append({
             "index": item.get("index", idx),
             "filename": item.get("filename", f"attachment-{idx + 1}"),
             "content_type": item.get("content_type", "application/octet-stream"),
             "size": item.get("size", 0),
-            "stored": bool(item.get("stored", False)),
-        }
-        for idx, item in enumerate(attachments)
-    ]
+            "stored": bool(item.get("stored", bool(data))),
+        })
+    return summaries
 
 
 AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror", "permerror", "policy")
@@ -852,16 +1213,22 @@ async def api_get_emails(
     category: str = Query(None),
     folder: str = Query(None),
     q: str = Query(None),
+    mailbox: str = Query(None),
+    mailbox_id: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
     user_info = get_authenticated_api_user(request, db)
-    db.query(QuarantineEmail).filter(
-        QuarantineEmail.status == "trash",
-        QuarantineEmail.deleted_at < datetime.utcnow() - timedelta(days=30),
-    ).delete(synchronize_session=False)
+    purge_expired_emails(db)
     db.commit()
     
     query = db.query(QuarantineEmail)
+    mailbox = (mailbox or "").strip().lower()
+    mailbox_id = (mailbox_id or "").strip()
+    if user_info["role"] == "mailbox":
+        mailbox = user_info["mailbox_email"]
+        mailbox_id = user_info["mailbox_id"]
     
     if folder == "trash":
         query = query.filter(QuarantineEmail.status == "trash")
@@ -869,6 +1236,13 @@ async def api_get_emails(
         query = query.filter(QuarantineEmail.status != "trash")
         if folder != "draft":
             query = query.filter(QuarantineEmail.label != "DRAFT")
+
+    if mailbox:
+        mailbox_record = resolve_active_mailbox(db, mailbox_id, mailbox, missing_status_code=404, missing_detail="Mailbox not found")
+        query = query.filter(or_(
+            *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
+            *_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email),
+        ))
 
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
@@ -908,17 +1282,37 @@ async def api_get_emails(
         )
     
     if q:
-        query = query.filter(
-            QuarantineEmail.subject.ilike(f"%{q}%") | 
-            QuarantineEmail.sender.ilike(f"%{q}%")
-        )
+        terms = [term for term in re.split(r"\s+", q.strip()) if term]
+        searchable_fields = [
+            QuarantineEmail.email_id,
+            QuarantineEmail.subject,
+            QuarantineEmail.sender,
+            QuarantineEmail.recipient_list,
+            QuarantineEmail.raw_content,
+            QuarantineEmail.category,
+            QuarantineEmail.label,
+            QuarantineEmail.status,
+            QuarantineEmail.xai_summary,
+            QuarantineEmail.routing_reason,
+            QuarantineEmail.spf_result,
+            QuarantineEmail.dkim_result,
+            QuarantineEmail.dmarc_result,
+            QuarantineEmail.attachments_json,
+        ]
+        for term in terms:
+            pattern = f"%{term}%"
+            query = query.filter(or_(*[field.ilike(pattern) for field in searchable_fields]))
     
     total = query.count()
     
-    if folder in ["all", "draft", "trash"] or label == "SENT" or (category and category in CATEGORY_LABEL_MAP) or label == "CLEAN":
-        emails = query.order_by(QuarantineEmail.created_at.desc()).limit(100).all()
-    else:
-        emails = query.order_by(QuarantineEmail.fused_score.desc()).limit(100).all()
+    offset = (page - 1) * page_size
+    emails = (
+        query
+        .order_by(QuarantineEmail.received_at.desc(), QuarantineEmail.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
     
     emails_data = []
     for email in emails:
@@ -943,6 +1337,7 @@ async def api_get_emails(
             "anomaly_score": 0.0 if user_info["role"] == "user" else email.anomaly_score,
             "has_attachments": bool(email.attachments_json and email.attachments_json != "[]"),
             "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
+            "recipient_list": email.recipient_list,
         })
     
     return {"emails": emails_data, "total": total}
@@ -958,12 +1353,8 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
 
+    ensure_email_access(email_record, user_info)
     is_regular_user = (user_info["role"] == "user")
-    if is_regular_user:
-        username_lower = user_info["username"].lower()
-        recipients_lower = (email_record.recipient_list or "").lower()
-        if username_lower not in recipients_lower:
-            raise HTTPException(status_code=403, detail="You do not have permission to view this email")
 
     xai_parts = email_record.xai_summary.split("; ") if email_record.xai_summary else []
     reasons = []
@@ -1013,6 +1404,7 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
     }
     if not any(auth_results.values()):
         auth_results = derive_auth_results(email_record.raw_content, email_record.sender)
+    thread_messages = find_thread_messages(db, email_record)
     return {
         "email_id": email_record.email_id,
         "sender": email_record.sender,
@@ -1033,32 +1425,43 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         "raw_content": email_record.raw_content,
         "recipient_list": email_record.recipient_list,
         "attachments": attachment_summaries(email_record),
+        "thread_root_id": thread_messages[0].email_id if thread_messages else email_record.email_id,
+        "thread_messages": [thread_message_payload(message) for message in thread_messages],
         **auth_results,
     }
 
 
 @app.get("/api/emails/{email_id}/attachments/{attachment_index}")
-async def api_download_attachment(email_id: str, attachment_index: int, request: Request, db: Session = Depends(get_db)):
-    get_authenticated_api_user(request, db)
+async def api_download_attachment(
+    email_id: str,
+    attachment_index: int,
+    request: Request,
+    download: bool = Query(False),
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
     email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
+    ensure_email_access(email_record, user_info)
     try:
         attachments = json.loads(email_record.attachments_json or "[]")
     except Exception:
         attachments = []
-    match = next((a for a in attachments if int(a.get("index", -1)) == attachment_index), None)
+    match = next((a for idx, a in enumerate(attachments) if int(a.get("index", idx)) == attachment_index), None)
     if not match:
         raise HTTPException(status_code=404, detail="Attachment not found")
-    if not match.get("stored") or not match.get("data"):
+    encoded_data = match.get("data") or match.get("content_base64")
+    if not match.get("stored", bool(encoded_data)) or not encoded_data:
         raise HTTPException(status_code=410, detail="Attachment is too large or not stored")
-    data = base64.b64decode(match["data"])
+    data = base64.b64decode(encoded_data)
     filename = match.get("filename") or f"attachment-{attachment_index + 1}"
     content_type = match.get("content_type") or "application/octet-stream"
+    disposition = "attachment" if download else "inline"
     return Response(
         data,
         media_type=content_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
 
 
@@ -1135,19 +1538,21 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
     ).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
-    if user_info["role"] not in ["superadmin", "admin"]:
-        username_lower = user_info["username"].lower()
-        recipients_lower = (email_record.recipient_list or "").lower()
-        sender_lower = (email_record.sender or "").lower()
-        if username_lower not in recipients_lower and not sender_lower.startswith(f"{username_lower}@"):
-            raise HTTPException(status_code=403, detail="You do not have permission to delete this email")
+    if email_record.label == "DRAFT":
+        ensure_email_access(email_record, user_info)
+        db.delete(email_record)
+        log_audit(db, user_info["username"], "discard_draft", email_id,
+                  request.client.host if request.client else None)
+        db.commit()
+        return {"ok": True, "status": "deleted"}
+    ensure_email_access(email_record, user_info)
     if email_record.status == "trash":
         db.delete(email_record)
         action = "delete_permanent"
         status = "deleted"
     else:
         email_record.status = "trash"
-        email_record.deleted_at = datetime.utcnow()
+        email_record.deleted_at = app_now()
         action = "move_to_trash"
         status = "trash"
     log_audit(db, user_info["username"], action, email_id,
@@ -1159,13 +1564,12 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
 @app.post("/api/emails/{email_id}/restore")
 async def api_restore_email(email_id: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
-        raise HTTPException(status_code=403, detail="You do not have permission to restore emails")
     email_record = db.query(QuarantineEmail).filter(
         QuarantineEmail.email_id == email_id
     ).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
+    ensure_email_access(email_record, user_info)
     email_record.status = "pending" if email_record.label == "QUARANTINE" else "released"
     email_record.deleted_at = None
     log_audit(db, user_info["username"], "restore", email_id,
@@ -1219,6 +1623,8 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
 
     if req.from_email.strip():
         requested_sender = req.from_email.strip().lower()
+        if user_info["role"] == "mailbox" and requested_sender != user_info["mailbox_email"]:
+            raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
         mailbox = db.query(AdminMailbox).filter(
             AdminMailbox.email == requested_sender,
             AdminMailbox.is_active == True,
@@ -1226,7 +1632,7 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
         if not mailbox:
             raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
 
-    sender_address = req.from_email.strip().lower() or f"{user_info['username']}@lodaya.id"
+    sender_address = req.from_email.strip().lower() or user_info.get("mailbox_email") or f"{user_info['username']}@lodaya.id"
     stored_attachments = []
     for file_index, upload in enumerate(uploaded_files[:20]):
         data = await upload.read()
@@ -1246,11 +1652,13 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
             QuarantineEmail.email_id == draft_id,
             QuarantineEmail.label == "DRAFT",
         ).first()
+    is_new_draft = False
     if not draft_entry:
+        is_new_draft = True
         draft_id = f"draft_{uuid.uuid4().hex[:12]}"
         draft_entry = QuarantineEmail(
             email_id=draft_id,
-            received_at=datetime.utcnow().isoformat(),
+            received_at=app_now_iso(),
             label="DRAFT",
             fused_score=0.0,
             sa_score=0.0,
@@ -1267,12 +1675,13 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
         db.add(draft_entry)
 
     draft_entry.raw_content = req.body
-    draft_entry.attachments_json = json.dumps(stored_attachments)
+    if uploaded_files or is_new_draft:
+        draft_entry.attachments_json = json.dumps(stored_attachments)
     draft_entry.subject = req.subject or "(tanpa subjek)"
     draft_entry.sender = sender_address
     draft_entry.recipient_list = req.to
-    draft_entry.received_at = datetime.utcnow().isoformat()
-    draft_entry.created_at = datetime.utcnow()
+    draft_entry.received_at = app_now_iso()
+    draft_entry.created_at = app_now()
     draft_entry.deleted_at = None
 
     log_audit(db, user_info["username"], "save_email_draft", draft_id,
@@ -1320,6 +1729,8 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
 
     if req.from_email.strip():
         requested_sender = req.from_email.strip().lower()
+        if user_info["role"] == "mailbox" and requested_sender != user_info["mailbox_email"]:
+            raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
         mailbox = db.query(AdminMailbox).filter(
             AdminMailbox.email == requested_sender,
             AdminMailbox.is_active == True,
@@ -1328,7 +1739,7 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
     
     # Construct sender address
-    sender_address = req.from_email.strip().lower() or f"{user_info['username']}@lodaya.id"
+    sender_address = req.from_email.strip().lower() or user_info.get("mailbox_email") or f"{user_info['username']}@lodaya.id"
     
     # Determine subject and body based on action
     final_subject = req.subject
@@ -1352,6 +1763,13 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
                          f"{orig.raw_content}"
     else:
         dest_recipients = parse_recipients(req.to)
+
+    if req.reply_to_id.strip() and req.action in {"reply", "forward"}:
+        original_email = db.query(QuarantineEmail).filter(
+            QuarantineEmail.email_id == req.reply_to_id.strip()
+        ).first()
+        if original_email:
+            final_body = append_thread_context(final_body, original_email, req.action)
         
     stored_attachments = []
     for file_index, upload in enumerate(uploaded_files[:20]):
@@ -1365,11 +1783,67 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             "data": base64.b64encode(data).decode("ascii"),
         })
 
-    # Save record in DB as SENT
+    # Send email via SMTP first. Only mark as SENT after delivery is accepted.
     sent_id = f"sent_{uuid.uuid4().hex[:12]}"
+    smtp_host = os.getenv("FORWARDER_SMTP_HOST", "")
+    try:
+        validate_recipient_domains(dest_recipients)
+        if smtp_host:
+            smtp_port = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
+            smtp_user = os.getenv("FORWARDER_SMTP_USER", "")
+            smtp_pass = os.getenv("FORWARDER_SMTP_PASS", "")
+            smtp_from = sender_address or os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
+            smtp_starttls = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
+
+            msg = MIMEMultipart()
+            msg["From"] = smtp_from
+            msg["To"] = ", ".join(dest_recipients)
+            msg["Subject"] = final_subject
+            msg.attach(MIMEText(final_body, "plain", "utf-8"))
+            for attachment in stored_attachments:
+                maintype, subtype = (attachment["content_type"].split("/", 1) + ["octet-stream"])[:2]
+                part = MIMEBase(maintype, subtype)
+                part.set_payload(base64.b64decode(attachment["data"]))
+                encoders.encode_base64(part)
+                part.add_header("Content-Disposition", "attachment", filename=attachment["filename"])
+                msg.attach(part)
+
+            async with aiosmtplib.SMTP(
+                hostname=smtp_host,
+                port=smtp_port,
+                use_tls=smtp_port == 465,
+            ) as smtp:
+                if smtp_port != 465 and smtp_starttls:
+                    await smtp.starttls()
+                if smtp_user and smtp_pass:
+                    await smtp.login(smtp_user, smtp_pass)
+                await smtp.send_message(msg)
+            logger.info("Sent email via SMTP successfully")
+    except Exception as e:
+        reason = str(e)
+        logger.error("Failed to send email: %s", reason)
+        failure_id = save_delivery_failure(
+            db,
+            sender_address,
+            dest_recipients,
+            final_subject,
+            final_body,
+            reason,
+            user_info["username"],
+            request,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Email gagal terkirim. Notifikasi gagal kirim sudah masuk ke inbox.",
+                "reason": reason,
+                "failure_email_id": failure_id,
+            },
+        )
+
     sent_entry = QuarantineEmail(
         email_id=sent_id,
-        received_at=datetime.utcnow().isoformat(),
+        received_at=app_now_iso(),
         label="SENT",
         fused_score=0.0,
         sa_score=0.0,
@@ -1387,6 +1861,7 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
         spf_result="OUTBOUND",
         dkim_result="OUTBOUND",
         dmarc_result="OUTBOUND",
+        created_at=app_now(),
     )
     db.add(sent_entry)
 
@@ -1395,49 +1870,11 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             QuarantineEmail.email_id == req.draft_id.strip(),
             QuarantineEmail.label == "DRAFT",
         ).delete(synchronize_session=False)
-    
-    # Log audit log
+
     log_audit(db, user_info["username"], f"send_email_{req.action}", sent_id,
               request.client.host if request.client else None, f"Sent to {', '.join(dest_recipients)}")
     db.commit()
 
-    # Send email via SMTP if FORWARDER_SMTP_HOST is configured
-    smtp_host = os.getenv("FORWARDER_SMTP_HOST", "")
-    if smtp_host:
-        smtp_port = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
-        smtp_user = os.getenv("FORWARDER_SMTP_USER", "")
-        smtp_pass = os.getenv("FORWARDER_SMTP_PASS", "")
-        smtp_from = sender_address or os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
-        smtp_starttls = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
-        
-        msg = MIMEMultipart()
-        msg["From"] = smtp_from
-        msg["To"] = ", ".join(dest_recipients)
-        msg["Subject"] = final_subject
-        msg.attach(MIMEText(final_body, "plain", "utf-8"))
-        for attachment in stored_attachments:
-            maintype, subtype = (attachment["content_type"].split("/", 1) + ["octet-stream"])[:2]
-            part = MIMEBase(maintype, subtype)
-            part.set_payload(base64.b64decode(attachment["data"]))
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment", filename=attachment["filename"])
-            msg.attach(part)
-        
-        try:
-            async with aiosmtplib.SMTP(
-                hostname=smtp_host,
-                port=smtp_port,
-                use_tls=smtp_port == 465,
-            ) as smtp:
-                if smtp_port != 465 and smtp_starttls:
-                    await smtp.starttls()
-                if smtp_user and smtp_pass:
-                    await smtp.login(smtp_user, smtp_pass)
-                await smtp.send_message(msg)
-            logger.info("Sent email via SMTP successfully")
-        except Exception as e:
-            logger.error("Failed to send email via SMTP: %s", e)
-            
     return {"ok": True, "email_id": sent_id}
 
 
@@ -1460,21 +1897,11 @@ async def api_get_metrics(
     scope_label = "global"
     account_filters = []
     if mailbox:
-        mailbox_query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
-        if mailbox_id:
-            try:
-                mailbox_query = mailbox_query.filter(AdminMailbox.id == int(mailbox_id))
-            except (TypeError, ValueError):
-                raise HTTPException(status_code=400, detail="Invalid mailbox id")
-        else:
-            mailbox_query = mailbox_query.filter(AdminMailbox.email == mailbox)
-        mailbox_record = mailbox_query.first()
-        if not mailbox_record or mailbox_record.email.lower() != mailbox:
-            raise HTTPException(status_code=404, detail="Mailbox not found")
+        mailbox_record = resolve_active_mailbox(db, mailbox_id, mailbox, missing_status_code=404, missing_detail="Mailbox not found")
         scope_label = mailbox_record.email
         account_filters.append(or_(
-            QuarantineEmail.recipient_list.ilike(f"%{mailbox_record.email}%"),
-            QuarantineEmail.sender.ilike(f"%{mailbox_record.email}%"),
+            *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
+            *_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email),
         ))
     elif user_info and user_info["role"] == "user":
         user = db.query(User).filter(User.username == user_info["username"]).first()
@@ -1710,7 +2137,7 @@ async def api_export_emails_csv(
         ])
 
     output.seek(0)
-    filename = f"cognimail_email_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"cognimail_email_log_{app_now().strftime('%Y%m%d_%H%M%S')}.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
@@ -1751,21 +2178,22 @@ async def api_analyze_email(
         # Fallback: use local classifier if running in same process
         try:
             from classifier.features import EmailParser, FeatureExtractor
-            from decision_engine.fusion import fuse
-            from decision_engine.xai import generate_reasons
+            from decision_engine.xai import build_xai_header, human_readable_reasons
 
             parser = EmailParser()
             parsed = parser.parse(payload.raw_email)
             extractor = FeatureExtractor()
             features = extractor.extract(parsed)
 
+            fallback_reasons = human_readable_reasons(features)
+
             result = {
-                "email_id": f"manual-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "email_id": f"manual-{app_now().strftime('%Y%m%d%H%M%S')}",
                 "classification": "unknown",
                 "confidence": 0.0,
                 "spam_score": 0.0,
                 "risk_level": "UNKNOWN",
-                "reasons": ["Classifier service unavailable — running in fallback mode"],
+                "reasons": fallback_reasons or ["Classifier service unavailable — running in fallback mode"],
                 "url_analysis": [],
                 "recommended_action": "manual_review",
                 "processing_time_ms": 0,
@@ -1775,6 +2203,7 @@ async def api_analyze_email(
                 "sa_score": 0.0,
                 "anomaly_score": 0.0,
                 "fused_score": 0.0,
+                "xai_summary": build_xai_header(features, 0.0, 0.0, "UNKNOWN"),
                 "label": "UNKNOWN",
                 "fallback_mode": True,
             }
@@ -1855,6 +2284,9 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
             "email": row.email,
             "domain": row.domain,
             "sender_name": row.sender_name or "",
+            "forward_to": row.forward_to or "",
+            "forward_enabled": bool(row.forward_enabled),
+            "forward_keep_copy": bool(row.forward_keep_copy),
             "created_by": row.created_by,
             "created_at": str(row.created_at),
         }
@@ -1863,6 +2295,7 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 
 
 @app.post("/api/admin/mailboxes")
+@limiter.limit("10/minute")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
@@ -1901,22 +2334,15 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
 
 
 @app.post("/api/mailboxes/login")
-async def api_login_mailbox(payload: dict, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+async def api_login_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     mailbox_id = payload.get("mailbox_id")
     email = str(payload.get("email", "")).strip().lower()
     password = str(payload.get("password", ""))
-    query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
-    if mailbox_id:
-        try:
-            query = query.filter(AdminMailbox.id == int(mailbox_id))
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid mailbox id")
-    else:
-        query = query.filter(AdminMailbox.email == email)
-    mailbox = query.first()
+    mailbox = resolve_active_mailbox(db, mailbox_id, email, missing_status_code=401, missing_detail="Incorrect password or email address", inactive_detail="Incorrect password or email address")
     if not mailbox or (email and mailbox.email != email) or not verify_password(password, mailbox.password_hash or ""):
         raise HTTPException(status_code=401, detail="Incorrect password or email address")
-    return {
+    response = JSONResponse({
         "ok": True,
         "mailbox": {
             "id": mailbox.id,
@@ -1924,10 +2350,27 @@ async def api_login_mailbox(payload: dict, db: Session = Depends(get_db)):
             "domain": mailbox.domain,
             "sender_name": mailbox.sender_name or "",
         }
-    }
+    })
+    access_token = create_access_token({
+        "sub": f"mailbox:{mailbox.id}",
+        "role": "mailbox",
+        "mailbox_id": str(mailbox.id),
+        "mailbox_email": mailbox.email.lower(),
+    })
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        secure=os.getenv("ENV", "development") == "production",
+        path="/",
+    )
+    return response
 
 
 @app.delete("/api/admin/mailboxes/{mailbox_id}")
+@limiter.limit("20/minute")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
@@ -1937,6 +2380,51 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
         raise HTTPException(status_code=404, detail="Mailbox not found")
     mailbox.is_active = False
     log_audit(db, user_info["username"], "delete_mailbox", None, request.client.host if request.client else None, mailbox.email)
+    db.commit()
+    return {"ok": True}
+
+
+@app.put("/api/admin/mailboxes/{mailbox_id}/forwarder")
+@limiter.limit("20/minute")
+async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
+    if not mailbox:
+        raise HTTPException(status_code=404, detail="Mailbox not found")
+    target = str(payload.get("target", "")).strip().lower()
+    enabled = bool(payload.get("enabled", True))
+    keep_copy = bool(payload.get("keep_copy", True))
+    if enabled and not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", target):
+        raise HTTPException(status_code=400, detail="Invalid forwarder email")
+    mailbox.forward_to = target if enabled else ""
+    mailbox.forward_enabled = enabled and bool(target)
+    mailbox.forward_keep_copy = keep_copy
+    log_audit(db, user_info["username"], "update_mailbox_forwarder", None, request.client.host if request.client else None, f"{mailbox.email} -> {mailbox.forward_to}")
+    db.commit()
+    return {
+        "ok": True,
+        "forward_to": mailbox.forward_to,
+        "forward_enabled": bool(mailbox.forward_enabled),
+        "forward_keep_copy": bool(mailbox.forward_keep_copy),
+    }
+
+
+@app.put("/api/admin/mailboxes/{mailbox_id}/password")
+@limiter.limit("10/minute")
+async def api_update_admin_mailbox_password(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    password = str(payload.get("password", ""))
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
+    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
+    if not mailbox:
+        raise HTTPException(status_code=404, detail="Mailbox not found")
+    mailbox.password_hash = hash_password(password)
+    log_audit(db, user_info["username"], "update_mailbox_password", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
     return {"ok": True}
 
@@ -1995,10 +2483,19 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view stats")
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.is_active == True).count()
-    total_emails = db.query(QuarantineEmail).count()
-    clean_count = db.query(QuarantineEmail).filter(QuarantineEmail.status == "CLEAN").count()
-    warn_count = db.query(QuarantineEmail).filter(QuarantineEmail.status == "WARN").count()
-    quarantine_count = db.query(QuarantineEmail).filter(QuarantineEmail.status == "QUARANTINE").count()
+    total_emails = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash").count()
+    clean_count = db.query(QuarantineEmail).filter(
+        QuarantineEmail.label == "CLEAN",
+        QuarantineEmail.status != "trash",
+    ).count()
+    warn_count = db.query(QuarantineEmail).filter(
+        QuarantineEmail.label == "WARN",
+        QuarantineEmail.status != "trash",
+    ).count()
+    quarantine_count = db.query(QuarantineEmail).filter(
+        QuarantineEmail.label == "QUARANTINE",
+        QuarantineEmail.status != "trash",
+    ).count()
     audit_count = db.query(AuditLog).count()
     return {
         "total_users": total_users,
@@ -2067,7 +2564,7 @@ async def update_report(report_id: int, request: Request, payload: dict, db: Ses
     if "status" in payload:
         report.status = payload["status"]
         if payload["status"] == "resolved":
-            report.resolved_at = datetime.utcnow()
+            report.resolved_at = app_now()
     if "admin_reply" in payload and payload["admin_reply"] is not None:
         report.admin_reply = payload["admin_reply"]
         if report.status == "open":
@@ -2086,7 +2583,20 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     users = db.query(User).filter(User.is_active == True).all()
     result = []
     for u in users:
-        total = db.query(QuarantineEmail).count()
+        identifiers = [u.username.lower()]
+        if u.email:
+            identifiers.append(u.email.lower())
+        email_filters = [
+            or_(
+                QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
+                QuarantineEmail.sender.ilike(f"%{identifier}%"),
+            )
+            for identifier in identifiers
+        ]
+        total = db.query(QuarantineEmail).filter(
+            QuarantineEmail.status != "trash",
+            or_(*email_filters),
+        ).count()
         result.append({
             "username": u.username,
             "email": u.email,
@@ -2105,7 +2615,26 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(404, "User not found")
-    emails = db.query(QuarantineEmail).order_by(QuarantineEmail.created_at.desc()).limit(200).all()
+    identifiers = [user.username.lower()]
+    if user.email:
+        identifiers.append(user.email.lower())
+    email_filters = [
+        or_(
+            QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
+            QuarantineEmail.sender.ilike(f"%{identifier}%"),
+        )
+        for identifier in identifiers
+    ]
+    emails = (
+        db.query(QuarantineEmail)
+        .filter(
+            QuarantineEmail.status != "trash",
+            or_(*email_filters),
+        )
+        .order_by(QuarantineEmail.created_at.desc())
+        .limit(200)
+        .all()
+    )
     return [
         {
             "email_id": e.email_id, "subject": e.subject, "sender": e.sender,

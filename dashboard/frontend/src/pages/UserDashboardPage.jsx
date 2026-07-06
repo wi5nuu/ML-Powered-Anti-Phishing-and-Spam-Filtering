@@ -7,6 +7,8 @@ import {
   CheckCircle2, Clock, Zap, FileText, Lock, BarChart2,
   ArrowUpRight, TrendingDown, Eye, AlertCircle
 } from 'lucide-react'
+import { getMailboxIdByEmail } from '../utils/mailbox'
+import { APP_TIME_ZONE } from '../utils/time'
 import styles from './UserDashboardPage.module.css'
 
 const SECURITY_TIPS = [
@@ -29,6 +31,9 @@ export default function UserDashboardPage() {
   const { data: me } = useMe()
   const { data: stats } = useStats()
   const user = me?.user
+  const userMailboxId = getMailboxIdByEmail(user?.email) || user?.email || user?.username || ''
+  const inboxPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/inbox` : '/inbox'
+  const metricsPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/metrics` : '/metrics'
 
   // /stats API returns: { total, quarantine, warn, clean, trash, avg_anomaly_score, avg_fused_score, categories }
   const total = stats?.total ?? 0
@@ -41,8 +46,8 @@ export default function UserDashboardPage() {
   const quarantined = quarantine
   const inboxTotal = total
 
-  const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-  const date = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const now = new Date().toLocaleTimeString('id-ID', { timeZone: APP_TIME_ZONE, hour: '2-digit', minute: '2-digit' })
+  const date = new Date().toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
     <UserDashboardShell>
@@ -91,7 +96,7 @@ export default function UserDashboardPage() {
 
         {/* ── Stat Cards ── */}
         <div className={styles.statsGrid}>
-          <div className={`${styles.statCard} ${styles.scGray}`} onClick={() => navigate('/inbox')}>
+          <div className={`${styles.statCard} ${styles.scGray}`} onClick={() => navigate(inboxPath)}>
             <div className={styles.scIcon} style={{ background: '#F9FAFB', color: '#374151' }}>
               <Inbox size={18} />
             </div>
@@ -164,7 +169,7 @@ export default function UserDashboardPage() {
                 <span>Quick Actions</span>
               </div>
               <div className={styles.quickActions}>
-                <button className={`${styles.qaBtn} ${styles.qaBtnPrimary}`} onClick={() => navigate('/inbox')}>
+                <button className={`${styles.qaBtn} ${styles.qaBtnPrimary}`} onClick={() => navigate(inboxPath)}>
                   <Inbox size={18} />
                   <span>Open Inbox</span>
                 </button>
@@ -172,7 +177,7 @@ export default function UserDashboardPage() {
                   <Mail size={18} />
                   <span>Compose Email</span>
                 </button>
-                <button className={`${styles.qaBtn} ${styles.qaBtnWarning}`} onClick={() => navigate('/metrics')}>
+                <button className={`${styles.qaBtn} ${styles.qaBtnWarning}`} onClick={() => navigate(metricsPath)}>
                   <Eye size={18} />
                   <span>View Quarantine</span>
                 </button>
@@ -208,7 +213,7 @@ export default function UserDashboardPage() {
               <div className={styles.scardHeader}>
                 <BarChart2 size={16} className={styles.scardIcon} />
                 <span>Recent Security Events</span>
-                <button className={styles.scardLink} onClick={() => navigate('/metrics')}>
+                <button className={styles.scardLink} onClick={() => navigate(metricsPath)}>
                   View Report
                 </button>
               </div>

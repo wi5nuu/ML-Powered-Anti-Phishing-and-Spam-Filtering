@@ -35,6 +35,12 @@ def _ensure_schema_compatibility():
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN password_hash VARCHAR(128) DEFAULT ''")
     if "sender_name" not in columns:
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN sender_name VARCHAR(255) DEFAULT ''")
+    if "forward_to" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''")
+    if "forward_enabled" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
+    if "forward_keep_copy" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
     if not statements:
         return
     with engine.begin() as conn:

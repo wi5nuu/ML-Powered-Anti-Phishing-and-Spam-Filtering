@@ -103,6 +103,10 @@
   overflow: hidden;
 }
 
+.mailboxSection {
+  overflow: visible;
+}
+
 .sectionHeader {
   display: flex;
   align-items: center;
@@ -515,7 +519,7 @@
 .mailboxTableHead,
 .mailboxTableRow {
   display: grid;
-  grid-template-columns: minmax(280px, 1.6fr) 0.7fr 0.8fr auto;
+  grid-template-columns: minmax(280px, 1fr) auto;
   gap: 14px;
   align-items: center;
 }
@@ -625,6 +629,7 @@
 }
 
 .mailboxActions {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -669,6 +674,141 @@
 .iconDanger:hover {
   background: #fce8e6;
   color: #c5221f;
+}
+
+.mailboxActionMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  width: 190px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 14px 32px rgba(60, 64, 67, 0.22);
+}
+
+.mailboxActionMenu button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mailboxActionMenu button:hover {
+  background: var(--border-light);
+}
+
+.mailboxActionMenu .menuDanger {
+  color: #c5221f;
+}
+
+.actionModal,
+.confirmModal {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 18px;
+  padding: 30px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.confirmModal {
+  width: 480px;
+}
+
+.confirmModal h2 {
+  margin: 0 0 14px;
+  font-size: 1.35rem;
+}
+
+.confirmModal p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.confirmModal strong {
+  color: #6d5dfc;
+  font-weight: 500;
+}
+
+.linkBtn {
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  color: #6d5dfc;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dangerBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #6d39e8;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: #5730c5;
+}
+
+.switchRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.switchRow input {
+  width: 42px;
+  height: 24px;
+  appearance: none;
+  border-radius: 999px;
+  background: #c9cdd3;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switchRow input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.switchRow input:checked {
+  background: #6d5dfc;
+}
+
+.switchRow input:checked::after {
+  transform: translateX(18px);
 }
 
 .mailboxModalOverlay {
@@ -1731,4 +1871,3 @@
 @media (max-width: 480px) {
   .statsGrid6 { grid-template-columns: 1fr; }
 }
-

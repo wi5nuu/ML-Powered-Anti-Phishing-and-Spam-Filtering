@@ -95,11 +95,15 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
         logger.warning("FORWARDER_SMTP_HOST not set — skipping forward")
         return False
 
-    # Parse recipients
-    if FORWARDER_DESTINATION_OVERRIDE:
+    # Parse recipients. Payload recipients are explicit targets from mailbox
+    # forwarder settings and must not be replaced by the legacy override.
+    payload_recipients = payload.get("recipients", [])
+    if payload_recipients:
+        recipients = payload_recipients
+    elif FORWARDER_DESTINATION_OVERRIDE:
         recipients = [FORWARDER_DESTINATION_OVERRIDE]
     else:
-        recipients = _parse_recipients(raw_email, payload.get("recipients", []))
+        recipients = _parse_recipients(raw_email, payload_recipients)
     if not recipients:
         logger.warning("No recipients found — cannot forward")
         return False

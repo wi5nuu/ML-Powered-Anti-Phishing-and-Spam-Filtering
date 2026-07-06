@@ -33,6 +33,14 @@ ANOMALY_HARD_LIMIT = float(os.getenv("ANOMALY_QUARANTINE_THRESHOLD", "0.90"))
 SA_MAX_SCORE    = float(os.getenv("SA_MAX_SCORE", "20.0"))
 THRESH_CLEAN    = float(os.getenv("THRESHOLD_CLEAN", "0.30"))
 THRESH_WARN     = float(os.getenv("THRESHOLD_WARN", "0.70"))
+WARN_EVIDENCE_GATED = os.getenv("WARN_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
+WARN_MIN_EVIDENCE = int(os.getenv("WARN_MIN_EVIDENCE", "2"))
+WARN_ML_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ML_EVIDENCE_THRESHOLD", "0.85"))
+WARN_SA_EVIDENCE_THRESHOLD = float(os.getenv("WARN_SA_EVIDENCE_THRESHOLD", "8.0"))
+WARN_ANOMALY_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ANOMALY_EVIDENCE_THRESHOLD", "0.85"))
+WARN_AUTH_EVIDENCE = os.getenv("WARN_AUTH_EVIDENCE", "false").lower() in {"1", "true", "yes", "on"}
+QUARANTINE_EVIDENCE_GATED = os.getenv("QUARANTINE_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
+QUARANTINE_MIN_EVIDENCE = int(os.getenv("QUARANTINE_MIN_EVIDENCE", "2"))
 
 
 @dataclass
@@ -67,15 +75,16 @@ def fuse(sa_score: float, ml_probability: float,
     sa_normalized = sa_clamped / SA_MAX_SCORE
 
     # Hard overrides — langsung QUARANTINE tanpa fusion
-    if sa_score >= SA_HARD_LIMIT or ml_probability >= ML_HARD_LIMIT or anomaly_score >= ANOMALY_HARD_LIMIT:
-        triggered = []
-        if sa_score >= SA_HARD_LIMIT:
-            triggered.append(f"SA={sa_score:.1f}")
-        if ml_probability >= ML_HARD_LIMIT:
-            triggered.append(f"ML={ml_probability:.3f}")
-        if anomaly_score >= ANOMALY_HARD_LIMIT:
-            triggered.append(f"Anomaly={anomaly_score:.3f}")
-        reason = f"Hard threshold triggered: {', '.join(triggered)}"
+    hard_evidence = []
+    if sa_score >= SA_HARD_LIMIT:
+        hard_evidence.append(f"SA={sa_score:.1f}")
+    if ml_probability >= ML_HARD_LIMIT:
+        hard_evidence.append(f"ML={ml_probability:.3f}")
+    if anomaly_score >= ANOMALY_HARD_LIMIT:
+        hard_evidence.append(f"Anomaly={anomaly_score:.3f}")
+
+    if hard_evidence and (not QUARANTINE_EVIDENCE_GATED or len(hard_evidence) >= QUARANTINE_MIN_EVIDENCE):
+        reason = f"Hard threshold triggered: {', '.join(hard_evidence)}"
         return FusionResult(
             sa_score=sa_score,
             ml_probability=ml_probability,
@@ -84,6 +93,12 @@ def fuse(sa_score: float, ml_probability: float,
             fused_score=1.0,
             label="QUARANTINE",
             routing_reason=reason,
+        )
+    hard_gate_reason = ""
+    if hard_evidence:
+        hard_gate_reason = (
+            f"Hard threshold evidence weak ({len(hard_evidence)}/{QUARANTINE_MIN_EVIDENCE}: "
+            f"{', '.join(hard_evidence)})"
         )
 
     # 3-way weighted fusion
@@ -103,11 +118,37 @@ def fuse(sa_score: float, ml_probability: float,
         label = "CLEAN"
         reason = f"Score below clean threshold ({THRESH_CLEAN})"
     elif fused < THRESH_WARN:
-        label = "WARN"
-        reason = f"Score in warning zone ({THRESH_CLEAN}\u2013{THRESH_WARN})"
+        evidence = []
+        if ml_probability >= WARN_ML_EVIDENCE_THRESHOLD:
+            evidence.append(f"ML={ml_probability:.3f}")
+        if sa_score >= WARN_SA_EVIDENCE_THRESHOLD:
+            evidence.append(f"SA={sa_score:.1f}")
+        if anomaly_score >= WARN_ANOMALY_EVIDENCE_THRESHOLD:
+            evidence.append(f"Anomaly={anomaly_score:.3f}")
+        if WARN_AUTH_EVIDENCE and not (spf_pass and dkim_pass and dmarc_pass):
+            evidence.append("Auth incomplete/failed")
+
+        if WARN_EVIDENCE_GATED and len(evidence) < WARN_MIN_EVIDENCE:
+            label = "CLEAN"
+            reason = (
+                f"Score in warning zone ({THRESH_CLEAN}\u2013{THRESH_WARN}) "
+                f"but weak evidence ({len(evidence)}/{WARN_MIN_EVIDENCE}: {', '.join(evidence) or 'none'})"
+            )
+            if hard_gate_reason:
+                reason = f"{hard_gate_reason}; {reason}"
+        else:
+            label = "WARN"
+            reason = (
+                f"Score in warning zone ({THRESH_CLEAN}\u2013{THRESH_WARN}); "
+                f"evidence: {', '.join(evidence) or 'score only'}"
+            )
+            if hard_gate_reason:
+                reason = f"{hard_gate_reason}; {reason}"
     else:
         label = "QUARANTINE"
         reason = f"Score above quarantine threshold ({THRESH_WARN})"
+        if hard_gate_reason:
+            reason = f"{hard_gate_reason}; {reason}"
 
     return FusionResult(
         sa_score=sa_score,
