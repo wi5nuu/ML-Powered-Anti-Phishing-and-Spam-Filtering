@@ -6,6 +6,10 @@
   gap: 20px;
   font-family: 'Inter', 'Google Sans', -apple-system, sans-serif;
   min-height: 100%;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* ── Hero ── */

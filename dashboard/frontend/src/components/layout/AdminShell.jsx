@@ -69,20 +69,14 @@ export default function AdminShell({ children }) {
           </button>
         </div>
 
-        {/* Role badge */}
-        {sidebarOpen && (
-          <div className={styles.rolePill} style={{ background: `${roleColor}15`, borderColor: `${roleColor}30` }}>
-            <span className={styles.roleDot} style={{ background: roleColor }} />
-            <span className={styles.roleText} style={{ color: roleColor }}>{roleLabel}</span>
-          </div>
-        )}
+        {/* Role badge removed */}
 
         {/* Nav */}
         <nav className={styles.nav}>
           <SectionLabel label="MAIN" />
           <NavItem tab="overview" icon={<BarChart2 size={17} />} label="Overview" />
-          {isSuper && <NavItem tab="users" icon={<Users size={17} />} label="Users" />}
-          <NavItem tab="email" icon={<Mail size={17} />} label="Mailboxes" />
+          {(isSuper || user?.role === 'admin') && <NavItem tab="users" icon={<Users size={17} />} label="Users" />}
+          {isSuper && <NavItem tab="email" icon={<Mail size={17} />} label="Mailboxes" />}
 
           <SectionLabel label="SECURITY" />
           <NavItem tab="reports" icon={<AlertCircle size={17} />} label="Reports" />
@@ -113,7 +107,7 @@ export default function AdminShell({ children }) {
           <div className={styles.topLeft}>
             <div className={styles.breadcrumb}>
               <Shield size={15} className={styles.breadcrumbIcon} />
-              <span className={styles.breadcrumbRoot}>{isSuper ? 'Superadmin' : 'Admin'}</span>
+              <span className={styles.breadcrumbRoot}>Admin Panel</span>
               <ChevronRight size={13} className={styles.breadcrumbSep} />
               <span className={styles.breadcrumbCurrent}>
                 {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
@@ -131,7 +125,6 @@ export default function AdminShell({ children }) {
               </div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
-                <span className={styles.userRole} style={{ color: roleColor }}>{roleLabel}</span>
               </div>
             </div>
             <button className={styles.logoutBtn} onClick={() => logout()} title="Logout">

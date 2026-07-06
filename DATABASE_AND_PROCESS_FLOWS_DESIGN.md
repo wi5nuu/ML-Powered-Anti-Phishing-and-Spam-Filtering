@@ -372,23 +372,6 @@ flowchart TD
     Sys -->|7. Send Threat Alerts: CRITICAL or HIGH| Alerts
 ```
 
-#### Penjelasan & Cara Kerja DFD Level 0 (Bahasa Indonesia)
-
-* **Mengapa Didesain Seperti Ini?**
-  Context Diagram (DFD Level 0) didesain untuk mendefinisikan batasan (boundary) sistem CogniMail secara makro. Diagram ini menyembunyikan kompleksitas teknis internal sistem dan hanya menyoroti bagaimana entitas eksternal (Pengirim, Penerima Karyawan, Dashboard Admin, Sistem Monitoring, dan Kanal Peringatan) mengirimkan input dan menerima output dari sistem utama.
-* **Bagaimana Cara Kerjanya?**
-  1. **Aliran Masuk (Input):** Pengirim eksternal mengirimkan email (**Flow 1**). Admin mengakses dashboard dan mengirimkan perintah manajemen serta umpan balik (**Flow 3 & 4**).
-  2. **Aliran Keluar (Output):** Email yang aman diteruskan ke inbox karyawan (**Flow 2**). Informasi forensik detail ancaman dan log audit diperbarui secara instan ke dashboard admin (**Flow 5**). Metrik sistem diekspos ke Prometheus (**Flow 6**), dan alarm ancaman kritis langsung ditembakkan ke Slack atau Telegram (**Flow 7**).
-
-#### Analogi Sederhana ("Gerbang Penjagaan Utama Kompleks Perumahan")
-Umpamakan seluruh sistem CogniMail sebagai **Pos Satpam Utama di Gerbang Perumahan Elite**:
-* **External Email Sender** adalah kurir pengantar paket luar yang datang membawa barang kiriman (email).
-* **Pos Satpam Utama (Sys 0.0)** adalah pos penjagaan yang bertugas memeriksa barang bawaan tersebut sebelum boleh masuk ke area perumahan.
-* **Employee / Recipient Inbox** adalah warga perumahan yang berhak menerima paket aman dari kurir.
-* **Admin / Analyst Dashboard** adalah kantor kepala satpam kompleks yang memantau kamera pengawas, menerima log tamu, dan mengatur pengaturan pos jaga.
-* **Monitoring Engine** adalah layar monitor di kantor pusat pengelola kompleks yang menampilkan berapa banyak kendaraan yang lewat dan rata-rata waktu pemeriksaan satpam.
-* **Alert Targets** adalah tombol sirine darurat yang langsung berdering di kantor polisi jika satpam menemukan paket berisi bahan berbahaya.
-
 ---
 
 ### 3.2 DFD Level 1 (General Flow Diagram)
@@ -445,29 +428,12 @@ flowchart TD
     P4 -->|19. Scrape endpoint data| Mon
 ```
 
-#### Penjelasan & Cara Kerja DFD Level 1 (Bahasa Indonesia)
-
-* **Mengapa Didesain Seperti Ini?**
-  DFD Level 1 memecah sistem tunggal di Level 0 menjadi empat modul fungsional utama yang memiliki tugas spesifik (*Separation of Concerns*). Pemisahan ini sangat penting untuk memastikan performa tinggi: modul penerimaan email (Ingestion) tidak terganggu oleh modul analisis kecerdasan buatan (Inference) yang membutuhkan waktu komputasi intensif.
-* **Bagaimana Cara Kerjanya?**
-  1. **Ingestion (Proses 1.0):** Menangkap email mentah dari luar dan menyimpannya langsung ke **Redis Queue (D1)**. Redis bertindak sebagai penyangga (buffer) agar email tidak hilang saat traffic membludak.
-  2. **Threat Classification (Proses 2.0):** Proses worker mengambil email dari Redis (D1), menjalankan evaluasi SpamAssassin dan Machine Learning secara asinkron, lalu menulis rekam analisis ke database karantina **quarantine_emails (D2)** serta merekam statistik waktu ke **pipeline_metrics (D4)**.
-  3. **Quarantine & Forwarding (Proses 3.0):** Mengambil email dari database karantina (D2) dan mencocokkannya dengan aturan perutean (**reports / settings (D6)**). Jika email bersih, dikirim ke karyawan. Jika berbahaya, email diblokir di karantina dan sistem mengirimkan alarm peringatan ke Slack/Telegram.
-  4. **Admin APIs & WebSocket Bridge (Proses 4.0):** Menangani interaksi dashboard admin. Proses ini memverifikasi akun di tabel **users (D5)**, merekam aktivitas admin ke tabel **audit_logs (D5)**, menarik berkas email karantina dari tabel **D2**, dan merekam masukan koreksi ke tabel **feedback (D3)**.
-
-#### Analogi Sederhana ("Alur Pemrosesan Kargo Pabrik Kopi")
-Bayangkan sistem ini bekerja seperti **"Pabrik Pengolah Biji Kopi Ekspor"**:
-* **Proses 1.0 (Dermaga Penerimaan):** Petugas dermaga membongkar karung kopi dari truk pengirim (External Sender) dan langsung memindahkannya ke **Ban Berjalan Sementara (D1: Redis Queue)** agar dermaga muatan tidak macet.
-* **Proses 2.0 (Laboratorium Uji Kualitas):** Tim laboratorium mengambil karung kopi dari ban berjalan secara berurutan. Mereka melakukan tes sensor otomatis (Machine Learning) dan cicip aroma tradisional (SpamAssassin). Hasil uji kualitas setiap karung dicatat di **Buku Laporan Karantina (D2)** dan kecepatan pengerjaan dicatat di **Buku Catatan Kecepatan Kerja Lab (D4)**.
-* **Proses 3.0 (Divisi Distribusi):** Staf logistik mengecek Buku Laporan Karantina (D2). Kopi berlabel "Bersih (Clean)" langsung dinaikkan ke truk pengantar menuju pembeli (Employee Inbox), sedangkan kopi bermasalah ditahan di gudang pabrik dan sirine dibunyikan.
-* **Proses 4.0 (Kantor Administrasi Manajer):** Manajer pabrik masuk menggunakan kartu akses (**D5: users**). Di komputernya, manajer bisa meninjau data kualitas kopi di D2, menulis masukan koreksi uji lab (**D3: feedback**), dan melihat grafik kapasitas harian pabrik dari data D4.
-
 ---
 
 ### 3.3 DFD Level 2 (Detailed Feature Flows)
 
-#### Activity A: Email Processing, Detection & Fusion Pipeline (Processes 1.0, 2.0, & 3.0)
-Shows the complete ingestion flow, SMTP capture, parsing, SpamAssassin TCP scoring, Classifier REST ML probability generation, and Decision Engine evaluation.
+    #### Activity A: Email Processing, Detection & Fusion Pipeline (Processes 1.0, 2.0, & 3.0)
+    Shows the complete ingestion flow, SMTP capture, parsing, SpamAssassin TCP scoring, Classifier REST ML probability generation, and Decision Engine evaluation.
 
 ```mermaid
 flowchart TD
@@ -526,24 +492,6 @@ flowchart TD
     P2_5 -.->|21. If label = QUARANTINE: Dispatch alerts| Alerts
 ```
 
-##### Penjelasan & Cara Kerja DFD Level 2 Activity A (Bahasa Indonesia)
-
-* **Mengapa Didesain Seperti Ini?**
-  Aktivitas deteksi didesain dengan konsep **Multi-Scanner Parallel Evaluator** dan **3-Way Decision Fusion Engine**. Evaluasi berjalan asinkron menggunakan Redis Queue `blpop` agar tidak terjadi penumpukan koneksi SMTP yang menggantung. Penilaian menggabungkan SpamAssassin (berbasis *rules*), ML Classifier (berbasis statistik teks), dan Unsupervised Detector (berbasis analisis anomali) untuk menutupi kelemahan masing-masing scanner dan meningkatkan akurasi deteksi ancaman baru (Zero-Day Phishing).
-* **Bagaimana Cara Kerjanya?**
-  1. Penerima SMTP (Port 25) atau pengambil Mailpit (Port 8025) memasukkan email ke Redis (**D1: email_pipeline**).
-  2. Modul **2.1 (Parser)** mengambil email dari Redis, mengurai struktur MIME email, dan mengekstrak data otentikasi header (SPF, DKIM, DMARC).
-  3. Modul **2.2 (SpamAssassin Client)** mengirimkan body email ke daemon SpamAssassin (Port 783) dan menerima `sa_score`.
-  4. Modul **2.3 (ML Client)** secara paralel mengirimkan body email ke Classifier Service (Port 8001) berbasis FastAPI untuk mendapatkan skor probabilitas ML terawasi dan nilai anomali dari model aktif di database (**D9: model_versions**).
-  5. Modul **2.4 (Fusion Engine)** mengombinasikan ketiga skor tersebut beserta status otentikasi SPF/DKIM/DMARC menjadi satu skor terpadu (`fused_score`).
-  6. Modul **2.5 (Router)** menulis status deteksi, isi HTML, dan visualisasi penjelasan SHAP (`shap_json`) ke tabel **`quarantine_emails` (D2)**, memperbarui tabel **`pipeline_metrics` (D4)**, serta menentukan apakah email harus diteruskan ke inbox karyawan atau diblokir.
-
-##### Analogi Sederhana ("Pemeriksaan Koper Tamu Penting di Pintu Masuk Bandara")
-* **Proses 2.1 (Pemeriksa Tiket):** Tamu (email) datang membawa koper besar. Petugas menyambut mereka, memeriksa apakah nama di paspor dan tiket penerbangan mereka valid (otentikasi SPF/DKIM/DMARC).
-* **Proses 2.2 (Anjing Pelacak Tradisional):** Koper tamu dicium oleh **anjing pelacak berpengalaman** (SpamAssassin) yang sangat hafal dengan bau zat terlarang yang sudah umum dikenali (pola spam lama).
-* **Proses 2.3 (Mesin X-Ray AI Canggih):** Secara paralel, koper tamu dilewatkan ke mesin pemindai hologram AI terbaru (ML Classifier Service) untuk mendeteksi barang mencurigakan model baru yang tidak bisa dicium oleh anjing pelacak.
-* **Proses 2.4 & 2.5 (Komandan Keamanan & Keputusan):** Komandan mencocokkan hasil laporan anjing pelacak, hasil scan X-Ray AI, dan keaslian paspor tamu. Jika semuanya aman, tamu dipersilakan masuk ke ruang VIP utama (Employee Inbox). Jika mencurigakan, tamu digiring ke dalam ruang karantina bawah tanah (**D2: quarantine_emails**) untuk ditahan sementara.
-
 #### Activity B: Quarantine Review & Action (Process 4.0 - Admin Management)
 Details user/analyst authentication, quarantine table retrieval, XAI forensic view, and actions (releasing with status `"released"`, flagging as `"confirmed_spam"`, or writing a FP feedback entry).
 
@@ -590,23 +538,6 @@ flowchart TD
     P4_5 -->|17. Log action 'report_false_positive'| D_Audit
 ```
 
-##### Penjelasan & Cara Kerja DFD Level 2 Activity B (Bahasa Indonesia)
-
-* **Mengapa Didesain Seperti Ini?**
-  Modul ini didesain untuk memberikan transparansi penuh kepada analis keamanan korporat dengan menyertakan fitur **Explainable AI (XAI)** menggunakan nilai SHAP. Selain itu, sistem menerapkan mekanisme pertanggungjawaban audit ketat (*Audit Trail Logging*) untuk mencatat setiap tindakan rilis email guna mencegah penyalahgunaan wewenang admin atau kelalaian analis.
-* **Bagaimana Cara Kerjanya?**
-  1. Admin dashboard masuk dengan memvalidasi username dan password di tabel **`users` (D5)**. Server mengembalikan token JWT untuk autentikasi API berikutnya (**Proses 4.1**).
-  2. Dashboard admin memanggil REST API untuk memuat daftar email karantina yang tertahan di tabel **`quarantine_emails` (D2)** (**Proses 4.2**).
-  3. Ketika analis mengeklik sebuah email, sistem memuat `shap_json` dan status SPF/DKIM untuk menggambar grafik kontribusi fitur SHAP. Analis dapat membaca penjelasan forensik kenapa email tersebut ditahan (**Proses 4.3**).
-  4. Jika analis mengeklik tombol **Release**: sistem mengubah status email di database **D2** dari `"pending"` menjadi `"released"`, meneruskan email mentah via SMTP ke karyawan (**Proses 4.4**), dan menulis baris log baru ke tabel **`audit_logs` (D11)**.
-  5. Jika analis mengeklik tombol **Report False Positive**: sistem menulis baris feedback baru ke tabel **`feedback` (D3)** untuk melatih ulang AI agar lebih pintar, mengubah status email karantina di **D2** menjadi `"released"`, dan menulis log ke tabel **`audit_logs` (D11)** (**Proses 4.5**).
-
-##### Analogi Sederhana ("Sidang Pembebasan Tahanan oleh Kepala Lapas")
-* **Proses 4.1 (Verifikasi Kartu Akses):** Petugas analis menempelkan kartu identitas mereka pada pintu besi ruang tahanan untuk mencocokkan kredensial mereka (**D5: users**).
-* **Proses 4.2 & 4.3 (Pemeriksaan Berkas Kasus):** Petugas masuk dan membuka lemari arsip tahanan karantina (**D2**). Petugas mengambil map berkas milik salah satu tahanan dan memeriksa lembar rekam medis visual (**SHAP/XAI**) yang menerangkan detail pelanggaran tahanan tersebut (misal: "Scan wajah menunjukkan indikasi kecemasan, membawa selebaran tipuan").
-* **Proses 4.4 (Surat Pembebasan):** Jika petugas yakin tahanan tersebut sebenarnya orang baik yang salah tangkap, petugas menandatangani surat pembebasan. Tahanan tersebut dilepaskan dari penjara, dipersilakan melanjutkan perjalanan ke rumah warga (Employee Inbox), dan aksi pembebasan ini direkam oleh kamera pengawas (**D11: audit_logs**).
-* **Proses 4.5 (Umpan Balik Lab):** Petugas mengirimkan memorandum ke unit pelatihan keamanan pusat (**D3: feedback**): *"Modul deteksi Anda keliru mendeteksi orang dengan kriteria ini. Perbarui data latih pemindai AI agar di masa depan orang dengan jenis bawaan serupa tidak ditangkap lagi."*
-
 #### Activity C: Feedback, Support Tickets, and WebSocket Live Metrics (Process 4.0 - Feedback Loop)
 Flow mapping for report tickets submission/resolution, live processed pipeline metrics broadcasting over WebSocket, and Prometheus performance scraping.
 
@@ -645,21 +576,6 @@ flowchart TD
     P4_9 -->|11. Expose Prometheus metrics endpoint| Grafana
 ```
 
-##### Penjelasan & Cara Kerja DFD Level 2 Activity C (Bahasa Indonesia)
-
-* **Mengapa Didesain Seperti Ini?**
-  Aktivitas ini memfasilitasi komunikasi real-time, sistem pelaporan terstruktur, dan pemantauan kinerja pipeline secara berkelanjutan. WebSocket Bridge didesain menggunakan skema Redis Pub/Sub agar tidak membebani performa database SQL utama saat menyiarkan pemrosesan email yang berjalan ribuan kali per menit.
-* **Bagaimana Cara Kerjanya?**
-  1. Pengguna mengirimkan tiket masalah melalui API (**Proses 4.6**), sistem menyimpannya ke tabel **`reports` (D7)**. Admin meninjau tiket, menulis balasan, dan memperbarui status tiket menjadi resolved (**Proses 4.7**).
-  2. Saat email selesai diproses oleh pipeline pendeteksi, pipeline mengirimkan sinyal ke saluran Redis Pub/Sub (**D12**). 
-  3. Modul **2.8 (WebSocket Bridge)** yang mendengarkan saluran Redis Pub/Sub menangkap sinyal ini dan langsung menyiarkan status update pemrosesan email ke dashboard pengguna dan admin secara real-time tanpa memaksa dashboard memuat ulang halaman (*real-time dashboard streaming*).
-  4. Prometheus Scraper (**Proses 4.9**) secara berkala memanggil endpoint metrik sistem untuk menarik data akumulasi volume email harian di tabel **`pipeline_metrics` (D6)** untuk ditampilkan dalam bentuk grafik monitoring di **Grafana**.
-
-##### Analogi Sederhana ("Papan Pengumuman Digital, Telepon Pengaduan, dan Grafik Pabrik")
-* **Proses 4.6 & 4.7 (Layanan Aduan Manajer):** Pekerja pabrik yang komputernya bermasalah menulis keluhan pada selembar kertas dan memasukkannya ke dalam **Kotak Pengaduan Kayu (D7: reports)**. Petugas admin secara berkala memeriksa kotak tersebut, menulis solusi pemecahan di kertas aduan, dan menyetempelnya sebagai "Selesai ditangani".
-* **Proses 4.8 (Layar Pengumuman Otomatis Lorong Pabrik):** Di setiap sudut pabrik dipasang speaker pengumuman (**Redis Pub/Sub**). Ketika laboratorium selesai memproses karung kopi, speaker langsung berbunyi halus *"Karung kopi baru telah selesai diproses"*. Seluruh pekerja (Admin & User) langsung tahu kondisi terbaru saat itu juga tanpa harus berjalan menanyakan ke lab.
-* **Proses 4.9 (Grafik Kapur Tulis Statistik Kerja):** Setiap sore hari, petugas administrasi mengumpulkan buku harian jumlah produksi (**D6: pipeline_metrics**) dan menggambar grafik garis kinerja pabrik menggunakan kapur warna-warni pada papan tulis besar di ruang rapat utama (**Grafana**) agar semua direksi dapat melihat grafik produktivitas bulanan pabrik dengan mudah.
-
 ---
 
 ## 4. Draw.io Import Instructions
@@ -673,79 +589,3 @@ To import any diagram from this document into Draw.io for presentation screensho
 5. Paste the code into the text area in the modal dialog.
 6. Click **Insert**. Draw.io will automatically compile the text into editable flowchart shapes.
 7. Customize elements or export the diagram as a `.png` or `.pdf` for screenshots.
-
----
-
-## 5. Cerita Alur Kerja Sistem End-to-End & Interaksi Antar Tabel (Logika Bisnis & Analogi)
-
-Bagian ini menjelaskan bagaimana data berinteraksi, bertransisi, dan mengalir dari tabel ke tabel di dalam database, mulai dari email pertama kali masuk hingga tindakan administrasi terakhir dilakukan.
-
-### 5.1 Alur Logika Teknis (Table-to-Table Transitions)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Pengirim as Pengirim Email (External Sender)
-    participant P_Ingest as Ingestion Pipeline (Proses 1.0)
-    participant Redis as Antrean Redis (D1)
-    participant P_Fusion as Fusion Engine (Proses 2.0)
-    participant DB_Quar as Tabel quarantine_emails (D2)
-    participant DB_Metrics as Tabel pipeline_metrics (D4)
-    actor Admin as Admin Dashboard
-    participant DB_Feed as Tabel feedback (D3)
-    participant DB_Audit as Tabel audit_logs (D11)
-
-    Pengirim->>P_Ingest: Kirim email mentah (SMTP Port 25 / Mailpit)
-    P_Ingest->>Redis: Posisikan email di Redis List (email_pipeline)
-    Redis->>P_Fusion: Polling email (blpop) untuk dianalisis
-    Note over P_Fusion: Jalankan SpamAssassin (TCP) & ML Classifier (REST)
-    P_Fusion->>DB_Quar: Masukkan data analisis & status (pending/released)
-    P_Fusion->>DB_Metrics: Catat throughput & avg_latency_ms harian
-    Admin->>DB_Quar: Pilih email karantina & baca metrik deteksi SHAP
-    Admin->>DB_Quar: Klik RELEASE email (ubah status menjadi "released")
-    Admin->>DB_Feed: Kirim koreksi umpan balik (false_positive)
-    Admin->>DB_Audit: Log aksi admin "release" & "report_false_positive"
-```
-
-1. **Inisiasi Ingestion:** 
-   - Email dikirim oleh *Pengirim Eksternal* ke port **SMTP 25** atau ditarik dari server **Mailpit** oleh script Fetcher (**Proses 1.0**).
-   - Seluruh payload email mentah beserta metadata waktu penerimaan diubah menjadi format JSON dan didorong ke dalam antrean Redis **email_pipeline (D1)**.
-2. **Eksekusi Analisis & Pencatatan Awal (Table: `quarantine_emails` & `pipeline_metrics`):**
-   - Worker memanggil fungsi `blpop` untuk mengambil email dari antrean Redis (**D1**).
-   - Email diparsing, kemudian dianalisis secara bersamaan oleh SpamAssassin (`sa_score`) dan ML Service (`ml_probability` & `anomaly_score`).
-   - Hasil analisis gabungan ini disimpan ke dalam tabel **`quarantine_emails` (D2)**. Jika email terindikasi ancaman (QUARANTINE), status email diset ke `"pending"`.
-   - Pada waktu yang sama, waktu pemrosesan dihitung dan diakumulasikan ke tabel **`pipeline_metrics` (D4)** untuk memperbarui statistik rata-rata latensi (`avg_latency_ms`) dan jumlah email bersih/karantina pada tanggal tersebut.
-3. **Penyelidikan Forensik Admin (Table: `quarantine_emails` $\rightarrow$ `users` $\rightarrow$ `audit_logs`):**
-   - Admin masuk ke dashboard. Kredensial mereka divalidasi ke tabel **`users`**.
-   - Admin meminta daftar email karantina yang statusnya `"pending"` dari tabel **`quarantine_emails`**.
-   - Admin menginspeksi nilai kontribusi fitur pada visualisasi SHAP (`shap_json`) dan ringkasan penjelasan ancaman (`xai_summary`) yang disimpan di kolom terkait pada tabel **`quarantine_emails`**.
-4. **Tindakan Rilis & Umpan Balik (Table: `quarantine_emails` $\rightarrow$ `feedback` $\rightarrow$ `audit_logs`):**
-   - Jika admin mengeklik tombol **Release**:
-     - Sistem memperbarui kolom `status` email tersebut di tabel **`quarantine_emails`** dari `"pending"` menjadi `"released"`.
-     - Script backend mengambil isi `raw_content` email tersebut dan mengirimkannya ke inbox karyawan tujuan melalui koneksi SMTP.
-     - Aksi pembebasan ini dicatat sebagai satu baris log di tabel **`audit_logs`** (menyimpan user pelaksana, email_id target, IP address, dan detail aksi).
-   - Jika admin menandai email tersebut sebagai **False Positive** (Salah Tangkap):
-     - Sebuah entri baru dimasukkan ke tabel **`feedback`** (menyimpan email_id referensi, feedback_type `"false_positive"`, dan catatan koreksi admin).
-     - Kolom `false_positive_count` pada tabel **`pipeline_metrics`** untuk hari tersebut otomatis dinaikkan (+1) untuk pelaporan dashboard.
-     - Log aksi juga ditulis ke tabel **`audit_logs`** untuk merekam aktivitas koreksi admin tersebut.
-
-### 5.2 Logika Perumpamaan / Analogi Sederhana ("Sistem Bea Cukai Pelabuhan Laut")
-
-Untuk mempermudah penjelasan kepada pihak non-teknis, cara kerja sistem CogniMail dapat diumpamakan seperti **"Prosedur Pemeriksaan Bea Cukai di Pelabuhan Internasional"**:
-
-1. **Dermaga Bongkar Muat (Redis Queue - D1):** 
-   Kapal barang dari luar negeri (Pengirim Email) bersandar membawa ribuan kontainer paket (email). Agar area pelabuhan tidak macet, petugas dermaga (Proses 1.0) dengan cepat memindahkan semua kontainer ke atas **Ban Berjalan Antrean Raksasa (Redis Queue)**. Kontainer mengalir satu per satu secara teratur.
-2. **Pos Pemeriksaan Sensor Ganda (Fusion Engine - Proses 2.0):** 
-   Setiap kontainer melewati terowongan pemeriksaan khusus yang diisi oleh dua ahli:
-   - **Ahli Cek Dokumen Konvensional (SpamAssassin):** Petugas senior yang mencocokkan dokumen surat jalan, stempel paspor, dan tanda tangan segel kontainer (memeriksa SPF, DKIM, DMARC, dan skor spam tradisional).
-   - **Mesin Sensor AI & X-Ray Modern (ML Classifier):** Mesin pemindai pintar yang menganalisis isi barang di dalam kontainer, mendeteksi pola bahasa mencurigakan, dan membandingkannya dengan jutaan contoh penyelundupan yang pernah terjadi sebelumnya.
-3. **Lemari Arsip Bea Cukai (Database - D2 & D4):** 
-   Setiap kontainer yang telah diperiksa dibuatkan berkas laporan pemeriksaan yang disimpan di **Lemari Arsip Utama (`quarantine_emails`)**. Berkas tersebut mencatat foto isi kontainer (`raw_content`), grafik hasil scan X-Ray (`shap_json`), dan kesimpulan tingkat bahaya. Selain itu, petugas mencatat kecepatan kerja mereka hari itu di **Buku Log Efisiensi (`pipeline_metrics`)**.
-4. **Distribusi Barang atau Penahanan:**
-   - Kontainer yang dinyatakan bersih (CLEAN) langsung diangkut oleh truk pengantar ke alamat rumah penerima (Employee Inbox).
-   - Kontainer yang mencurigakan (QUARANTINE) dialihkan ke **Gudang Karantina Pelabuhan** dan diberi segel "Tahanan (Pending)". Sirene darurat dibunyikan ke pos komando pusat (Alert Targets).
-5. **Inspeksi oleh Kepala Bea Cukai (Admin Dashboard):** 
-   Kepala Bea Cukai (Admin) masuk ke kantor administrasi menggunakan kartu akses khusus (`users`). Di komputernya, ia membuka berkas kontainer yang ditahan di Lemari Arsip (`quarantine_emails`) dan melihat foto X-Ray beserta penjelasan detail mengapa kontainer tersebut ditahan (`xai_summary`).
-6. **Keputusan Akhir Kepala Pelabuhan:**
-   - Jika Kepala Pelabuhan melihat kontainer tersebut aman dan hanya salah paham, ia menandatangani surat rilis. Kontainer dikeluarkan dari gudang karantina, statusnya diubah menjadi `"released"`, kontainer diantarkan ke warga, dan tindakan rilis ini dicatat oleh kamera CCTV (`audit_logs`).
-   - Jika itu benar-benar salah tangkap, Kepala Pelabuhan menulis catatan koreksi di **Buku Umpan Balik Laboratorium (`feedback`)** agar mesin sensor AI di terowongan belajar dan tidak salah memindai kontainer dengan tipe barang serupa di kemudian hari.

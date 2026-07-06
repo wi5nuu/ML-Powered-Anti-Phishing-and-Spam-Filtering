@@ -1,8 +1,10 @@
 .wrap {
   width: 100%;
-  padding: 24px 28px 60px;
+  padding: 28px 32px 60px;
   font-family: 'Google Sans', Roboto, sans-serif;
-  overflow-y: auto;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .loading {

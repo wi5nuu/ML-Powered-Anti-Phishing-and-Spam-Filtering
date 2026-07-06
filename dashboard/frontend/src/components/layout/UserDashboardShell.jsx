@@ -60,7 +60,6 @@ export default function UserDashboardShell({ children }) {
             <div className={styles.ucAvatar}>{initials}</div>
             <div className={styles.ucInfo}>
               <span className={styles.ucName}>{user?.username}</span>
-              <span className={styles.ucRole}>User Account</span>
             </div>
           </div>
         )}
@@ -108,7 +107,6 @@ export default function UserDashboardShell({ children }) {
               <div className={styles.avatar}>{initials}</div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
-                <span className={styles.userRole}>User</span>
               </div>
             </div>
             <button className={styles.logoutBtn} onClick={() => logout()} title="Logout">
