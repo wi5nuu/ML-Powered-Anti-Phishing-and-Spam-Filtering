@@ -2340,9 +2340,16 @@ async def api_change_settings(request: Request, payload: dict, db: Session = Dep
 @app.get("/api/admin/mailboxes")
 async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    query = db.query(AdminMailbox)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
-    rows = db.query(AdminMailbox).order_by(AdminMailbox.is_active.desc(), AdminMailbox.email.asc()).all()
+        user = db.query(User).filter(User.username == user_info["username"]).first()
+        if user and user.organization_id:
+            query = query.filter(AdminMailbox.assigned_to.in_(
+                db.query(User.username).filter(User.organization_id == user.organization_id)
+            ))
+    rows = query.order_by(AdminMailbox.is_active.desc(), AdminMailbox.email.asc()).all()
     return [
         {
             "id": row.id,
@@ -2489,11 +2496,18 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
 @limiter.limit("20/minute")
 async def api_update_admin_mailbox(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
+        mailbox_user = db.query(User).filter(User.username == mailbox.assigned_to).first()
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        if not mailbox_user or mailbox_user.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Can only manage mailboxes in your organization")
     if "email" in payload:
         new_email = str(payload["email"]).strip().lower()
         if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", new_email):

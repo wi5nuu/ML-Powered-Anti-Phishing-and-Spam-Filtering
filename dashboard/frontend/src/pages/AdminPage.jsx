@@ -8,18 +8,13 @@ import SuperadminDashboardOverview from './SuperadminDashboardOverview'
 import SuperadminUserManagement from './SuperadminUserManagement'
 import SuperadminMailboxManagement from './SuperadminMailboxManagement'
 import SuperadminSystemHealth from './SuperadminSystemHealth'
+import AdminUserManagement from './AdminUserManagement'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
 const CATEGORY_LABELS = { bug: 'Bug / Error', question: 'Pertanyaan', access: 'Akses', false_positive: 'False Positive', other: 'Lainnya' }
 const CATEGORY_COLORS = { bug: '#ea4335', question: '#1a73e8', access: '#f29900', false_positive: '#34a853', other: '#5f6368' }
 const PRIORITY_COLORS = { low: '#5f6368', normal: '#1a73e8', high: '#f29900', urgent: '#ea4335' }
-const ROLES = ['superadmin', 'admin', 'user']
-const ROLE_LABELS = {
-  superadmin: 'Superadmin',
-  admin: 'Admin',
-  user: 'User',
-}
 export default function AdminPage() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -43,32 +38,14 @@ export default function AdminPage() {
     }
   }, [tab, isSuper, isAdmin, me])
 
-  useEffect(() => {
-    if (isSuper) {
-      setNewRole('admin')
-    } else {
-      setNewRole('user')
-    }
-  }, [isSuper])
-  const [users, setUsers] = useState([])
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
   const [reports, setReports] = useState([])
   const [trackData, setTrackData] = useState(null)
-  const [search, setSearch] = useState('')
-  const [showAdd, setShowAdd] = useState(false)
-  const [newEmail, setNewEmail] = useState('')
-  const [newRole, setNewRole] = useState('user')
   const [msg, setMsg] = useState('')
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [userEmails, setUserEmails] = useState([])
   const [expandedReport, setExpandedReport] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [editUser, setEditUser] = useState(null)
-  const [editRole, setEditRole] = useState('')
-  const [editPassword, setEditPassword] = useState('')
   const [mailDomain, setMailDomainState] = useState(() => getMailDomain())
   const [mailboxRows, setMailboxRows] = useState([])
   const [mailboxes, setMailboxState] = useState(() => getMailboxes())
@@ -90,7 +67,6 @@ export default function AdminPage() {
   const [deleteMailboxTarget, setDeleteMailboxTarget] = useState(null)
 
   const fetchData = () => {
-    api.get('/admin/users').then((r) => setUsers(r.data)).catch(() => {})
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
     api.get('/admin/audit-logs').then((r) => setLogs(r.data)).catch(() => {})
     api.get('/admin/reports').then((r) => setReports(r.data)).catch(() => {})
@@ -117,56 +93,6 @@ export default function AdminPage() {
 
   useEffect(() => { fetchData(); fetchMailboxes() }, [])
 
-  const roleBadge = (role) => {
-    const colors = { superadmin: '#c5221f', admin: '#f29900', user: '#137333' }
-    return <span className={styles.roleBadge} style={{ background: colors[role] || '#5f6368' }}>{ROLE_LABELS[role] || role}</span>
-  }
-
-  const handleAddUser = async () => {
-    if (!newEmail.includes('@')) return
-    const username = newEmail.split('@')[0]
-    try {
-      await api.post('/admin/users', { username, password: 'Welcome123!', email: newEmail, role: newRole })
-      setMsg(`User ${username} berhasil ditambahkan. Password: Welcome123!`)
-      setNewEmail(''); setShowAdd(false); fetchData()
-    } catch (e) {
-      setMsg('Gagal: ' + (e.response?.data?.detail || 'unknown error'))
-    }
-    setTimeout(() => setMsg(''), 5000)
-  }
-
-  const handleToggleUser = async (username, isActive) => {
-    try {
-      await api.put(`/admin/users/${username}`, { is_active: !isActive })
-      fetchData()
-    } catch (e) { setMsg('Gagal update user') }
-  }
-
-  const handleEditUser = async () => {
-    if (!editUser) return
-    const payload = {}
-    if (editRole !== editUser.role) payload.role = editRole
-    if (editPassword) payload.password = editPassword
-    if (Object.keys(payload).length === 0) { setEditUser(null); return }
-    try {
-      await api.put(`/admin/users/${editUser.username}`, payload)
-      setMsg(`User ${editUser.username} berhasil diperbarui.`)
-      setEditUser(null); setEditRole(''); setEditPassword('')
-      fetchData()
-    } catch (e) { setMsg('Gagal update: ' + (e.response?.data?.detail || 'error')) }
-    setTimeout(() => setMsg(''), 5000)
-  }
-
-  const handleDeleteUser = async (username) => {
-    if (!window.confirm(`Yakin menonaktifkan user "${username}"?`)) return
-    try {
-      await api.delete(`/admin/users/${username}`)
-      setMsg(`User ${username} dinonaktifkan.`)
-      fetchData()
-    } catch (e) { setMsg('Gagal menonaktifkan user') }
-    setTimeout(() => setMsg(''), 5000)
-  }
-
   const handleResolveReport = async (id) => {
     try {
       await api.put(`/admin/reports/${id}`, { status: 'resolved' })
@@ -189,14 +115,6 @@ export default function AdminPage() {
       await api.put(`/admin/reports/${id}`, { status })
       fetchData()
     } catch (e) { setMsg('Gagal update status') }
-  }
-
-  const viewUserEmails = async (username) => {
-    try {
-      const r = await api.get(`/admin/user-emails/${username}`)
-      setUserEmails(r.data)
-      setSelectedUser(username)
-    } catch (e) { setMsg('Gagal memuat email user') }
   }
 
   const persistMailboxes = (next) => {
@@ -364,51 +282,8 @@ export default function AdminPage() {
     navigate(target)
   }
 
-  const filteredUsers = users.filter((u) => {
-    if (roleFilter !== 'all' && u.role !== roleFilter) return false
-    return u.username.includes(search) || (u.email || '').includes(search)
-  })
   const openReports = reports.filter((r) => r.status === 'open')
   const filteredReports = filterCategory === 'all' ? reports : reports.filter((r) => r.category === filterCategory)
-
-  if (selectedUser) {
-    return (
-      <AdminShell>
-        <div className={styles.page}>
-          <button className={styles.backBtn} onClick={() => { setSelectedUser(null); setUserEmails([]) }}>
-            ← Kembali ke Users
-          </button>
-          <h2 className={styles.userDetailTitle}>Email milik: {selectedUser}</h2>
-          <div className={styles.section}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Email ID</th>
-                  <th>Subject</th>
-                  <th>Sender</th>
-                  <th>Label</th>
-                  <th>Score</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userEmails.map((e) => (
-                  <tr key={e.email_id}>
-                    <td className={styles.mono}>{e.email_id?.slice(0, 16)}...</td>
-                    <td className={styles.detailCell}>{e.subject || '-'}</td>
-                    <td className={styles.detailCell}>{e.sender || '-'}</td>
-                    <td>{e.label}</td>
-                    <td>{e.fused_score?.toFixed(3)}</td>
-                    <td>{e.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </AdminShell>
-    )
-  }
 
   const recentActivityIcons = {
     login: { icon: <Users size={14} />, color: '#2563EB', bg: '#EFF6FF' },
@@ -823,130 +698,7 @@ export default function AdminPage() {
           <SuperadminUserManagement />
         )}
         {tab === 'users' && !isSuper && (
-          <div className={styles.section}>
-            {/* Toolbar: search + role filter + add */}
-            <div className={styles.sectionHeader}>
-              <input className={styles.searchInput} placeholder="Cari username atau email..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              {isSuper && (
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  {['all', ...ROLES].map((r) => (
-                    <button
-                      key={r}
-                      className={styles.filterChip}
-                      style={{ background: roleFilter === r ? '#1a73e8' : 'transparent', color: roleFilter === r ? '#fff' : 'var(--text-muted)' }}
-                      onClick={() => setRoleFilter(r)}
-                    >
-                      {r === 'all' ? 'Semua' : ROLE_LABELS[r]}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button className={styles.addBtn} onClick={() => setShowAdd(true)}><Plus size={16} /> Tambah User</button>
-            </div>
-
-            {/* Add user form */}
-            {showAdd && (
-              <div className={styles.addForm}>
-                <input placeholder="Email (contoh: user@company.com)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-                {isSuper && (
-                  <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-                    <option value="admin">Admin</option>
-                    <option value="user">User</option>
-                  </select>
-                )}
-                <button className={styles.saveBtn} onClick={handleAddUser}><Check size={16} /> Simpan</button>
-                <button className={styles.cancelBtn} onClick={() => setShowAdd(false)}><X size={16} /></button>
-              </div>
-            )}
-
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  {isSuper && <th>Role</th>}
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.username}>
-                    <td className={styles.usernameCell}>{u.username}</td>
-                    <td className={styles.mono}>{u.email || '-'}</td>
-                    {isSuper && <td>{roleBadge(u.role)}</td>}
-                    <td>
-                      <span className={`${styles.statusDot} ${u.is_active ? styles.active : styles.inactive}`} />
-                      {u.is_active ? 'Aktif' : 'Nonaktif'}
-                    </td>
-                    <td>
-                      <div className={styles.actionGroup}>
-                        <button className={styles.actionBtn} onClick={() => viewUserEmails(u.username)} title="Lihat email user">Email</button>
-                        <button className={styles.actionBtn} onClick={() => { setEditUser(u); setEditRole(u.role); setEditPassword('') }} title="Edit user">Edit</button>
-                        <button className={styles.actionBtn} onClick={() => handleToggleUser(u.username, u.is_active)}>
-                          {u.is_active ? 'Nonaktif' : 'Aktif'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Edit user modal overlay */}
-            {editUser && (
-              <div className={styles.overlay} onClick={() => setEditUser(null)}>
-                <div className={styles.editModal} onClick={(e) => e.stopPropagation()}>
-                  <div className={styles.editModalHeader}>
-                    <h3><Users size={18} /> Edit User: {editUser.username}</h3>
-                    <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}><X size={16} /></button>
-                  </div>
-                  <div className={styles.editModalBody}>
-                    {isSuper && (
-                      <div className={styles.fieldRow}>
-                        <div className={styles.fieldLeft}>
-                          <label className={styles.fieldLabel}>Role</label>
-                          <span className={styles.fieldHint}>Saat ini: {editUser.role}</span>
-                        </div>
-                        <div className={styles.fieldRight}>
-                          <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className={styles.editSelect}>
-                            <option value="admin">Admin</option>
-                            <option value="user">User</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                    <div className={styles.fieldRow}>
-                      <div className={styles.fieldLeft}>
-                        <label className={styles.fieldLabel}>Reset Password</label>
-                        <span className={styles.fieldHint}>Kosongi jika tidak ingin mengubah</span>
-                      </div>
-                      <div className={styles.fieldRight}>
-                        <input type="password" className={styles.input} placeholder="Password baru" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
-                      </div>
-                    </div>
-                    <div className={styles.fieldRow}>
-                      <div className={styles.fieldLeft}>
-                        <label className={styles.fieldLabel}>Status</label>
-                        <span className={styles.fieldHint}>{editUser.is_active ? 'Aktif' : 'Nonaktif'}</span>
-                      </div>
-                      <div className={styles.fieldRight}>
-                        <button className={styles.actionBtn} onClick={() => handleToggleUser(editUser.username, editUser.is_active)}>
-                          {editUser.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={styles.editModalFooter}>
-                    <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}>Batal</button>
-                    <button className={styles.saveBtn} onClick={handleEditUser} disabled={editRole === editUser.role && !editPassword}>
-                      <Check size={16} /> Simpan Perubahan
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <AdminUserManagement />
         )}
 
         {tab === 'reports' && (
