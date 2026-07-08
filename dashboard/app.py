@@ -2865,6 +2865,139 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/admin/system-health")
+async def api_system_health(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access system health")
+
+    services = {}
+
+    # 1. PostgreSQL
+    try:
+        db.execute(func.count(QuarantineEmail.id))
+        services["postgresql"] = {"status": "healthy", "detail": "Database connected"}
+    except Exception as e:
+        services["postgresql"] = {"status": "down", "detail": str(e)}
+
+    # 2. Redis
+    try:
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+        redis_client = aio_redis.from_url(redis_url)
+        await redis_client.ping()
+        await redis_client.aclose()
+        services["redis"] = {"status": "healthy", "detail": "Connected and responding"}
+    except Exception as e:
+        services["redis"] = {"status": "down", "detail": str(e)}
+
+    # 3. Classifier API
+    try:
+        classifier_url = os.getenv("CLASSIFIER_URL", "http://localhost:8001").rstrip("/")
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{classifier_url}/health")
+            if r.status_code == 200:
+                services["classifier_api"] = {"status": "healthy", "detail": "Responding on {0}".format(classifier_url)}
+            else:
+                services["classifier_api"] = {"status": "warning", "detail": "HTTP {0}".format(r.status_code)}
+    except httpx.TimeoutException:
+        services["classifier_api"] = {"status": "warning", "detail": "Connection timeout after 5s"}
+    except Exception as e:
+        services["classifier_api"] = {"status": "down", "detail": str(e)}
+
+    # 4. SMTP Receiver
+    try:
+        smtp_host = os.getenv("SMTP_HOST", "localhost")
+        smtp_port = int(os.getenv("SMTP_PUBLIC_PORT", os.getenv("SMTP_PORT", "2525")))
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(smtp_host, smtp_port), timeout=5
+        )
+        banner = await asyncio.wait_for(reader.readline(), timeout=3)
+        writer.close()
+        await writer.wait_closed()
+        banner_text = banner.decode("utf-8", errors="replace").strip()
+        services["smtp_receiver"] = {"status": "healthy", "detail": banner_text or "Connected"}
+    except asyncio.TimeoutError:
+        services["smtp_receiver"] = {"status": "warning", "detail": "Connection timeout"}
+    except Exception as e:
+        services["smtp_receiver"] = {"status": "down", "detail": str(e)}
+
+    # 5. Worker Pipeline
+    try:
+        recent = db.query(PipelineMetrics).order_by(PipelineMetrics.created_at.desc()).first()
+        if recent:
+            services["worker_pipeline"] = {
+                "status": "healthy",
+                "detail": "Last run: {0}, processed: {1}".format(
+                    recent.created_at.strftime("%Y-%m-%d %H:%M") if recent.created_at else "N/A",
+                    recent.total_processed or 0
+                )
+            }
+        else:
+            services["worker_pipeline"] = {"status": "warning", "detail": "No pipeline metrics recorded yet"}
+    except Exception as e:
+        services["worker_pipeline"] = {"status": "down", "detail": str(e)}
+
+    # 6. SpamAssassin
+    try:
+        sa_host = os.getenv("SPAMASSASSIN_HOST", "localhost")
+        sa_port = int(os.getenv("SPAMASSASSIN_PORT", "783"))
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(sa_host, sa_port), timeout=5
+        )
+        writer.close()
+        await writer.wait_closed()
+        services["spamassassin"] = {"status": "healthy", "detail": "TCP connected on {0}:{1}".format(sa_host, sa_port)}
+    except asyncio.TimeoutError:
+        services["spamassassin"] = {"status": "warning", "detail": "Connection timeout"}
+    except Exception as e:
+        services["spamassassin"] = {"status": "down", "detail": str(e)}
+
+    # 7. Dashboard Backend (self)
+    ws_count = len(manager.active_connections)
+    services["dashboard_backend"] = {
+        "status": "healthy",
+        "detail": "WebSocket connections: {0}, uptime: N/A".format(ws_count)
+    }
+
+    # 8. Docker Containers
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            containers = [c for c in result.stdout.strip().split("\n") if c]
+            services["docker"] = {
+                "status": "healthy" if containers else "warning",
+                "detail": "{0} running container(s)".format(len(containers)),
+                "containers": containers
+            }
+        else:
+            services["docker"] = {"status": "warning", "detail": "Docker not accessible"}
+    except FileNotFoundError:
+        services["docker"] = {"status": "warning", "detail": "Docker CLI not found"}
+    except subprocess.TimeoutExpired:
+        services["docker"] = {"status": "warning", "detail": "Docker command timed out"}
+    except Exception as e:
+        services["docker"] = {"status": "warning", "detail": str(e)}
+
+    # Overall status
+    statuses = [s["status"] for s in services.values()]
+    if "down" in statuses:
+        overall = "down"
+    elif "warning" in statuses:
+        overall = "warning"
+    else:
+        overall = "healthy"
+
+    return {
+        "overall": overall,
+        "services": services,
+        "checked_at": app_now_iso(),
+    }
+
+
 @app.get("/api/admin/superadmin-dashboard")
 async def api_superadmin_dashboard(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)

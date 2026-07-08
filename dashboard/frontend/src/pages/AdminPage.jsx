@@ -7,6 +7,7 @@ import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, Chev
 import SuperadminDashboardOverview from './SuperadminDashboardOverview'
 import SuperadminUserManagement from './SuperadminUserManagement'
 import SuperadminMailboxManagement from './SuperadminMailboxManagement'
+import SuperadminSystemHealth from './SuperadminSystemHealth'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -35,6 +36,9 @@ export default function AdminPage() {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
     if (tab === 'track' && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if (tab === 'health' && !isSuper && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
   }, [tab, isSuper, isAdmin, me])
@@ -406,22 +410,6 @@ export default function AdminPage() {
     )
   }
 
-  // System health mock data (no backend endpoint yet)
-  const systemServices = [
-    { name: 'Classifier API', icon: <Cpu size={15} />, status: 'healthy' },
-    { name: 'SMTP Receiver', icon: <Mail size={15} />, status: 'healthy' },
-    { name: 'Worker', icon: <Zap size={15} />, status: 'healthy' },
-    { name: 'Redis', icon: <Database size={15} />, status: 'healthy' },
-    { name: 'PostgreSQL', icon: <Database size={15} />, status: 'healthy' },
-    { name: 'SpamAssassin', icon: <Shield size={15} />, status: 'warning' },
-  ]
-
-  const statusMeta = {
-    healthy: { label: 'Healthy', color: '#059669', bg: '#ECFDF5', icon: <CheckCircle2 size={13} /> },
-    warning: { label: 'Warning', color: '#D97706', bg: '#FFFBEB', icon: <AlertTriangle size={13} /> },
-    down:    { label: 'Down',    color: '#DC2626', bg: '#FEF2F2', icon: <XCircle size={13} /> },
-  }
-
   const recentActivityIcons = {
     login: { icon: <Users size={14} />, color: '#2563EB', bg: '#EFF6FF' },
     mailbox_created: { icon: <Mail size={14} />, color: '#059669', bg: '#ECFDF5' },
@@ -456,6 +444,7 @@ export default function AdminPage() {
           <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>Activity</button>
           <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>Mailboxes</button>
           <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>Reports</button>
+          {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>Health</button>}
           <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
         </div>
 
@@ -1249,6 +1238,10 @@ export default function AdminPage() {
 
         {tab === 'email' && (
           <SuperadminMailboxManagement />
+        )}
+
+        {tab === 'health' && isSuper && (
+          <SuperadminSystemHealth />
         )}
 
         {tab === 'settings' && (
