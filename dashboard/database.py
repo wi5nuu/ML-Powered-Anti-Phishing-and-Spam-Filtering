@@ -41,6 +41,10 @@ def _ensure_schema_compatibility():
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
     if "forward_keep_copy" not in columns:
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
+    if "assigned_to" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN assigned_to VARCHAR(255) DEFAULT ''")
+    if "storage_bytes" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN storage_bytes BIGINT DEFAULT 0")
     if not statements:
         return
     with engine.begin() as conn:

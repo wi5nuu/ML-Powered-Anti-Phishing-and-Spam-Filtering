@@ -2342,7 +2342,7 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
-    rows = db.query(AdminMailbox).filter(AdminMailbox.is_active == True).order_by(AdminMailbox.email.asc()).all()
+    rows = db.query(AdminMailbox).order_by(AdminMailbox.is_active.desc(), AdminMailbox.email.asc()).all()
     return [
         {
             "id": row.id,
@@ -2352,6 +2352,9 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
             "forward_to": row.forward_to or "",
             "forward_enabled": bool(row.forward_enabled),
             "forward_keep_copy": bool(row.forward_keep_copy),
+            "assigned_to": row.assigned_to or "",
+            "storage_bytes": row.storage_bytes or 0,
+            "is_active": bool(row.is_active),
             "created_by": row.created_by,
             "created_at": str(row.created_at),
         }
@@ -2369,6 +2372,7 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
     password = str(payload.get("password", ""))
     sender_name = str(payload.get("sender_name", "")).strip()
+    assigned_to = str(payload.get("assigned_to", "")).strip()
     if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
         raise HTTPException(status_code=400, detail="Invalid mailbox email")
     if len(password) < 8:
@@ -2385,12 +2389,14 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
         existing.created_by = user_info["username"]
         existing.password_hash = hash_password(password)
         existing.sender_name = sender_name
+        existing.assigned_to = assigned_to
     else:
         db.add(AdminMailbox(
             email=email,
             domain=actual_domain,
             password_hash=hash_password(password),
             sender_name=sender_name,
+            assigned_to=assigned_to,
             created_by=user_info["username"],
         ))
     log_audit(db, user_info["username"], "create_mailbox", None, request.client.host if request.client else None, email)
@@ -2476,6 +2482,42 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
         "forward_to": mailbox.forward_to,
         "forward_enabled": bool(mailbox.forward_enabled),
         "forward_keep_copy": bool(mailbox.forward_keep_copy),
+    }
+
+
+@app.put("/api/admin/mailboxes/{mailbox_id}")
+@limiter.limit("20/minute")
+async def api_update_admin_mailbox(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
+    if not mailbox:
+        raise HTTPException(status_code=404, detail="Mailbox not found")
+    if "email" in payload:
+        new_email = str(payload["email"]).strip().lower()
+        if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", new_email):
+            raise HTTPException(status_code=400, detail="Invalid email")
+        mailbox.email = new_email
+        mailbox.domain = new_email.split("@", 1)[1]
+    if "domain" in payload:
+        mailbox.domain = str(payload["domain"]).strip().lower().lstrip("@")
+    if "sender_name" in payload:
+        mailbox.sender_name = str(payload["sender_name"]).strip()
+    if "assigned_to" in payload:
+        mailbox.assigned_to = str(payload["assigned_to"]).strip()
+    if "is_active" in payload:
+        mailbox.is_active = bool(payload["is_active"])
+    log_audit(db, user_info["username"], "update_mailbox", None, request.client.host if request.client else None, mailbox.email)
+    db.commit()
+    return {
+        "ok": True,
+        "id": mailbox.id,
+        "email": mailbox.email,
+        "domain": mailbox.domain,
+        "sender_name": mailbox.sender_name or "",
+        "assigned_to": mailbox.assigned_to or "",
+        "is_active": bool(mailbox.is_active),
     }
 
 
