@@ -16,14 +16,12 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
-import UserDashboardPage from './pages/UserDashboardPage'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
-  if (role === 'user') return '/user/dashboard'
-  return '/login'
+  return '/inbox'
 }
 
 function ProtectedRoute({ children }) {
@@ -78,7 +76,10 @@ function MailboxRoute({ children }) {
   if (data?.authenticated) {
     const role = data?.user?.role
     if (role === 'mailbox') return children
-    if (role === 'superadmin' || role === 'admin') return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
+    if (role === 'superadmin' || role === 'admin') {
+      return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
+    }
+    return children
   }
 
   const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
@@ -113,7 +114,7 @@ function AdminRoute({ children, scope }) {
 
   const role = data?.user?.role
   if (role !== 'superadmin' && role !== 'admin') {
-    return <Navigate to="/user/dashboard" replace />
+    return <Navigate to="/inbox" replace />
   }
 
   const correctPath = dashboardPathForRole(role)
@@ -187,9 +188,8 @@ export default function App() {
         <Route path="/pembelian" element={<MailboxRoute><PembelianPage /></MailboxRoute>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
-        {/* User Dashboard — only for regular users */}
+        {/* User dashboard route no longer used for regular users; redirect to inbox */}
         <Route path="/dashboard" element={<RoleRedirect />} />
-        <Route path="/user/dashboard" element={<UserRoute><UserDashboardPage /></UserRoute>} />
 
         {/* Admin routes — split URL by role */}
         <Route path="/admin" element={<RoleRedirect />} />

@@ -31,6 +31,9 @@ export default function AdminPage() {
     if (tab === 'email' && !isSuper && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
+    if (tab === 'track' && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
   }, [tab, isSuper, isAdmin, me])
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function AdminPage() {
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
   const [reports, setReports] = useState([])
+  const [trackData, setTrackData] = useState(null)
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [newEmail, setNewEmail] = useState('')
@@ -83,6 +87,9 @@ export default function AdminPage() {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
     api.get('/admin/audit-logs').then((r) => setLogs(r.data)).catch(() => {})
     api.get('/admin/reports').then((r) => setReports(r.data)).catch(() => {})
+    if (isSuper) {
+      api.get('/admin/track').then((r) => setTrackData(r.data)).catch(() => setTrackData(null))
+    }
   }
 
   const fetchMailboxes = async () => {
@@ -438,6 +445,16 @@ export default function AdminPage() {
     <AdminShell>
       <div className={styles.page}>
         {msg && <div className={styles.msg}>{msg}</div>}
+
+        <div className={styles.tabs}>
+          <button className={`${styles.tab} ${tab === 'overview' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'overview' })}>Overview</button>
+          {isSuper && <button className={`${styles.tab} ${tab === 'track' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'track' })}>Tracking</button>}
+          <button className={`${styles.tab} ${tab === 'users' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'users' })}>Users</button>
+          <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>Activity</button>
+          <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>Mailboxes</button>
+          <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>Reports</button>
+          <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
+        </div>
 
         {tab === 'overview' && (
           <div className={styles.dashWrap}>
@@ -1053,6 +1070,171 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {tab === 'track' && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Shield size={18} className={styles.sectionIcon} />
+                <div>
+                  <strong>Superadmin Tracking</strong>
+                  <span>Monitor organization traffic, admin activity, suspicious IPs, and data leak risks.</span>
+                </div>
+              </div>
+            </div>
+            {!trackData ? (
+              <div className={styles.emptyState}>Loading tracking data...</div>
+            ) : (
+              <>
+                <div className={styles.statsGrid} style={{ marginBottom: 24 }}>
+                  <div className={styles.statCard}>
+                    <div>
+                      <span className={styles.statValue}>{trackData.total_emails ?? 0}</span>
+                      <span className={styles.statLabel}>Total emails processed</span>
+                      <span className={styles.statSub}>Across all users and organizations</span>
+                    </div>
+                  </div>
+                  <div className={styles.statCard}>
+                    <div>
+                      <span className={styles.statValue}>{trackData.total_clean ?? 0}</span>
+                      <span className={styles.statLabel}>Clean emails</span>
+                      <span className={styles.statSub}>Delivered safely</span>
+                    </div>
+                  </div>
+                  <div className={styles.statCard}>
+                    <div>
+                      <span className={styles.statValue}>{trackData.total_warn ?? 0}</span>
+                      <span className={styles.statLabel}>Spam/Warn</span>
+                      <span className={styles.statSub}>Suspicious messages flagged</span>
+                    </div>
+                  </div>
+                  <div className={styles.statCard}>
+                    <div>
+                      <span className={styles.statValue}>{trackData.total_quarantine ?? 0}</span>
+                      <span className={styles.statLabel}>Quarantined</span>
+                      <span className={styles.statSub}>Blocked threats</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionCardHeader}>
+                    <div className={styles.sectionTitle}>
+                      <Mail size={18} className={styles.sectionIcon} />
+                      <div>
+                        <strong>Organization Email Traffic</strong>
+                        <span>See how many emails each company and its users processed.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Organization</th>
+                        <th>Users</th>
+                        <th>Total emails</th>
+                        <th>Clean</th>
+                        <th>Warn</th>
+                        <th>Quarantine</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trackData.organizations?.map((org) => (
+                        <tr key={org.organization_id}>
+                          <td>{org.organization_name || 'Unknown'}</td>
+                          <td>{org.users}</td>
+                          <td>{org.total_emails}</td>
+                          <td>{org.clean}</td>
+                          <td>{org.warn}</td>
+                          <td>{org.quarantine}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionCardHeader}>
+                    <div className={styles.sectionTitle}>
+                      <ShieldAlert size={18} className={styles.sectionIcon} />
+                      <div>
+                        <strong>Admin Monitoring</strong>
+                        <span>View admins, assigned organizations, and recent suspicious activity.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Admin</th>
+                        <th>Role</th>
+                        <th>Organization</th>
+                        <th>Recent actions</th>
+                        <th>Suspicious activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trackData.admins?.map((admin) => (
+                        <tr key={admin.username}>
+                          <td>{admin.username}</td>
+                          <td>{admin.role}</td>
+                          <td>{admin.organization_name || 'Global'}</td>
+                          <td>
+                            {admin.recent_actions?.slice(0, 3).map((a, index) => (
+                              <div key={index} className={styles.mono}>{a.action} {a.created_at?.split('.')[0]}</div>
+                            ))}
+                          </td>
+                          <td>
+                            {admin.suspicious_actions?.slice(0, 2).map((a, index) => (
+                              <div key={index} className={styles.detailCell}>
+                                <div>{a.action}</div>
+                                <div>{a.ip_address || 'no-ip'}</div>
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionCardHeader}>
+                    <div className={styles.sectionTitle}>
+                      <Activity size={18} className={styles.sectionIcon} />
+                      <div>
+                        <strong>Suspicious Activity Feed</strong>
+                        <span>Track attempts, unusual actions, and potential data leak events.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>IP Address</th>
+                        <th>Details</th>
+                        <th>Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trackData.suspicious_activities?.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.user}</td>
+                          <td><code className={styles.actionCode}>{item.action}</code></td>
+                          <td className={styles.mono}>{item.ip_address || '-'}</td>
+                          <td className={styles.detailCell}>{item.details || '-'}</td>
+                          <td className={styles.mono}>{item.created_at?.split('.')[0]}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         )}
 
