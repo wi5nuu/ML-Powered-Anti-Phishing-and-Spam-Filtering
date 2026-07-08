@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Mail } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Mail, Inbox } from 'lucide-react'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -165,7 +165,12 @@ export default function LoginPage() {
         )}
 
         <div className={styles.footer}>
-          <p>ML-Powered Email Security & Spam Filtering</p>
+          <p>ML-Powered Email Security &amp; Spam Filtering</p>
+          <div className={styles.switchLogin}>
+            <Inbox size={15} />
+            <span>Pengguna email?</span>
+            <Link to="/mailbox-login" className={styles.switchLink}>Masuk ke Webmail</Link>
+          </div>
         </div>
       </div>
     </div>

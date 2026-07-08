@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Check, Eye, EyeOff } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
+import { Check, Eye, EyeOff, LayoutDashboard } from 'lucide-react'
 import api from '../api/client'
 import { getMailboxById, getMailboxSession, setMailboxSession } from '../utils/mailbox'
 import styles from './MailboxLoginPage.module.css'
@@ -143,6 +143,12 @@ export default function MailboxLoginPage() {
               Don't have an email account? <span>Contact your administrator.</span>
             </p>
           </form>
+
+          <div className={styles.adminLink}>
+            <LayoutDashboard size={15} />
+            <span>Admin atau Superadmin?</span>
+            <Link to="/login" className={styles.adminLinkAnchor}>Masuk ke Dashboard</Link>
+          </div>
         </section>
 
         <section className={styles.infoPane}>

@@ -15,7 +15,8 @@ import {
   useReleaseEmail,
   useConfirmSpam,
   useReportFalsePositive,
-  useDeleteEmail
+  useDeleteEmail,
+  useToggleReadEmail
 } from '../api/emails'
 import { useMe } from '../api/auth'
 import { useToast } from '../hooks/useToast'
@@ -300,10 +301,11 @@ export default function EmailDetailPage() {
   const { data: allDraftsData } = useEmails('draft')
   const { data: meData } = useMe()
 
-  const { mutate: release, isPending: releasing } = useReleaseEmail()
-  const { mutate: confirmSpam, isPending: spamming } = useConfirmSpam()
-  const { mutate: reportFP, isPending: reporting } = useReportFalsePositive()
-  const { mutate: deleteEmail, isPending: deleting } = useDeleteEmail()
+  const { mutateAsync: deleteEmail, isPending: deleting } = useDeleteEmail()
+  const { mutateAsync: releaseEmail, isPending: releasing } = useReleaseEmail()
+  const { mutateAsync: confirmSpam, isPending: spamming } = useConfirmSpam()
+  const { mutateAsync: reportFP, isPending: reporting } = useReportFalsePositive()
+  const { mutateAsync: toggleRead } = useToggleReadEmail()
 
   const [fpNotes, setFpNotes] = useState('')
   const [threadRecipientDetailId, setThreadRecipientDetailId] = useState(null)
@@ -335,11 +337,17 @@ export default function EmailDetailPage() {
   const [isUnread, setIsUnread] = useState(false)
 
   useEffect(() => {
-    try {
-      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
-      setIsUnread(!readIds.has(emailId))
-    } catch { setIsUnread(false) }
-  }, [emailId])
+    if (email) {
+      const currentlyRead = email.is_read
+      setIsUnread(!currentlyRead)
+      const isDraftEmail = String(email.label || '').toUpperCase() === 'DRAFT' || email.status === 'draft'
+      // Automatically mark as read if visiting the detail page and it's unread
+      if (!currentlyRead && !isDraftEmail) {
+        toggleRead({ emailId: email.email_id, isRead: true }).catch(() => {})
+        setIsUnread(false)
+      }
+    }
+  }, [email])
 
   useEffect(() => {
     setInlineSentReplies([])
@@ -817,17 +825,7 @@ export default function EmailDetailPage() {
   const handleToggleUnread = () => {
     const nextVal = !isUnread
     setIsUnread(nextVal)
-    try {
-      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
-      if (nextVal) {
-        readIds.delete(emailId)
-      } else {
-        readIds.add(emailId)
-      }
-      localStorage.setItem('cognimail.read', JSON.stringify(Array.from(readIds)))
-    } catch {
-      // Ignore localStorage failures; the visual state still updates for this view.
-    }
+    toggleRead({ emailId: emailId, isRead: !nextVal }).catch(() => {})
     showToast(nextVal ? 'Ditandai sebagai belum dibaca' : 'Ditandai sebagai sudah dibaca', 'info')
   }
 

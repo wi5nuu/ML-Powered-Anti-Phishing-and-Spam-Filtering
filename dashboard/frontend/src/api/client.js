@@ -13,7 +13,7 @@ function clearMailboxSessions() {
       .filter((key) => key.startsWith(MAILBOX_SESSION_PREFIX))
       .forEach((key) => localStorage.removeItem(key))
   } catch {
-    // Ignore localStorage failures; redirect still handles expired cookies.
+    // Ignore localStorage failures.
   }
 }
 
@@ -35,7 +35,23 @@ function redirectExpiredSession() {
   if (path === '/login' || path === '/mailbox-login' || /^\/mail\/[^/]+\/login$/.test(path)) return
   if (params.get('expired') === '1') return
 
-  if (!/^\/mail\/[^/]+/.test(path)) clearMailboxSessions()
+  const isMailboxPath = /^\/mail\/[^/]+/.test(path)
+  if (isMailboxPath) {
+    // For mailbox paths: only clear the mailbox localStorage session.
+    // Do NOT clear dashboard sessions — dashboard user may still be logged in.
+    const mailboxMatch = path.match(/^\/mail\/([^/]+)/)
+    const mailboxId = mailboxMatch?.[1] ? decodeURIComponent(mailboxMatch[1]) : ''
+    try {
+      const key = `${MAILBOX_SESSION_PREFIX}${mailboxId || 'default'}`
+      localStorage.removeItem(key)
+    } catch {
+      // Ignore.
+    }
+  } else {
+    // For dashboard paths: clear all mailbox sessions on dashboard auth expiry.
+    clearMailboxSessions()
+  }
+
   window.location.replace(expiredLoginTarget())
 }
 

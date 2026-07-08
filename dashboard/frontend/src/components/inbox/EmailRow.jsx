@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { Archive, Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2 } from 'lucide-react'
-import { useDeleteEmail, useReleaseEmail, useRestoreEmail } from '../../api/emails'
+import { useDeleteEmail, useReleaseEmail, useRestoreEmail, useToggleReadEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
 import api from '../../api/client'
 import ConfirmDialog from '../common/ConfirmDialog'
@@ -35,22 +35,16 @@ export default function EmailRow({
   openDraftMode = 'compose',
 }) {
   const navigate = useNavigate()
-  const [localReadIds, setLocalReadIds] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
-    } catch {
-      return new Set()
-    }
-  })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { mutateAsync: deleteEmail } = useDeleteEmail()
   const { mutateAsync: releaseEmail } = useReleaseEmail()
   const { mutateAsync: restoreEmail } = useRestoreEmail()
+  const { mutateAsync: toggleRead } = useToggleReadEmail()
   const { showToast } = useToast()
 
   const verdict = (email.label || email.final_verdict || email.ensemble_verdict || 'clean').toLowerCase()
   const isDraft = (email.label || '').toUpperCase() === 'DRAFT' || email.status === 'draft'
-  const effectiveIsRead = typeof isRead === 'boolean' ? isRead : localReadIds.has(email.email_id)
+  const effectiveIsRead = typeof isRead === 'boolean' ? isRead : email.is_read
   const isTrash = email.status === 'trash'
   const draftRecipients = String(email.recipient_list || '')
     .split(',')
@@ -60,16 +54,9 @@ export default function EmailRow({
   const displaySender = senderLabel || (isDraft ? draftRecipients : (email.sender || email.sender_email || ''))
 
   const setRead = (shouldRead) => {
-    setLocalReadIds((prev) => {
-      const next = new Set(prev)
-      if (shouldRead) next.add(email.email_id)
-      else next.delete(email.email_id)
-      try {
-        localStorage.setItem('cognimail.read', JSON.stringify(Array.from(next)))
-      } catch {
-        // Some restricted browser contexts can block localStorage writes.
-      }
-      return next
+    if (effectiveIsRead === shouldRead) return
+    toggleRead({ emailId: email.email_id, isRead: shouldRead }).catch(() => {
+      // Revert or show error if needed, but react-query will handle most
     })
     onSetRead?.(email.email_id, shouldRead)
   }

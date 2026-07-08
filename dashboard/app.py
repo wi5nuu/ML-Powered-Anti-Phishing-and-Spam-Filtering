@@ -339,44 +339,56 @@ seed_admin()
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request, db: Session = Depends(get_db)):
+    # Priority 1: dashboard token (admin / superadmin / user)
     token = request.cookies.get("access_token")
+    # Priority 2: mailbox token (webmail users)
+    mailbox_token = request.cookies.get("mailbox_token")
     client_host = request.client.host if request.client else "unknown"
-    logger.info(f"auth_me: client={client_host} cookie_present={bool(token)} url={request.url.path}")
-    if not token:
-        logger.warning(f"auth_me: no cookie from {client_host}")
-        return JSONResponse({"authenticated": False, "user": None})
-    try:
-        payload = decode_token(token)
-        if payload.get("role") == "mailbox":
-            mailbox = resolve_active_mailbox(
-                db,
-                payload.get("mailbox_id"),
-                payload.get("mailbox_email"),
-                missing_status_code=401,
-                missing_detail="Mailbox is disabled or inactive",
-                inactive_detail="Mailbox is disabled or inactive",
-            )
-            return JSONResponse({
-                "authenticated": True,
-                "user": {
-                    "username": mailbox.email.lower(),
-                    "role": "mailbox",
-                    "mailbox_id": str(mailbox.id),
-                    "mailbox_email": mailbox.email.lower(),
-                }
-            })
-        user = db.query(User).filter(User.username == payload.get("sub")).first()
-        if not user or not user.is_active:
-            logger.warning(f"auth_me: user {payload.get('sub')} not found/inactive")
-            return JSONResponse({"authenticated": False, "user": None})
-        logger.info(f"auth_me: authenticated user={user.username} role={user.role}")
-        return JSONResponse({
-            "authenticated": True,
-            "user": {"username": user.username, "role": user.role}
-        })
-    except Exception as e:
-        logger.warning(f"auth_me: token decode failed: {e}")
-        return JSONResponse({"authenticated": False, "user": None})
+    logger.info(f"auth_me: client={client_host} dashboard_token={bool(token)} mailbox_token={bool(mailbox_token)} url={request.url.path}")
+
+    # --- Try dashboard token first ---
+    if token:
+        try:
+            payload = decode_token(token)
+            if payload.get("role") != "mailbox":
+                # This is a real dashboard user (admin / superadmin / user)
+                user = db.query(User).filter(User.username == payload.get("sub")).first()
+                if user and user.is_active:
+                    logger.info(f"auth_me: authenticated dashboard user={user.username} role={user.role}")
+                    return JSONResponse({
+                        "authenticated": True,
+                        "user": {"username": user.username, "role": user.role}
+                    })
+        except Exception as e:
+            logger.warning(f"auth_me: dashboard token decode failed: {e}")
+
+    # --- Try mailbox token ---
+    if mailbox_token:
+        try:
+            payload = decode_token(mailbox_token)
+            if payload.get("role") == "mailbox":
+                mailbox = resolve_active_mailbox(
+                    db,
+                    payload.get("mailbox_id"),
+                    payload.get("mailbox_email"),
+                    missing_status_code=401,
+                    missing_detail="Mailbox is disabled or inactive",
+                    inactive_detail="Mailbox is disabled or inactive",
+                )
+                return JSONResponse({
+                    "authenticated": True,
+                    "user": {
+                        "username": mailbox.email.lower(),
+                        "role": "mailbox",
+                        "mailbox_id": str(mailbox.id),
+                        "mailbox_email": mailbox.email.lower(),
+                    }
+                })
+        except Exception as e:
+            logger.warning(f"auth_me: mailbox token decode failed: {e}")
+
+    logger.warning(f"auth_me: no valid session from {client_host}")
+    return JSONResponse({"authenticated": False, "user": None})
 
 
 @app.post("/api/auth/login")
@@ -409,8 +421,20 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
 
 @app.post("/api/auth/logout")
 async def auth_logout():
+    # Clear only the dashboard session cookie.
+    # The mailbox_token (webmail) is intentionally NOT cleared here.
     response = JSONResponse({"ok": True})
     response.delete_cookie("access_token")
+    response.delete_cookie("access_token", path="/")
+    return response
+
+
+@app.post("/api/mailboxes/logout")
+async def mailbox_logout():
+    # Clear only the mailbox session cookie, leaving the dashboard session intact.
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("mailbox_token")
+    response.delete_cookie("mailbox_token", path="/")
     return response
 
 
@@ -782,7 +806,8 @@ async def api_stats(db: Session = Depends(get_db)):
 # ─── New API Endpoints & SPA Routing ───────────────────────────────────────────
 
 def get_authenticated_api_user(request: Request, db: Session = Depends(get_db)) -> dict:
-    token = request.cookies.get("access_token")
+    # Prefer the dashboard token; fall back to mailbox_token for webmail endpoints.
+    token = request.cookies.get("access_token") or request.cookies.get("mailbox_token")
     if not token:
         logger.warning(f"get_authenticated_api_user: no cookie from {request.client.host if request.client else 'unknown'}")
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1006,6 +1031,7 @@ def thread_message_payload(email_record: QuarantineEmail) -> dict:
         "label": email_record.label,
         "category": display_category(email_record),
         "status": email_record.status,
+        "is_read": getattr(email_record, "is_read", False),
         "direction": "draft" if label == "DRAFT" else "sent" if label == "SENT" else "incoming",
         "received_at": timestamp,
         "raw_content": email_record.raw_content,
@@ -1338,6 +1364,7 @@ async def api_get_emails(
             "has_attachments": bool(email.attachments_json and email.attachments_json != "[]"),
             "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
             "recipient_list": email.recipient_list,
+            "is_read": getattr(email, "is_read", False),
         })
     
     return {"emails": emails_data, "total": total}
@@ -1424,11 +1451,25 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         "shap_data": None if is_regular_user else shap_data,
         "raw_content": email_record.raw_content,
         "recipient_list": email_record.recipient_list,
+        "is_read": getattr(email_record, "is_read", False),
         "attachments": attachment_summaries(email_record),
         "thread_root_id": thread_messages[0].email_id if thread_messages else email_record.email_id,
         "thread_messages": [thread_message_payload(message) for message in thread_messages],
         **auth_results,
     }
+
+@app.put("/api/emails/{email_id}/read")
+async def api_toggle_read(email_id: str, payload: dict, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    ensure_email_access(email_record, user_info)
+    
+    is_read = payload.get("is_read", True)
+    email_record.is_read = bool(is_read)
+    db.commit()
+    return {"ok": True, "is_read": email_record.is_read}
 
 
 @app.get("/api/emails/{email_id}/attachments/{attachment_index}")
@@ -2351,6 +2392,9 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
             "sender_name": mailbox.sender_name or "",
         }
     })
+    # Use a SEPARATE cookie (mailbox_token) so that the mailbox session
+    # is independent from the dashboard session (access_token).
+    # This allows mailbox logout without affecting the dashboard session.
     access_token = create_access_token({
         "sub": f"mailbox:{mailbox.id}",
         "role": "mailbox",
@@ -2358,7 +2402,7 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
         "mailbox_email": mailbox.email.lower(),
     })
     response.set_cookie(
-        key="access_token",
+        key="mailbox_token",
         value=access_token,
         httponly=True,
         samesite="lax",

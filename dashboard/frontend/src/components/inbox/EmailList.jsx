@@ -46,13 +46,7 @@ export default function EmailList({ view = '' }) {
       return new Set()
     }
   })
-  const [readIds, setReadIds] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
-    } catch {
-      return new Set()
-    }
-  })
+
 
   const emails = useMemo(() => {
     const list = data?.emails || []
@@ -128,9 +122,6 @@ export default function EmailList({ view = '' }) {
     localStorage.setItem('cognimail.starred', JSON.stringify(Array.from(starred)))
   }, [starred])
 
-  useEffect(() => {
-    localStorage.setItem('cognimail.read', JSON.stringify(Array.from(readIds)))
-  }, [readIds])
 
   const toggleStar = useCallback((id) => {
     setStarred((prev) => {
@@ -140,14 +131,9 @@ export default function EmailList({ view = '' }) {
     })
   }, [])
 
-  const setReadState = useCallback((id, shouldRead = true) => {
-    setReadIds((prev) => {
-      const next = new Set(prev)
-      if (shouldRead) next.add(id)
-      else next.delete(id)
-      return next
-    })
-  }, [])
+  const setReadState = (emailId, shouldRead) => {
+    // Left empty or we can keep the local state if needed. But EmailRow now handles the mutation and React Query handles the cache update.
+  }
 
   return (
     <div className={styles.wrapper}>
@@ -213,7 +199,7 @@ export default function EmailList({ view = '' }) {
             <EmailRow
               key={emailOrThread.email_id}
               email={rowEmail}
-              isRead={readIds.has(emailOrThread.email_id)}
+              isRead={emailOrThread.is_read}
               isSelected={isSelected}
               onToggleSelect={() => toggleSelect(emailOrThread)}
               isStarred={starred.has(emailOrThread.email_id)}

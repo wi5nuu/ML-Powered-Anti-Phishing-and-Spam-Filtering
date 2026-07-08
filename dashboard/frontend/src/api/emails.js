@@ -126,3 +126,33 @@ export const useRestoreEmail = () => {
     onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
   })
 }
+
+// ── Toggle email read status
+export const useToggleReadEmail = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ emailId, isRead }) => api.put(`/emails/${emailId}/read`, { is_read: isRead }),
+    onMutate: async ({ emailId, isRead }) => {
+      // Optimistically update the list cache
+      await qc.cancelQueries({ queryKey: ['emails'] })
+      const prev = qc.getQueriesData({ queryKey: ['emails'] })
+      qc.setQueriesData({ queryKey: ['emails'] }, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          emails: old.emails.map((e) => (e.email_id === emailId ? { ...e, is_read: isRead } : e)),
+        }
+      })
+      // Optimistically update the single email cache if it exists
+      qc.setQueryData(['email', emailId], (old) => {
+        if (!old) return old
+        return { ...old, is_read: isRead }
+      })
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+  })
+}

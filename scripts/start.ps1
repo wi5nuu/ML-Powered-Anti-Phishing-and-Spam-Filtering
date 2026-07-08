@@ -60,6 +60,7 @@ if ($Profile -eq "production") {
     $env:SMTP_PUBLIC_PORT = "25"
 } else {
     $env:SMTP_PUBLIC_PORT = "2525"
+    $env:REDIS_PORT = "6470"
 }
 
 function Invoke-DockerCompose {

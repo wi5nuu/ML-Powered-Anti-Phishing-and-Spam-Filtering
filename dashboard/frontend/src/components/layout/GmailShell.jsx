@@ -131,13 +131,16 @@ export default function GmailShell({ children }) {
 
   const handleLogoutClick = () => {
     if (mailboxIdentity) {
+      // Mailbox logout: clear the mailbox_token cookie on the server (NOT access_token)
+      // and clear the localStorage session. Dashboard session is NOT affected.
+      api.post('/mailboxes/logout').catch(() => {})
       clearMailboxSession(mailboxId || mailboxIdentity, mailboxIdentity)
-      api.post('/auth/logout').catch(() => {})
       setUserMenuOpen(false)
       const target = mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/login` : '/mailbox-login'
       navigate(target, { replace: true })
       return
     }
+    // Dashboard logout: clears the server access_token cookie (handled by useLogout).
     logout()
   }
 

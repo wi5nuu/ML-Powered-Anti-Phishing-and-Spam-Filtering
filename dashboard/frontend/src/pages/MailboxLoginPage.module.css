@@ -320,3 +320,20 @@
     flex-wrap: wrap;
   }
 }
+
+.adminLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  font-size: 0.875rem;
+  color: #5f6368;
+}
+
+.adminLinkAnchor {
+  color: #1a73e8;
+  font-weight: 500;
+  text-decoration: none;
+}
+.adminLinkAnchor:hover { text-decoration: underline; }
+

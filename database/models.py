@@ -112,6 +112,7 @@ class QuarantineEmail(Base):
     dkim_result = Column(String(32), default="")
     dmarc_result = Column(String(32), default="")
     status = Column(String(16), default=EmailStatus.PENDING.value, index=True)
+    is_read = Column(Boolean, default=False, index=True)
     deleted_at = Column(DateTime, nullable=True, index=True)
     category = Column(String(32), default="", index=True)
     subject = Column(String(512), default="")

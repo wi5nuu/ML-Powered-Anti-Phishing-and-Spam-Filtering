@@ -131,7 +131,7 @@ function RootRoute() {
   if (isLoading) return null
   if (data?.authenticated) {
     const role = data?.user?.role
-    if (role === 'mailbox') return <Navigate to="/mailbox-login" replace />
+    if (role === 'mailbox') return <Navigate to="/login" replace />
     const target = dashboardPathForRole(role)
     const qs = searchParams.toString()
     return <Navigate to={qs ? `${target}?${qs}` : target} replace />
@@ -145,7 +145,7 @@ function RoleRedirect() {
   if (isLoading) return null
   if (!data?.authenticated) return <Navigate to="/login" replace />
   const role = data?.user?.role
-  if (role === 'mailbox') return <Navigate to="/mailbox-login" replace />
+  if (role === 'mailbox') return <Navigate to="/login" replace />
   const target = dashboardPathForRole(role)
   const qs = searchParams.toString()
   return <Navigate to={qs ? `${target}?${qs}` : target} replace />

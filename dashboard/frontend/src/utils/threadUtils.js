@@ -259,6 +259,7 @@ export function groupEmailsIntoThreads(emails = [], mailboxId = '') {
       label: latestMessage.label,
       status: latestMessage.status,
       category: latestMessage.category,
+      is_read: sorted.every((m) => m.is_read),
       has_attachments: sorted.some((m) => m.has_attachments),
       // Used by EmailRow for batch-delete
       thread_email_ids: sorted.map((m) => m.email_id),
