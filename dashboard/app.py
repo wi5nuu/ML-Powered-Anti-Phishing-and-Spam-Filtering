@@ -2823,6 +2823,60 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/admin/superadmin-dashboard")
+async def api_superadmin_dashboard(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access this endpoint")
+
+    total_users = db.query(func.count(User.id)).scalar() or 0
+    active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+    total_mailboxes = db.query(func.count(AdminMailbox.id)).filter(AdminMailbox.is_active == True).scalar() or 0
+
+    base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+    total_emails = base.count() or 0
+    total_spam = base.filter(QuarantineEmail.category == "spam").count() or 0
+    total_phishing = base.filter(QuarantineEmail.category == "phishing").count() or 0
+    total_quarantined = base.filter(
+        QuarantineEmail.label == "QUARANTINE",
+        QuarantineEmail.status != "released",
+    ).count() or 0
+    total_warn = base.filter(
+        QuarantineEmail.label == "WARN",
+        QuarantineEmail.status != "released",
+    ).count() or 0
+    total_clean = base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+
+    system_health = {"status": "healthy", "database": "connected", "websocket_connections": len(manager.active_connections)}
+
+    recent_activities = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(20).all()
+    recent_security = db.query(QuarantineEmail).filter(
+        QuarantineEmail.label.in_(["QUARANTINE", "WARN"]),
+        ~QuarantineEmail.status.in_(["trash", "released"]),
+    ).order_by(QuarantineEmail.created_at.desc()).limit(10).all()
+
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "total_mailboxes": total_mailboxes,
+        "total_emails_processed": total_emails,
+        "total_clean": total_clean,
+        "total_spam": total_spam,
+        "total_phishing": total_phishing,
+        "total_quarantined": total_quarantined,
+        "total_warn": total_warn,
+        "system_health": system_health,
+        "recent_activities": [
+            {"user": a.user, "action": a.action, "details": a.details, "ip_address": a.ip_address, "created_at": str(a.created_at)}
+            for a in recent_activities
+        ],
+        "recent_security_detections": [
+            {"email_id": e.email_id, "sender": e.sender, "subject": e.subject, "label": e.label, "category": e.category, "fused_score": e.fused_score, "received_at": str(e.received_at)}
+            for e in recent_security
+        ],
+    }
+
+
 # Catch-all Route to serve React SPA
 dist_dir = Path(__file__).parent / "static" / "dist"
 

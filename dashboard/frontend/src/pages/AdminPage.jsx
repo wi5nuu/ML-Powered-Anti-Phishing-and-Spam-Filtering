@@ -4,6 +4,7 @@ import AdminShell from '../components/layout/AdminShell'
 import api from '../api/client'
 import { useMe } from '../api/auth'
 import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward } from 'lucide-react'
+import SuperadminDashboardOverview from './SuperadminDashboardOverview'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -456,7 +457,10 @@ export default function AdminPage() {
           <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
         </div>
 
-        {tab === 'overview' && (
+        {tab === 'overview' && isSuper && (
+          <SuperadminDashboardOverview />
+        )}
+        {tab === 'overview' && !isSuper && (
           <div className={styles.dashWrap}>
             {/* ── Hero Header ── */}
             <div className={styles.dashHero}>
