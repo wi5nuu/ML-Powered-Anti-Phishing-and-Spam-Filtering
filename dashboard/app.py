@@ -2373,8 +2373,8 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 @limiter.limit("10/minute")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     email = str(payload.get("email", "")).strip().lower()
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
     password = str(payload.get("password", ""))
@@ -2384,6 +2384,16 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
         raise HTTPException(status_code=400, detail="Invalid mailbox email")
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
+
+    # Admin can only assign to users in their organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and assigned_to:
+        target_user = db.query(User).filter(User.username == assigned_to).first()
+        current_user_obj = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user_obj or not current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Admin must belong to an organization")
+        if not target_user or target_user.organization_id != current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Can only assign mailboxes to users in your organization")
+
     actual_domain = email.split("@", 1)[1]
     if domain and actual_domain != domain:
         raise HTTPException(status_code=400, detail=f"Mailbox must use @{domain}")
@@ -2454,12 +2464,18 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
 @limiter.limit("20/minute")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    mailbox.is_active = False
+    # Admin can only delete mailboxes assigned to users in their org
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and mailbox.assigned_to:
+        target_user = db.query(User).filter(User.username == mailbox.assigned_to).first()
+        current_user_obj = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user_obj or not current_user_obj.organization_id or not target_user or target_user.organization_id != current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Can only manage mailboxes in your organization")
+    mailbox.is_active = False  # Soft delete
     log_audit(db, user_info["username"], "delete_mailbox", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
     return {"ok": True}

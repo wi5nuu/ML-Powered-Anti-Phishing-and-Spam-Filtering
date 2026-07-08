@@ -9,6 +9,7 @@ import SuperadminUserManagement from './SuperadminUserManagement'
 import SuperadminMailboxManagement from './SuperadminMailboxManagement'
 import SuperadminSystemHealth from './SuperadminSystemHealth'
 import AdminUserManagement from './AdminUserManagement'
+import AdminMailboxManagement from './AdminMailboxManagement'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -27,7 +28,7 @@ export default function AdminPage() {
     if (tab === 'users' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
-    if (tab === 'email' && !isSuper && me) {
+    if (tab === 'email' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
     if (tab === 'track' && !isSuper && me) {
@@ -988,8 +989,11 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'email' && (
+        {tab === 'email' && isSuper && (
           <SuperadminMailboxManagement />
+        )}
+        {tab === 'email' && !isSuper && (
+          <AdminMailboxManagement />
         )}
 
         {tab === 'health' && isSuper && (
