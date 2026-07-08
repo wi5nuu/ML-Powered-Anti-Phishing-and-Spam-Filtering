@@ -2870,6 +2870,87 @@ async def api_admin_detection_logs(
     return {"logs": logs_data, "total": total, "page": page, "page_size": page_size}
 
 
+@app.get("/api/user/dashboard")
+async def api_user_dashboard(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    identifiers = [user_info["username"].lower()]
+    if user and user.email:
+        identifiers.append(user.email.lower())
+    identity_filters = [
+        or_(
+            QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
+            QuarantineEmail.sender.ilike(f"%{identifier}%"),
+        )
+        for identifier in identifiers
+    ]
+    base = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status != "trash",
+        QuarantineEmail.label.notin_(["DRAFT", "SENT"]),
+    )
+    for f in identity_filters:
+        base = base.filter(f)
+    total_inbox = base.count() or 0
+    safe = base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+    spam = base.filter(or_(
+        and_(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == "spam"),
+        and_(QuarantineEmail.label == "QUARANTINE", or_(
+            QuarantineEmail.category == "",
+            QuarantineEmail.category.is_(None),
+            ~QuarantineEmail.category.in_(["spam", "phishing", "malware"]),
+        )),
+        QuarantineEmail.label == "WARN",
+    )).count() or 0
+    phishing = base.filter(
+        QuarantineEmail.label == "QUARANTINE",
+        QuarantineEmail.category == "phishing",
+    ).count() or 0
+    quarantined = base.filter(QuarantineEmail.label == "QUARANTINE").count() or 0
+    recent_alerts_data = base.filter(
+        QuarantineEmail.label.in_(["QUARANTINE", "WARN"]),
+    ).order_by(QuarantineEmail.created_at.desc()).limit(10).all()
+    recent_alerts = [
+        {
+            "email_id": e.email_id,
+            "sender": e.sender,
+            "subject": e.subject,
+            "label": e.label,
+            "category": e.category or "",
+            "fused_score": e.fused_score,
+            "received_at": str(e.received_at) if e.received_at else None,
+        }
+        for e in recent_alerts_data
+    ]
+    mailbox_info = None
+    mailbox_email = None
+    if user and user.email:
+        mailbox_email = user.email
+    elif user_info["username"] and "@" in user_info["username"]:
+        mailbox_email = user_info["username"]
+    if mailbox_email:
+        mailbox_record = db.query(AdminMailbox).filter(
+            AdminMailbox.email == mailbox_email.lower(),
+            AdminMailbox.is_active == True,
+        ).first()
+        if mailbox_record:
+            mailbox_info = {
+                "id": mailbox_record.id,
+                "email": mailbox_record.email,
+                "is_active": mailbox_record.is_active,
+            }
+    return {
+        "total_inbox": total_inbox,
+        "safe": safe,
+        "spam": spam,
+        "phishing": phishing,
+        "quarantined": quarantined,
+        "recent_alerts": recent_alerts,
+        "mailbox": mailbox_info,
+    }
+
+
 # ─── User Reports / Tickets ───────────────────────────────────────────
 
 @app.post("/api/reports")

@@ -16,12 +16,14 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import UserDashboardPage from './pages/UserDashboardPage'
+import UserDashboardShell from './components/layout/UserDashboardShell'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
-  return '/inbox'
+  return '/dashboard'
 }
 
 function ProtectedRoute({ children }) {
@@ -188,8 +190,8 @@ export default function App() {
         <Route path="/pembelian" element={<MailboxRoute><PembelianPage /></MailboxRoute>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
-        {/* User dashboard route no longer used for regular users; redirect to inbox */}
-        <Route path="/dashboard" element={<RoleRedirect />} />
+        {/* User dashboard */}
+        <Route path="/dashboard" element={<UserRoute><UserDashboardShell><UserDashboardPage /></UserDashboardShell></UserRoute>} />
 
         {/* Admin routes — split URL by role */}
         <Route path="/admin" element={<RoleRedirect />} />
