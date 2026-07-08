@@ -10,6 +10,7 @@ import SuperadminMailboxManagement from './SuperadminMailboxManagement'
 import SuperadminSystemHealth from './SuperadminSystemHealth'
 import AdminUserManagement from './AdminUserManagement'
 import AdminMailboxManagement from './AdminMailboxManagement'
+import AdminQuarantineReview from './AdminQuarantineReview'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -35,6 +36,9 @@ export default function AdminPage() {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
     if (tab === 'health' && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if (tab === 'review' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
   }, [tab, isSuper, isAdmin, me])
@@ -320,6 +324,7 @@ export default function AdminPage() {
           <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>Activity</button>
           <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>Mailboxes</button>
           <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>Reports</button>
+          {!isSuper && <button className={`${styles.tab} ${tab === 'review' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'review' })}>Review</button>}
           {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>Health</button>}
           <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
         </div>
@@ -672,7 +677,7 @@ export default function AdminPage() {
                     <span>Quick Actions</span>
                   </div>
                   <div className={styles.quickActions}>
-                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'email' })}>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: isSuper ? 'email' : 'review' })}>
                       <Mail size={16} />
                       <span>{isSuper ? 'Manage Mailboxes' : 'Review Quarantine'}</span>
                     </button>
@@ -994,6 +999,10 @@ export default function AdminPage() {
         )}
         {tab === 'email' && !isSuper && (
           <AdminMailboxManagement />
+        )}
+
+        {tab === 'review' && !isSuper && (
+          <AdminQuarantineReview />
         )}
 
         {tab === 'health' && isSuper && (

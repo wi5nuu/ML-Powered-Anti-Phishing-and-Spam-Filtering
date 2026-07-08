@@ -2664,6 +2664,121 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/admin/quarantine")
+async def api_admin_quarantine(
+    request: Request,
+    q: str = Query(None),
+    category: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.REVIEW_QUARANTINE):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    org_id = user.organization_id if user and user.role == "admin" else None
+
+    query = db.query(QuarantineEmail)
+    query = query.filter(QuarantineEmail.status.notin_(["trash", "released"]))
+    query = query.filter(QuarantineEmail.label.in_(["QUARANTINE", "WARN"]))
+
+    if org_id:
+        query = query.filter(QuarantineEmail.organization_id == org_id)
+
+    if category and category in {"spam", "phishing", "malware"}:
+        if category == "spam":
+            query = query.filter(or_(
+                and_(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == "spam"),
+                and_(QuarantineEmail.label == "QUARANTINE", or_(
+                    QuarantineEmail.category == "",
+                    QuarantineEmail.category.is_(None),
+                    ~QuarantineEmail.category.in_(["spam", "phishing", "malware"]),
+                )),
+                QuarantineEmail.label == "WARN",
+            ))
+        else:
+            query = query.filter(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == category)
+
+    if q:
+        terms = [term for term in re.split(r"\s+", q.strip()) if term]
+        searchable_fields = [
+            QuarantineEmail.subject,
+            QuarantineEmail.sender,
+            QuarantineEmail.recipient_list,
+            QuarantineEmail.xai_summary,
+            QuarantineEmail.routing_reason,
+            QuarantineEmail.email_id,
+        ]
+        for term in terms:
+            pattern = f"%{term}%"
+            query = query.filter(or_(*[field.ilike(pattern) for field in searchable_fields]))
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    emails = (
+        query
+        .order_by(QuarantineEmail.received_at.desc(), QuarantineEmail.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    emails_data = []
+    for email in emails:
+        cat = display_category(email)
+        raw_text = email.raw_content or ""
+        if "\n\n" in raw_text:
+            raw_text = raw_text.split("\n\n", 1)[1]
+        raw_text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw_text)
+        raw_text = re.sub(r"(?s)<[^>]+>", " ", raw_text)
+        body_preview = " ".join(html.unescape(raw_text).replace("\r", "\n").split())[:180]
+
+        xai_parts = email.xai_summary.split("; ") if email.xai_summary else []
+        human_reasons = []
+        reason_labels = {
+            "SpamProb": "Probabilitas spam tinggi",
+            "Urgency-Score": "Kata-kata mendesak/darurat",
+            "Lookalike-Domain": "Domain mencurigakan mirip domain resmi",
+            "SPF": "Verifikasi SPF gagal",
+            "DKIM": "DKIM tidak valid",
+            "Executable-Attachment": "Lampiran berbahaya",
+            "URL-Shortener": "Link dipersingkat",
+            "DisplayName-Mismatch": "Nama pengirim tidak cocok",
+            "HTML-Forms": "Formulir mencurigakan",
+            "FusedScore": "Skor gabungan tinggi",
+            "AnomalyScore": "Deteksi anomali",
+        }
+        if email.anomaly_score and email.anomaly_score > 0.3:
+            human_reasons.append("Pola email tidak biasa (anomali)")
+        for part in xai_parts:
+            key = part.split("=")[0] if "=" in part else part.split(":")[0] if ":" in part else part
+            if key in reason_labels:
+                human_reasons.append(reason_labels[key])
+
+        emails_data.append({
+            "email_id": email.email_id,
+            "sender": email.sender,
+            "subject": email.subject,
+            "body_preview": body_preview,
+            "label": email.label,
+            "category": cat,
+            "status": email.status,
+            "fused_score": email.fused_score,
+            "ml_probability": email.ml_probability,
+            "sa_score": email.sa_score,
+            "anomaly_score": email.anomaly_score,
+            "xai_summary": email.xai_summary,
+            "routing_reason": email.routing_reason,
+            "detection_reasons": human_reasons,
+            "has_attachments": bool(email.attachments_json and email.attachments_json != "[]"),
+            "recipient_list": email.recipient_list,
+            "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
+        })
+
+    return {"emails": emails_data, "total": total, "page": page, "page_size": page_size}
+
+
 # ─── User Reports / Tickets ───────────────────────────────────────────
 
 @app.post("/api/reports")
