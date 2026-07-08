@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from './client'
+import { APP_TIME_ZONE } from '../utils/time'
 
 // ── Quick stats (header ribbon, sidebar counts)
 export const useStats = () =>
@@ -78,7 +79,7 @@ export const downloadEmailsCsv = async (label) => {
   const url = window.URL.createObjectURL(new Blob([response.data]))
   const link = document.createElement('a')
   link.href = url
-  const date = new Date().toISOString().slice(0, 10)
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE })
   link.setAttribute('download', `cognimail_emails_${date}.csv`)
   document.body.appendChild(link)
   link.click()

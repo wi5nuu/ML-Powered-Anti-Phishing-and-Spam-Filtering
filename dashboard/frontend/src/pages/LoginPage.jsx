@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('expired') === '1'
   const { mutateAsync: login, isPending } = useLogin()
   const { data: me } = useMe()
   const [username, setUsername] = useState('')
@@ -21,7 +22,8 @@ export default function LoginPage() {
   useEffect(() => {
     const err = searchParams.get('error')
     if (err) setError(decodeURIComponent(err))
-  }, [searchParams])
+    else if (sessionExpired) setError('Sesi sudah berakhir. Silakan masuk kembali.')
+  }, [searchParams, sessionExpired])
 
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
@@ -216,6 +218,11 @@ export default function LoginPage() {
             </span>
           </div>
           <p className={styles.footerNote}>ML-Powered Anti-Phishing &amp; Spam Filtering System</p>
+          <div className={styles.switchLogin}>
+            <Inbox size={15} />
+            <span>Pengguna email?</span>
+            <Link to="/mailbox-login" className={styles.switchLink}>Masuk ke Webmail</Link>
+          </div>
         </div>
       </div>
     </div>

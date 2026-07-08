@@ -20,8 +20,11 @@ export function useWebSocket() {
           const data = JSON.parse(event.data)
           const label = (data.label || 'info').toLowerCase()
           const type = label === 'quarantine' ? 'error' : label === 'warn' ? 'warning' : 'success'
-          showToast(`📧 Email baru: ${data.subject || 'unknown'} [${data.label || ''}]`, type)
-          // Refresh email list
+          showToast('Ada Email Baru', type, {
+            id: 'new-email',
+            compact: true,
+            duration: 2200,
+          })
           qc.invalidateQueries({ queryKey: ['emails'] })
           qc.invalidateQueries({ queryKey: ['stats'] })
         } catch (_) {}

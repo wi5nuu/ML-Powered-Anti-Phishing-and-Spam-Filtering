@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from './client'
+import { MAILBOX_SESSION_PREFIX } from '../utils/mailbox'
 
 export const useMe = () =>
   useQuery({
@@ -38,13 +39,27 @@ export const useLogin = () => {
   })
 }
 
+function clearAllMailboxSessions() {
+  // Dashboard logout clears ALL mailbox localStorage sessions too.
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(MAILBOX_SESSION_PREFIX))
+      .forEach((key) => localStorage.removeItem(key))
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
 export const useLogout = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.post('/auth/logout'),
     onSuccess: () => {
+      // Clear dashboard React Query cache + all mailbox sessions in localStorage.
+      clearAllMailboxSessions()
       qc.clear()
       window.location.href = '/login'
     },
   })
 }
+

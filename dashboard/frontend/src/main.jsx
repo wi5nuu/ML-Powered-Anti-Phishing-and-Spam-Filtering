@@ -9,7 +9,7 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       retry: 1,
     },
   },

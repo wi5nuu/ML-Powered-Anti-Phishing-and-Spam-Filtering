@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { ChevronDown, MailCheck, MailOpen, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { useDeleteEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
@@ -12,6 +12,7 @@ export default function EmailToolbar({
   total,
   shown,
   page,
+  view = '',
   onPageChange,
   selected,
   allIds,
@@ -23,11 +24,18 @@ export default function EmailToolbar({
   const [refreshing, setRefreshing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const selectMenuRef = useRef(null)
   const moreMenuRef = useRef(null)
   const allSelected = selected.size === allIds.length && allIds.length > 0
   const someSelected = selected.size > 0 && !allSelected
-  const isTrashFolder = searchParams.get('folder') === 'trash'
+  const isTrashFolder = view === 'trash'
+    || searchParams.get('folder') === 'trash'
+    || location.pathname === '/trash'
+    || /\/mail\/[^/]+\/trash$/.test(location.pathname)
+  const isDraftPage = view === 'draft'
+    || location.pathname === '/draft'
+    || /\/mail\/[^/]+\/drafts$/.test(location.pathname)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
@@ -212,6 +220,8 @@ export default function EmailToolbar({
         message={
           isTrashFolder
             ? `Tindakan ini akan menghapus permanen ${selected.size} email terpilih. Apakah Anda yakin ingin melanjutkan?`
+            : isDraftPage
+            ? `Tindakan ini akan menghapus permanen ${selected.size} draf terpilih. Apakah Anda yakin ingin melanjutkan?`
             : `Tindakan ini akan memindahkan ${selected.size} email terpilih ke Sampah. Apakah Anda yakin ingin melanjutkan?`
         }
         onCancel={() => setDeleteDialogOpen(false)}

@@ -30,10 +30,10 @@ import redis.asyncio as aio_redis
 import structlog
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy import select, text
 
-from database.models import QuarantineEmail, PipelineMetrics
-from decision_engine.fusion import fuse
+from database.models import AdminMailbox, QuarantineEmail, PipelineMetrics
+from decision_engine.fusion import FusionResult, fuse
 from decision_engine.xai import build_xai_header
 from worker.notifier import AlertManager, AlertPayload, alert_manager
 from worker.email_forwarder import forward_email
@@ -57,6 +57,40 @@ WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "10"))
 MAX_ATTACHMENT_BYTES = int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024)))
 MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
 AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror", "permerror", "policy")
+THREAT_CATEGORIES = {"spam", "phishing", "malware"}
+
+PHISHING_HINTS = (
+    "phishing", "verify your account", "verify account", "confirm your account",
+    "account suspended", "account locked", "password", "login", "log in",
+    "security alert", "unusual activity", "update your account", "bank",
+    "paypal", "wallet", "credential", "click here", "reset your",
+)
+MALWARE_HINTS = (
+    "malware", "trojan", "virus", "ransomware", "keylogger", "payload",
+    ".exe", ".scr", ".bat", ".cmd", ".js attachment", ".vbs", "macro enabled",
+)
+SPAM_HINTS = (
+    "free shipping", "lose weight", "limited time", "cash grants",
+    "insurance", "mortgage", "unsubscribe", "newsletter", "viagra",
+    "lowest price", "special offer", "earn money", "mlm",
+)
+PHISHING_STRONG_HINTS = (
+    "verify your account", "verify account", "confirm your account",
+    "account suspended", "account locked", "update your account",
+    "security alert", "unusual activity", "credential", "password",
+    "login", "log in", "reset your", "verifikasi", "konfirmasi",
+)
+SUSPICIOUS_URL_HINTS = (
+    "secure-account", "account-verification", "verification", "verify",
+    "login", "signin", "password", "session", "update",
+)
+SPAM_STRONG_HINTS = (
+    "lose weight", "life insurance", "insurance", "mortgage", "viagra",
+    "lowest price", "special offer", "earn money", "cash grants",
+    "fortune 500", "at home reps", "customer base", "e-mail marketing",
+    "email marketing", "limited time", "guaranteed to lose",
+    "membership to 5 sites", "multiply your customer", "bank account",
+)
 
 
 def _safe_html(content: str) -> str:
@@ -74,6 +108,22 @@ def _linkify_plain_text(content: str) -> str:
         escaped,
     )
     return linked.replace("\n", "<br>")
+
+
+def _decode_email_bytes(data: bytes, charset: str | None) -> str:
+    for candidate in [charset, "utf-8", "latin-1"]:
+        if not candidate:
+            continue
+        try:
+            return data.decode(candidate, errors="replace")
+        except LookupError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def _db_text(value, limit: int | None = None) -> str:
+    text_value = str(value or "").replace("\x00", "")
+    return text_value[:limit] if limit else text_value
 
 
 def _auth_value(source: str, key: str) -> str:
@@ -115,6 +165,86 @@ def derive_auth_results(raw_email: str, sender: str = "") -> dict:
         "dkim_result": dkim or fallback,
         "dmarc_result": dmarc or fallback,
     }
+
+
+def infer_threat_category(raw_email: str, fusion_label: str, existing_category: str = "") -> str:
+    category = (existing_category or "").strip().lower()
+    if category in THREAT_CATEGORIES or category in {"clean", "sent", "draft"}:
+        return category
+    if fusion_label == "CLEAN":
+        return "clean"
+
+    text = (raw_email or "").lower()
+    if any(hint in text for hint in MALWARE_HINTS):
+        return "malware"
+    if any(hint in text for hint in PHISHING_HINTS):
+        return "phishing"
+    if any(hint in text for hint in SPAM_HINTS):
+        return "spam"
+    return "spam" if fusion_label in {"WARN", "QUARANTINE"} else category
+
+
+def _urls_from_text(raw_email: str) -> list[str]:
+    return re.findall(r"https?://[^\s\"'<>)]{4,}", raw_email or "", flags=re.IGNORECASE)
+
+
+def content_threat_evidence(raw_email: str, ml_probability: float, sa_score: float, anomaly_score: float) -> tuple[str, str]:
+    text = (raw_email or "").lower()
+    urls = [url.lower() for url in _urls_from_text(raw_email)]
+
+    phishing_hint = any(hint in text for hint in PHISHING_STRONG_HINTS)
+    suspicious_url = any(any(hint in url for hint in SUSPICIOUS_URL_HINTS) for url in urls)
+    spam_hint = any(hint in text for hint in SPAM_STRONG_HINTS)
+
+    if spam_hint and not suspicious_url and ml_probability >= 0.70 and (sa_score >= 5.0 or anomaly_score >= 0.70):
+        evidence = ["strong spam language"]
+        if ml_probability >= 0.70:
+            evidence.append(f"ML={ml_probability:.3f}")
+        if sa_score >= 5.0:
+            evidence.append(f"SA={sa_score:.1f}")
+        if anomaly_score >= 0.70:
+            evidence.append(f"anomaly={anomaly_score:.3f}")
+        return "spam", ", ".join(evidence)
+
+    if ml_probability >= 0.85 and phishing_hint and (suspicious_url or anomaly_score >= 0.72 or sa_score >= 8.0):
+        evidence = ["ML high", "phishing language"]
+        if suspicious_url:
+            evidence.append("suspicious verification/login URL")
+        if anomaly_score >= 0.72:
+            evidence.append(f"anomaly={anomaly_score:.3f}")
+        if sa_score >= 8.0:
+            evidence.append(f"SA={sa_score:.1f}")
+        return "phishing", ", ".join(evidence)
+
+    if ml_probability >= 0.85 and spam_hint and (sa_score >= 5.0 or anomaly_score >= 0.72):
+        evidence = ["ML high", "strong spam language"]
+        if sa_score >= 5.0:
+            evidence.append(f"SA={sa_score:.1f}")
+        if anomaly_score >= 0.72:
+            evidence.append(f"anomaly={anomaly_score:.3f}")
+        return "spam", ", ".join(evidence)
+
+    return "", ""
+
+
+def apply_content_guard(fusion: FusionResult, raw_email: str, ml_probability: float, sa_score: float, anomaly_score: float) -> tuple[FusionResult, str]:
+    if fusion.label != "CLEAN":
+        return fusion, ""
+
+    category, evidence = content_threat_evidence(raw_email, ml_probability, sa_score, anomaly_score)
+    if not category:
+        return fusion, ""
+
+    guarded = FusionResult(
+        sa_score=fusion.sa_score,
+        ml_probability=fusion.ml_probability,
+        anomaly_score=fusion.anomaly_score,
+        sa_normalized=fusion.sa_normalized,
+        fused_score=max(fusion.fused_score, 0.86),
+        label="QUARANTINE",
+        routing_reason=f"Content evidence guard: {category} ({evidence}); {fusion.routing_reason}",
+    )
+    return guarded, category
 
 
 def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
@@ -164,7 +294,7 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
             content = part.get_content()
         except Exception:
             payload_text = part.get_payload(decode=True) or b""
-            content = payload_text.decode(part.get_content_charset() or "utf-8", errors="replace")
+            content = _decode_email_bytes(payload_text, part.get_content_charset())
 
         if content_type == "text/html" and not html_body:
             html_body = str(content)
@@ -302,6 +432,13 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         dkim_pass=dkim_pass,
         dmarc_pass=dmarc_pass,
     )
+    fusion, guarded_category = apply_content_guard(
+        fusion,
+        raw_email=raw_email,
+        ml_probability=ml_prob,
+        sa_score=sa_score,
+        anomaly_score=anomaly_score,
+    )
 
     elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -321,30 +458,31 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     sender = message_data["sender"]
     recipients = message_data["recipients"]
     auth_results = derive_auth_results(raw_email, sender)
+    threat_category = guarded_category or infer_threat_category(raw_email, fusion.label, payload.get("category", ""))
 
     # ── Simpan ke DB ──────────────────────────────────────────────────────
     # Simpan semua email. Untuk email CLEAN, simpan konten minimal saja untuk menghemat DB space.
     quarantine_entry = QuarantineEmail(
         email_id=email_id,
-        received_at=received_at,
+        received_at=_db_text(received_at, 32),
         label=fusion.label,
         fused_score=fusion.fused_score,
         sa_score=sa_score,
         ml_probability=ml_prob,
         anomaly_score=anomaly_score,
-        xai_summary=xai_str,
-        routing_reason=fusion.routing_reason,
-        raw_content_hash=payload.get("raw_hash", ""),
-        raw_content=message_data["body_html"][:200000],
-        attachments_json=json.dumps(message_data["attachments"]),
+        xai_summary=_db_text(xai_str),
+        routing_reason=_db_text(fusion.routing_reason),
+        raw_content_hash=_db_text(payload.get("raw_hash", ""), 64),
+        raw_content=_db_text(message_data["body_html"], 200000),
+        attachments_json=_db_text(json.dumps(message_data["attachments"])),
         status="released" if fusion.label == "CLEAN" else "pending",
-        subject=subject,
-        sender=sender,
-        recipient_list=", ".join(recipients),
-        category=payload.get("category", ""),
-        spf_result=auth_results["spf_result"],
-        dkim_result=auth_results["dkim_result"],
-        dmarc_result=auth_results["dmarc_result"],
+        subject=_db_text(subject, 512),
+        sender=_db_text(sender, 256),
+        recipient_list=_db_text(", ".join(recipients)),
+        category=threat_category,
+        spf_result=_db_text(auth_results["spf_result"], 32),
+        dkim_result=_db_text(auth_results["dkim_result"], 32),
+        dmarc_result=_db_text(auth_results["dmarc_result"], 32),
     )
     db_session.add(quarantine_entry)
     await db_session.commit()
@@ -384,12 +522,36 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         asyncio.create_task(alert_manager.send_all(alert_payload))
 
     # ── Forward CLEAN/WARN ke inbox asli ────────────────────────────────
-    # Hanya forward jika FORWARDER_SMTP_HOST di-set
     import os as _os
-    if _os.getenv("FORWARDER_SMTP_HOST"):
-        asyncio.create_task(forward_email(
-            raw_email, fusion.label, fusion.fused_score, payload
-        ))
+    category = threat_category
+    should_forward = (
+        _os.getenv("FORWARDER_SMTP_HOST")
+        and fusion.label != "QUARANTINE"
+        and category not in THREAT_CATEGORIES
+    )
+    if should_forward:
+        recipient_lowers = {recipient.lower() for recipient in recipients}
+        result = await db_session.execute(
+            select(AdminMailbox).where(
+                AdminMailbox.is_active == True,
+                AdminMailbox.forward_enabled == True,
+                AdminMailbox.forward_to != "",
+            )
+        )
+        for mailbox in result.scalars().all():
+            if mailbox.email.lower() not in recipient_lowers:
+                continue
+            forward_payload = dict(payload)
+            forward_recipients = [mailbox.forward_to]
+            if mailbox.forward_keep_copy:
+                forward_recipients.append(mailbox.email)
+            forward_payload["recipients"] = list(dict.fromkeys(
+                recipient.strip().lower() for recipient in forward_recipients if recipient
+            ))
+            forward_payload["email_id"] = f"{email_id}:forward:{mailbox.id}"
+            asyncio.create_task(forward_email(
+                raw_email, fusion.label, fusion.fused_score, forward_payload
+            ))
 
     return fusion
 
@@ -401,11 +563,22 @@ async def run_worker():
     async with engine.begin() as conn:
         dialect = conn.dialect.name
         if dialect == "postgresql":
+            await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS forward_to VARCHAR(255) DEFAULT ''"))
+            await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS forward_enabled BOOLEAN DEFAULT FALSE"))
+            await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS forward_keep_copy BOOLEAN DEFAULT TRUE"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS attachments_json TEXT"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
         elif dialect == "sqlite":
+            result = await conn.execute(text("PRAGMA table_info(admin_mailboxes)"))
+            mailbox_columns = [row[1] for row in result.fetchall()]
+            if "forward_to" not in mailbox_columns:
+                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''"))
+            if "forward_enabled" not in mailbox_columns:
+                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE"))
+            if "forward_keep_copy" not in mailbox_columns:
+                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE"))
             result = await conn.execute(text("PRAGMA table_info(quarantine_emails)"))
             columns = [row[1] for row in result.fetchall()]
             if "attachments_json" not in columns:

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useMe, useLogout } from '../../api/auth'
@@ -11,8 +11,7 @@ import {
   Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
-import SearchFilterPanel from './SearchFilterPanel'
-import { getActiveMailbox, getActiveMailboxId, withMailbox } from '../../utils/mailbox'
+import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, setMailboxSession, withMailbox } from '../../utils/mailbox'
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {
@@ -26,21 +25,30 @@ export default function GmailShell({ children }) {
   const [searchFocused, setSearchFocused] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
   const [composeDraft, setComposeDraft] = useState(null)
-  const [filterOpen, setFilterOpen] = useState(false)
+  const [composeThreadId, setComposeThreadId] = useState('')
+  const [composeParentEmailId, setComposeParentEmailId] = useState('')
+  const [composeMode, setComposeMode] = useState('new')
   const [threatOpen, setThreatOpen] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportSubject, setReportSubject] = useState('')
   const [reportMessage, setReportMessage] = useState('')
   const [reportCategory, setReportCategory] = useState('other')
   const [reportMsg, setReportMsg] = useState('')
+  const [expiredLoginOpen, setExpiredLoginOpen] = useState(false)
+  const [expiredPassword, setExpiredPassword] = useState('')
+  const [expiredError, setExpiredError] = useState('')
+  const [expiredLoading, setExpiredLoading] = useState(false)
   const [searchParams] = useSearchParams()
   const location = useLocation()
-  const searchWrapRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     const handleOpenCompose = (event) => {
-      setComposeDraft(event.detail || null)
+      const detail = event.detail || {}
+      setComposeDraft(detail || null)
+      setComposeThreadId(detail.thread_id || detail.threadId || '')
+      setComposeParentEmailId(detail.parent_email_id || detail.parentEmailId || '')
+      setComposeMode(detail.compose_mode || detail.composeMode || 'new')
       setComposeOpen(true)
     }
     window.addEventListener('open-compose', handleOpenCompose)
@@ -50,15 +58,111 @@ export default function GmailShell({ children }) {
   const user = me?.user
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailboxId = getActiveMailboxId(searchParams)
-  const displayIdentity = activeMailbox || user?.username || ''
-  const displayRole = activeMailbox ? 'Mailbox perusahaan' : user?.role
+  const userMailboxEmail = user?.role === 'mailbox' ? user?.mailbox_email || user?.username : ''
+  const userMailboxId = user?.role === 'mailbox' ? user?.mailbox_id || '' : ''
+  const mailboxIdentity = activeMailbox || userMailboxEmail
+  const mailboxId = activeMailboxId || userMailboxId
+  const displayIdentity = mailboxIdentity || user?.username || ''
+  const displayRole = mailboxIdentity ? 'Mailbox perusahaan' : user?.role
   const displayInitial = (displayIdentity || 'U')[0].toUpperCase()
+  const hasMailboxIdentity = Boolean(mailboxId && mailboxIdentity)
+  const hasTopbarIdentity = Boolean(user || hasMailboxIdentity)
 
-  const handleSearch = (e) => {
-    if (e.key === 'Enter' && searchValue.trim()) {
-      navigate(withMailbox(`/inbox?q=${encodeURIComponent(searchValue.trim())}`, activeMailbox, activeMailboxId))
+  useEffect(() => {
+    setExpiredLoginOpen(Boolean(mailboxId && searchParams.get('expired') === '1'))
+  }, [mailboxId, searchParams])
+
+  const handleExpiredLogin = async (event) => {
+    event.preventDefault()
+    if (!mailboxId || !mailboxIdentity) return
+    setExpiredError('')
+    setExpiredLoading(true)
+    try {
+      const { data } = await api.post('/mailboxes/login', {
+        mailbox_id: mailboxId,
+        email: mailboxIdentity,
+        password: expiredPassword,
+      })
+      const mailbox = data.mailbox || data
+      setMailboxSession(mailbox)
+      setExpiredPassword('')
+      setExpiredLoginOpen(false)
+      const next = new URLSearchParams(searchParams)
+      next.delete('expired')
+      const query = next.toString()
+      navigate(query ? `${location.pathname}?${query}` : location.pathname, { replace: true })
+    } catch (err) {
+      setExpiredError(err.response?.data?.detail || 'Login mailbox gagal. Periksa password mailbox.')
+    } finally {
+      setExpiredLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!activeMailboxId && !searchParams.get('mailbox')) return
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+
+    if (activeMailboxId && next.has('mailbox')) {
+      next.delete('mailbox')
+      changed = true
+    }
+
+    const from = next.get('from')
+    if (from?.includes('mailbox=')) {
+      const [fromPath, fromQuery = ''] = from.split('?')
+      const fromParams = new URLSearchParams(fromQuery)
+      if (fromParams.has('mailbox_id') && fromParams.has('mailbox')) {
+        fromParams.delete('mailbox')
+        next.set('from', fromParams.toString() ? `${fromPath}?${fromParams.toString()}` : fromPath)
+        changed = true
+      }
+    }
+
+    if (changed) {
+      const query = next.toString()
+      navigate(query ? `${location.pathname}?${query}` : location.pathname, { replace: true })
+    }
+  }, [activeMailboxId, location.pathname, navigate, searchParams])
+
+  useEffect(() => {
+    setSearchValue(searchParams.get('q') || '')
+  }, [searchParams])
+
+  const handleLogoutClick = () => {
+    if (mailboxIdentity) {
+      // Mailbox logout: clear the mailbox_token cookie on the server (NOT access_token)
+      // and clear the localStorage session. Dashboard session is NOT affected.
+      api.post('/mailboxes/logout').catch(() => {})
+      clearMailboxSession(mailboxId || mailboxIdentity, mailboxIdentity)
+      setUserMenuOpen(false)
+      const target = mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/login` : '/mailbox-login'
+      navigate(target, { replace: true })
+      return
+    }
+    // Dashboard logout: clears the server access_token cookie (handled by useLogout).
+    logout()
+  }
+
+  const runSearch = () => {
+    const value = searchValue.trim()
+    const params = new URLSearchParams()
+    if (value) params.set('q', value)
+    const query = params.toString()
+    navigate(withMailbox(query ? `/inbox?${query}` : '/inbox', mailboxIdentity, mailboxId))
+  }
+
+  const clearSearch = () => {
+    setSearchValue('')
+    navigate(withMailbox('/inbox', mailboxIdentity, mailboxId))
+  }
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter') runSearch()
+  }
+
+  const isEmailDetailPath = location.pathname.startsWith('/email/')
+    || /^\/mail\/[^/]+\/email\//.test(location.pathname)
 
   // Close panels on outside click
   const handleShellClick = (e) => {
@@ -69,19 +173,38 @@ export default function GmailShell({ children }) {
 
   const isNavActive = (to) => {
     const [path, query = ''] = to.split('?')
-    const activeSource = location.pathname.startsWith('/email/')
+    const activeSource = isEmailDetailPath
       ? searchParams.get('from')
       : null
     const [currentPath, currentQuery = ''] = (activeSource || location.pathname).split('?')
+    const logicalCurrentPath = (() => {
+      const match = currentPath.match(/^\/mail\/[^/]+\/([^/]+)/)
+      const section = match?.[1]
+      if (!section) return currentPath
+      if (section === 'drafts') return '/draft'
+      if (section === 'all' || section === 'trash' || section === 'starred') return '/inbox'
+      if (['spam', 'phishing', 'malware'].includes(section)) return '/inbox'
+      if (section === 'email') return currentPath
+      return `/${section}`
+    })()
     const currentParams = activeSource ? new URLSearchParams(currentQuery) : searchParams
 
-    if (currentPath !== path) return false
+    if (logicalCurrentPath !== path) return false
 
     const targetParams = new URLSearchParams(query)
     if (path === '/inbox') {
+      const mailSection = currentPath.match(/^\/mail\/[^/]+\/([^/]+)/)?.[1] || ''
+      const currentCategory = ['spam', 'phishing', 'malware'].includes(mailSection) ? mailSection : (currentParams.get('category') || '')
+      const currentFolder = mailSection === 'starred'
+        ? 'starred'
+        : mailSection === 'all'
+          ? 'allmail'
+          : mailSection === 'trash'
+            ? 'trash'
+            : (currentParams.get('folder') || '')
       return (targetParams.get('filter') || '') === (currentParams.get('filter') || '')
-        && (targetParams.get('category') || '') === (currentParams.get('category') || '')
-        && (targetParams.get('folder') || '') === (currentParams.get('folder') || '')
+        && (targetParams.get('category') || '') === currentCategory
+        && (targetParams.get('folder') || '') === currentFolder
     }
     if (path === '/admin/dashboard' || path === '/super-admin/dashboard') {
       return (targetParams.get('tab') || '') === (currentParams.get('tab') || '')
@@ -94,7 +217,7 @@ export default function GmailShell({ children }) {
 
   const navItem = (to, icon, label, count) => (
     <NavLink
-      to={withMailbox(to, activeMailbox, activeMailboxId)}
+      to={withMailbox(to, mailboxIdentity, mailboxId)}
       end
       className={() => `${styles.sidebarItem} ${isNavActive(to) ? styles.active : ''}`}
     >
@@ -104,14 +227,19 @@ export default function GmailShell({ children }) {
     </NavLink>
   )
 
-  const activeSourcePath = location.pathname.startsWith('/email/')
+  const activeSourcePath = isEmailDetailPath
     ? searchParams.get('from') || ''
     : `${location.pathname}${location.search}`
   const activeSourceParams = new URLSearchParams(activeSourcePath.split('?')[1] || '')
-  const currentCat = activeSourcePath.startsWith('/inbox') ? (activeSourceParams.get('category') || null) : null
+  const activeMailSection = activeSourcePath.match(/^\/mail\/[^/]+\/([^/?]+)/)?.[1] || ''
+  const currentCat = ['spam', 'phishing', 'malware'].includes(activeMailSection)
+    ? activeMailSection
+    : activeSourcePath.startsWith('/inbox')
+      ? (activeSourceParams.get('category') || null)
+      : null
   const catItem = (category, label, color, count) => (
     <NavLink
-      to={withMailbox(`/inbox?category=${category}`, activeMailbox, activeMailboxId)}
+      to={withMailbox(`/inbox?category=${category}`, mailboxIdentity, mailboxId)}
       className={() => `${styles.sidebarItem} ${currentCat === category ? styles.active : ''}`}
     >
       <span className={styles.labelDot} style={{ background: color }} />
@@ -134,13 +262,13 @@ export default function GmailShell({ children }) {
           >
             <Menu size={20} />
           </button>
-          <NavLink to={withMailbox('/inbox', activeMailbox, activeMailboxId)} className={styles.brand}>
+          <NavLink to={withMailbox('/inbox', mailboxIdentity, mailboxId)} className={styles.brand}>
             {/* Shield + checkmark logo */}
             <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-              <circle cx="20" cy="20" r="20" fill="#f6f8fc"/>
-              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13 6.88-1.26 12-6.93 12-13v-9L20 6z" fill="#EA4335"/>
-              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13V6z" fill="#c5221f"/>
-              <path d="M16 20l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="20" cy="20" r="20" fill="#f6f8fc" />
+              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13 6.88-1.26 12-6.93 12-13v-9L20 6z" fill="#EA4335" />
+              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13V6z" fill="#c5221f" />
+              <path d="M16 20l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className={styles.brandText}>CogniMail</span>
           </NavLink>
@@ -149,7 +277,7 @@ export default function GmailShell({ children }) {
         {/* CENTER: search bar */}
         <div className={styles.searchWrap} style={{ position: 'relative' }}>
           <div className={`${styles.searchBar} ${searchFocused ? styles.searchBarFocused : ''}`}>
-            <button className={styles.searchIcon} title="Cari">
+            <button className={styles.searchIcon} title="Cari" onClick={runSearch}>
               <Search size={20} />
             </button>
             <input
@@ -165,31 +293,15 @@ export default function GmailShell({ children }) {
             {searchValue && (
               <button
                 className={styles.searchIcon}
-                onClick={() => setSearchValue('')}
+                onClick={clearSearch}
                 title="Hapus pencarian"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             )}
-            <button
-              className={styles.searchIcon}
-              title="Filter penelusuran"
-              id="search-filter-btn"
-              onClick={(e) => { e.stopPropagation(); setFilterOpen((v) => !v) }}
-              style={filterOpen ? { background: 'rgba(26,115,232,.12)', color: '#1a73e8' } : {}}
-            >
-              {/* tune/sliders icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M10 18h4v-2h-4v2zm-7-5v2h18v-2H3zm3-4v2h12V9H6z"/>
-              </svg>
-            </button>
           </div>
-          <SearchFilterPanel
-            open={filterOpen}
-            onClose={() => setFilterOpen(false)}
-          />
         </div>
 
         {/* RIGHT: icons matching Gmail order */}
@@ -203,7 +315,7 @@ export default function GmailShell({ children }) {
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          {user ? (
+          {hasTopbarIdentity ? (
             <div className={styles.avatarWrap}>
               <div
                 className={styles.avatar}
@@ -215,7 +327,7 @@ export default function GmailShell({ children }) {
               </div>
               {userMenuOpen && (
                 <div className={styles.userMenu}>
-                  <div className={styles.userMenuHeader} onClick={() => { navigate(withMailbox('/profile', activeMailbox, activeMailboxId)); setUserMenuOpen(false) }} style={{ cursor: 'pointer' }}>
+                  <div className={styles.userMenuHeader}>
                     <div className={styles.userMenuAvatar}>
                       {displayInitial}
                     </div>
@@ -227,7 +339,7 @@ export default function GmailShell({ children }) {
                   <div className={styles.userMenuDivider} />
                   <button
                     className={styles.userMenuItem}
-                    onClick={() => { navigate(withMailbox('/profile', activeMailbox, activeMailboxId)); setUserMenuOpen(false) }}
+                    onClick={() => { navigate(withMailbox('/profile', mailboxIdentity, mailboxId)); setUserMenuOpen(false) }}
                     id="menu-profile-btn"
                   >
                     <User size={16} />
@@ -235,7 +347,7 @@ export default function GmailShell({ children }) {
                   </button>
                   <button
                     className={styles.userMenuItem}
-                    onClick={() => { navigate(withMailbox('/metrics', activeMailbox, activeMailboxId)); setUserMenuOpen(false) }}
+                    onClick={() => { navigate(withMailbox('/metrics', mailboxIdentity, mailboxId)); setUserMenuOpen(false) }}
                     id="menu-metrics-btn"
                   >
                     <BarChart2 size={16} />
@@ -248,7 +360,7 @@ export default function GmailShell({ children }) {
                     <Flag size={16} />
                     <span>Lapor Masalah</span>
                   </button>
-                  {!activeMailbox && (
+                  {!mailboxIdentity && (
                     <button
                       className={styles.userMenuItem}
                       onClick={() => { navigate('/settings'); setUserMenuOpen(false) }}
@@ -261,11 +373,11 @@ export default function GmailShell({ children }) {
                   <div className={styles.userMenuDivider} />
                   <button
                     className={`${styles.userMenuItem} ${styles.logoutItem}`}
-                    onClick={() => logout()}
+                    onClick={handleLogoutClick}
                     id="logout-btn"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                      <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                     </svg>
                     <span>Keluar</span>
                   </button>
@@ -275,7 +387,7 @@ export default function GmailShell({ children }) {
           ) : (
             <button
               className={styles.loginBtn}
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/login` : '/mailbox-login')}
               id="login-btn"
             >
               Masuk
@@ -290,7 +402,13 @@ export default function GmailShell({ children }) {
         {sidebarOpen && (
           <nav className={styles.sidebar}>
             {/* Compose button */}
-            <button className={styles.composeBtn} id="compose-btn" onClick={() => { setComposeDraft(null); setComposeOpen(true) }}>
+            <button className={styles.composeBtn} id="compose-btn" onClick={() => {
+              setComposeDraft(null)
+              setComposeThreadId('')
+              setComposeParentEmailId('')
+              setComposeMode('new')
+              setComposeOpen(true)
+            }}>
               <Pencil size={20} color="#EA4335" />
               <span>Tulis</span>
             </button>
@@ -299,7 +417,7 @@ export default function GmailShell({ children }) {
             {navItem('/inbox', <Inbox size={18} />, 'Kotak Masuk', 0)}
             {navItem('/inbox?folder=starred', <Star size={18} />, 'Berbintang', 0)}
             {navItem('/sent', <Send size={18} />, 'Terkirim', 0)}
-            {navItem('/inbox?folder=draft', <FileText size={18} />, 'Draf', 0)}
+            {navItem('/draft', <FileText size={18} />, 'Draf', 0)}
             {navItem('/inbox?folder=allmail', <Mail size={18} />, 'Semua Email', 0)}
             {navItem('/inbox?folder=trash', <Trash2 size={18} />, 'Sampah', 0)}
 
@@ -329,7 +447,7 @@ export default function GmailShell({ children }) {
               <span className={styles.itemIcon}><Flag size={18} /></span>
               <span className={styles.itemLabel}>Lapor Masalah</span>
             </button>
-            {!activeMailbox && (
+            {!mailboxIdentity && (
               <button
                 className={`${styles.sidebarItem} ${styles.sidebarButton}`}
                 onClick={() => navigate('/settings')}
@@ -346,10 +464,44 @@ export default function GmailShell({ children }) {
       </div>
       <ComposeModal
         open={composeOpen}
-        onClose={() => { setComposeOpen(false); setComposeDraft(null) }}
-        fromMailbox={activeMailbox}
+        onClose={() => {
+          setComposeOpen(false)
+          setComposeDraft(null)
+          setComposeThreadId('')
+          setComposeParentEmailId('')
+          setComposeMode('new')
+        }}
+        fromMailbox={mailboxIdentity}
         initialDraft={composeDraft}
+        threadId={composeThreadId}
+        parentEmailId={composeParentEmailId}
+        composeMode={composeMode}
       />
+
+      {expiredLoginOpen && (
+        <div className={styles.overlay}>
+          <form className={styles.sessionModal} onSubmit={handleExpiredLogin}>
+            <div className={styles.sessionIcon}><Mail size={22} /></div>
+            <h3>Sesi mailbox berakhir</h3>
+            <p>Masuk kembali sebagai <strong>{mailboxIdentity}</strong> untuk melanjutkan webmail.</p>
+            {expiredError && <div className={styles.sessionError}>{expiredError}</div>}
+            <input
+              type="password"
+              value={expiredPassword}
+              onChange={(event) => setExpiredPassword(event.target.value)}
+              placeholder="Password mailbox"
+              autoComplete="current-password"
+              autoFocus
+              required
+            />
+            <div className={styles.sessionActions}>
+              <button type="submit" className={styles.sessionSubmit} disabled={expiredLoading}>
+                {expiredLoading ? 'Memproses...' : 'Masuk lagi'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Report Modal */}
       {reportOpen && (

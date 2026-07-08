@@ -15,8 +15,7 @@ import {
   useReleaseEmail,
   useConfirmSpam,
   useReportFalsePositive,
-  useDeleteEmail,
-  useToggleReadEmail
+  useDeleteEmail
 } from '../api/emails'
 import { useMe } from '../api/auth'
 import { useToast } from '../hooks/useToast'
@@ -235,34 +234,6 @@ const getMockBody = (subject, sender) => `
 `
 
 
-function SecuritySection({ id, title, isOpen, onToggle, children }) {
-  return (
-    <div className={`${styles.card} ${!isOpen ? styles.cardClosed : ''}`}>
-      <button className={styles.cardToggle} onClick={() => onToggle(id)}>
-        <span>{title}</span>
-        {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-      </button>
-      {isOpen && <div className={styles.cardBody}>{children}</div>}
-    </div>
-  )
-}
-
-function SecurityPanelWrapper({ onClose, children }) {
-  return (
-    <div className={styles.securityWrapper}>
-      <div className={styles.securityWrapperHeader}>
-        <span>Panel Deteksi Keamanan</span>
-        <button className={styles.securityCloseBtn} onClick={onClose} title="Tutup panel">
-          <X size={18} />
-        </button>
-      </div>
-      <div className={styles.securityWrapperBody}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
 export default function EmailDetailPage() {
   const { emailId } = useParams()
   const navigate = useNavigate()
@@ -270,7 +241,6 @@ export default function EmailDetailPage() {
   const [searchParams] = useSearchParams()
   const { showToast } = useToast()
   const fromPath = searchParams.get('from') || ''
-  const originalView = searchParams.get('original') === '1'
   const fromParams = new URLSearchParams(fromPath.split('?')[1] || '')
   const activeMailboxId = getActiveMailboxId(searchParams) || getActiveMailboxId(fromParams)
   const activeMailbox = getActiveMailbox(searchParams) || getActiveMailbox(fromParams)
@@ -298,14 +268,12 @@ export default function EmailDetailPage() {
   const { data: email, isLoading, isError } = useEmail(emailId)
   const listFilter = getListFilter(fromPath)
   const { data: emailsData } = useEmails(listFilter)
-  const { data: allDraftsData } = useEmails('draft')
   const { data: meData } = useMe()
 
-  const { mutateAsync: deleteEmail, isPending: deleting } = useDeleteEmail()
-  const { mutateAsync: releaseEmail, isPending: releasing } = useReleaseEmail()
-  const { mutateAsync: confirmSpam, isPending: spamming } = useConfirmSpam()
-  const { mutateAsync: reportFP, isPending: reporting } = useReportFalsePositive()
-  const { mutateAsync: toggleRead } = useToggleReadEmail()
+  const { mutate: release, isPending: releasing } = useReleaseEmail()
+  const { mutate: confirmSpam, isPending: spamming } = useConfirmSpam()
+  const { mutate: reportFP, isPending: reporting } = useReportFalsePositive()
+  const { mutate: deleteEmail, isPending: deleting } = useDeleteEmail()
 
   const [fpNotes, setFpNotes] = useState('')
   const [threadRecipientDetailId, setThreadRecipientDetailId] = useState(null)
@@ -337,17 +305,11 @@ export default function EmailDetailPage() {
   const [isUnread, setIsUnread] = useState(false)
 
   useEffect(() => {
-    if (email) {
-      const currentlyRead = email.is_read
-      setIsUnread(!currentlyRead)
-      const isDraftEmail = String(email.label || '').toUpperCase() === 'DRAFT' || email.status === 'draft'
-      // Automatically mark as read if visiting the detail page and it's unread
-      if (!currentlyRead && !isDraftEmail) {
-        toggleRead({ emailId: email.email_id, isRead: true }).catch(() => {})
-        setIsUnread(false)
-      }
-    }
-  }, [email])
+    try {
+      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
+      setIsUnread(!readIds.has(emailId))
+    } catch { setIsUnread(false) }
+  }, [emailId])
 
   useEffect(() => {
     setInlineSentReplies([])
@@ -751,6 +713,7 @@ export default function EmailDetailPage() {
       </div>
     )
   }
+
   // Pagination logic
   const emailList = (emailsData?.emails || []).filter((row) => {
     if (!activeMailbox) return false
@@ -825,7 +788,17 @@ export default function EmailDetailPage() {
   const handleToggleUnread = () => {
     const nextVal = !isUnread
     setIsUnread(nextVal)
-    toggleRead({ emailId: emailId, isRead: !nextVal }).catch(() => {})
+    try {
+      const readIds = new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
+      if (nextVal) {
+        readIds.delete(emailId)
+      } else {
+        readIds.add(emailId)
+      }
+      localStorage.setItem('cognimail.read', JSON.stringify(Array.from(readIds)))
+    } catch {
+      // Ignore localStorage failures; the visual state still updates for this view.
+    }
     showToast(nextVal ? 'Ditandai sebagai belum dibaca' : 'Ditandai sebagai sudah dibaca', 'info')
   }
 
@@ -926,29 +899,6 @@ export default function EmailDetailPage() {
     setReplyActionMenuOpen(false)
     setReplyLinkOpen(false)
     setReplyAttachments([])
-    
-    // Check if there is an existing draft for this thread & mode
-    const existingDraft = findExistingDraft(allDraftsData?.emails || [], {
-      mailboxId: activeMailbox,
-      threadId: source.thread_id || '',
-      parentEmailId: source.email_id || '',
-      subject: source.subject || '',
-      composeMode: mode
-    })
-
-    if (existingDraft) {
-      setReplyDraftId(existingDraft.email_id)
-      replyDraftIdRef.current = existingDraft.email_id
-      setReplyQuoteExpanded(false)
-      replyAutosaveSignatureRef.current = ''
-      setReplyTargetMessage(source)
-      setReplyMode(mode)
-      setReplyTo(existingDraft.recipient_list || '')
-      setReplySubject(existingDraft.subject || '')
-      setReplyBody(existingDraft.raw_content || existingDraft.body_text || '')
-      return
-    }
-
     setReplyDraftId('')
     setReplyQuoteExpanded(false)
     replyDraftIdRef.current = ''

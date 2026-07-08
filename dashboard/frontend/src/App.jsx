@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useMe } from './api/auth'
 import LoginPage from './pages/LoginPage'
 import MailboxLoginPage from './pages/MailboxLoginPage'
@@ -26,7 +26,6 @@ function dashboardPathForRole(role) {
 
 function ProtectedRoute({ children }) {
   const { data, isLoading } = useMe()
-  const [searchParams] = useSearchParams()
 
   if (isLoading) {
     return (
@@ -44,7 +43,7 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  if (!data?.authenticated && !hasMailboxSessionFromSearch(searchParams)) {
+  if (!data?.authenticated) {
     return <Navigate to="/login" replace />
   }
 
@@ -54,6 +53,7 @@ function ProtectedRoute({ children }) {
 function MailboxRoute({ children }) {
   const { data, isLoading } = useMe()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -75,27 +75,32 @@ function MailboxRoute({ children }) {
 
   if (data?.authenticated) {
     const role = data?.user?.role
+    if (role === 'mailbox') return children
     if (role === 'superadmin' || role === 'admin') {
       return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
     }
     return children
   }
 
-  return <Navigate to="/login" replace />
+  const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
+  if (mailboxPath?.[1]) {
+    return <Navigate to={`/mail/${encodeURIComponent(mailboxPath[1])}/login`} replace />
+  }
+
+  return <Navigate to="/mailbox-login" replace />
 }
 
 function UserRoute({ children }) {
   const { data, isLoading } = useMe()
-  const [searchParams] = useSearchParams()
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'Google Sans, Roboto, sans-serif', color: 'var(--text-muted)', backgroundColor: 'var(--bg)' }}>Memeriksa autentikasi...</div>
-  if (!data?.authenticated && !hasMailboxSessionFromSearch(searchParams)) return <Navigate to="/login" replace />
-  if (!data?.authenticated) return children
+  if (!data?.authenticated) return <Navigate to="/login" replace />
 
   const role = data?.user?.role
   if (role === 'superadmin' || role === 'admin') {
     return <Navigate to={dashboardPathForRole(role)} replace />
   }
+  if (role !== 'user') return <Navigate to="/login" replace />
 
   return children
 }
@@ -127,6 +132,7 @@ function RootRoute() {
   if (isLoading) return null
   if (data?.authenticated) {
     const role = data?.user?.role
+    if (role === 'mailbox') return <Navigate to="/login" replace />
     const target = dashboardPathForRole(role)
     const qs = searchParams.toString()
     return <Navigate to={qs ? `${target}?${qs}` : target} replace />
@@ -140,6 +146,7 @@ function RoleRedirect() {
   if (isLoading) return null
   if (!data?.authenticated) return <Navigate to="/login" replace />
   const role = data?.user?.role
+  if (role === 'mailbox') return <Navigate to="/login" replace />
   const target = dashboardPathForRole(role)
   const qs = searchParams.toString()
   return <Navigate to={qs ? `${target}?${qs}` : target} replace />
@@ -152,10 +159,23 @@ export default function App() {
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/mailbox-login" element={<MailboxLoginPage />} />
+        <Route path="/mail/:mailboxId/login" element={<MailboxLoginPage />} />
 
         {/* User routes — only for non-admin users */}
         <Route path="/inbox" element={<MailboxRoute><InboxPage /></MailboxRoute>} />
         <Route path="/email/:emailId" element={<MailboxRoute><EmailDetailPage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/inbox" element={<MailboxRoute><InboxPage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/starred" element={<MailboxRoute><InboxPage view="starred" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/sent" element={<MailboxRoute><SentPage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/drafts" element={<MailboxRoute><DraftPage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/all" element={<MailboxRoute><InboxPage view="allmail" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/trash" element={<MailboxRoute><InboxPage view="trash" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/spam" element={<MailboxRoute><InboxPage view="spam" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/phishing" element={<MailboxRoute><InboxPage view="phishing" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/malware" element={<MailboxRoute><InboxPage view="malware" /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/profile" element={<MailboxRoute><ProfilePage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/metrics" element={<MailboxRoute><MetricsPage /></MailboxRoute>} />
+        <Route path="/mail/:mailboxId/email/:emailId" element={<MailboxRoute><EmailDetailPage /></MailboxRoute>} />
         <Route path="/metrics" element={<ProtectedRoute><MetricsPage /></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

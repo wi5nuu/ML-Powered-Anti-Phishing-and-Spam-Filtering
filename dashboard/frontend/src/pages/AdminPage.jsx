@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell from '../components/layout/AdminShell'
 import api from '../api/client'
 import { useMe } from '../api/auth'
-import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Trash2, Settings, ExternalLink, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight } from 'lucide-react'
-import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxes } from '../utils/mailbox'
+import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward } from 'lucide-react'
+import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
 const CATEGORY_LABELS = { bug: 'Bug / Error', question: 'Pertanyaan', access: 'Akses', false_positive: 'False Positive', other: 'Lainnya' }
@@ -73,6 +73,14 @@ export default function AdminPage() {
   const [mailboxError, setMailboxError] = useState('')
   const [domainDraft, setDomainDraft] = useState(() => getMailDomain())
   const [domainError, setDomainError] = useState('')
+  const [mailboxMenuId, setMailboxMenuId] = useState(null)
+  const [passwordMailbox, setPasswordMailbox] = useState(null)
+  const [passwordDraft, setPasswordDraft] = useState('')
+  const [showPasswordDraft, setShowPasswordDraft] = useState(false)
+  const [forwarderMailbox, setForwarderMailbox] = useState(null)
+  const [forwarderTarget, setForwarderTarget] = useState('')
+  const [forwarderKeepCopy, setForwarderKeepCopy] = useState(true)
+  const [deleteMailboxTarget, setDeleteMailboxTarget] = useState(null)
 
   const fetchData = () => {
     api.get('/admin/users').then((r) => setUsers(r.data)).catch(() => {})
@@ -89,6 +97,7 @@ export default function AdminPage() {
       const r = await api.get('/admin/mailboxes')
       const rows = Array.isArray(r.data) ? r.data : []
       setMailboxRows(rows)
+      setMailboxDirectory(rows)
       const emails = rows.map((row) => row.email)
       setMailboxState(emails)
       setMailboxes(emails)
@@ -197,6 +206,15 @@ export default function AdminPage() {
     latin: mailboxPassword.length > 0 && /^[\x20-\x7E]+$/.test(mailboxPassword),
   }
   const passwordValid = Object.values(passwordChecks).every(Boolean)
+  const actionPasswordChecks = {
+    length: passwordDraft.length >= 8,
+    lower: /[a-z]/.test(passwordDraft),
+    upper: /[A-Z]/.test(passwordDraft),
+    number: /\d/.test(passwordDraft),
+    symbol: /[^A-Za-z0-9]/.test(passwordDraft),
+    latin: passwordDraft.length > 0 && /^[\x20-\x7E]+$/.test(passwordDraft),
+  }
+  const actionPasswordValid = Object.values(actionPasswordChecks).every(Boolean)
 
   const handleAddMailbox = async () => {
     const localPart = mailboxInput.trim().toLowerCase().replace(/@.*$/, '')
@@ -253,6 +271,59 @@ export default function AdminPage() {
     }
   }
 
+  const openPasswordModal = (row) => {
+    setMailboxMenuId(null)
+    setPasswordMailbox(row)
+    setPasswordDraft('')
+    setShowPasswordDraft(false)
+    setMailboxError('')
+  }
+
+  const updateMailboxPassword = async () => {
+    if (!passwordMailbox || !actionPasswordValid) return
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${passwordMailbox.id}/password`, { password: passwordDraft })
+      setMsg(`Password ${passwordMailbox.email} berhasil diubah.`)
+      setPasswordMailbox(null)
+      setPasswordDraft('')
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal mengubah password mailbox.')
+    }
+  }
+
+  const openForwarderModal = (row) => {
+    setMailboxMenuId(null)
+    setForwarderMailbox(row)
+    setForwarderTarget(row.forward_to || '')
+    setForwarderKeepCopy(row.forward_keep_copy ?? true)
+    setMailboxError('')
+  }
+
+  const saveForwarder = async () => {
+    if (!forwarderMailbox || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forwarderTarget.trim())) {
+      setMailboxError('Masukkan alamat email tujuan yang valid.')
+      return
+    }
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${forwarderMailbox.id}/forwarder`, {
+        target: forwarderTarget.trim().toLowerCase(),
+        enabled: true,
+        keep_copy: forwarderKeepCopy,
+      })
+      await fetchMailboxes()
+      setMsg(`Forwarder ${forwarderMailbox.email} berhasil dibuat.`)
+      setForwarderMailbox(null)
+      setForwarderTarget('')
+      setMailboxError('')
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menyimpan forwarder.')
+    }
+  }
+
   const handleSaveDomain = () => {
     const clean = domainDraft.trim().toLowerCase().replace(/^@+/, '')
     setDomainError('')
@@ -277,8 +348,8 @@ export default function AdminPage() {
     const mailboxId = String(row?.id || email)
     const hasSession = getMailboxSession(mailboxId, email)
     const target = hasSession
-      ? `/inbox?mailbox_id=${encodeURIComponent(mailboxId)}&mailbox=${encodeURIComponent(email)}`
-      : `/mailbox-login?mailbox_id=${encodeURIComponent(mailboxId)}&email=${encodeURIComponent(email)}`
+      ? `/mail/${encodeURIComponent(mailboxId)}/inbox`
+      : `/mail/${encodeURIComponent(mailboxId)}/login`
     if (newWindow) {
       window.open(target, '_blank', 'noopener,noreferrer')
       return
@@ -1180,7 +1251,7 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <div className={styles.section}>
+            <div className={`${styles.section} ${styles.mailboxSection}`}>
               <div className={styles.sectionHeader}>
                 <div className={styles.sectionTitle}>
                   <Shield size={18} />
@@ -1199,8 +1270,6 @@ export default function AdminPage() {
                 <div className={styles.mailboxTable}>
                   <div className={styles.mailboxTableHead}>
                     <span>Mailbox</span>
-                    <span>Status</span>
-                    <span>Usage</span>
                     <span>Aksi</span>
                   </div>
                   {mailboxRows.map((row) => (
@@ -1219,24 +1288,129 @@ export default function AdminPage() {
                           <Copy size={15} />
                         </button>
                       </div>
-                      <div className={styles.statusOk}><Check size={14} /> Active</div>
-                      <div className={styles.usageText}>0% Used<br /><span>0 KB / 1.00 GB</span></div>
                       <div className={styles.mailboxActions}>
-                        <button className={styles.webmailBtn} onClick={() => openMailbox(row.email)} title={`Buka inbox ${row.email}`}>
+                        <button className={styles.webmailBtn} onClick={() => openMailbox(row.email, true)} title={`Buka inbox ${row.email} di tab baru`}>
                           Webmail <ChevronRight size={15} />
                         </button>
-                        <button className={styles.iconAction} onClick={() => openMailbox(row.email, true)} title={`Open in new window ${row.email}`}>
-                          <ExternalLink size={17} />
+                        <button
+                          className={styles.iconAction}
+                          onClick={() => setMailboxMenuId(mailboxMenuId === row.id ? null : row.id)}
+                          title={`Aksi mailbox ${row.email}`}
+                        >
+                          <MoreVertical size={18} />
                         </button>
-                        <button className={styles.iconDanger} onClick={() => removeMailbox(row)} title="Hapus mailbox">
-                          <Trash2 size={17} />
-                        </button>
+                        {mailboxMenuId === row.id && (
+                          <div className={styles.mailboxActionMenu}>
+                            <button onClick={() => openPasswordModal(row)}>
+                              <KeyRound size={15} /> Ubah Password
+                            </button>
+                            <button onClick={() => openForwarderModal(row)}>
+                              <Forward size={15} /> Buat Forwarder
+                            </button>
+                            <button className={styles.menuDanger} onClick={() => { setMailboxMenuId(null); setDeleteMailboxTarget(row) }}>
+                              Nonaktifkan Mailbox
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+            {passwordMailbox && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setPasswordMailbox(null)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Ubah password mailbox</h2>
+                      <p>{passwordMailbox.email}</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setPasswordMailbox(null)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Masukkan password baru</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      type={showPasswordDraft ? 'text' : 'password'}
+                      value={passwordDraft}
+                      onChange={(e) => { setPasswordDraft(e.target.value); setMailboxError('') }}
+                      placeholder="Masukkan password baru"
+                      autoFocus
+                    />
+                    <button type="button" onClick={() => navigator.clipboard?.writeText(passwordDraft)} title="Copy password"><Copy size={18} /></button>
+                    <button type="button" onClick={() => setShowPasswordDraft((v) => !v)} title="Lihat password">
+                      {showPasswordDraft ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <div className={styles.passwordRules}>
+                    <span className={actionPasswordChecks.number ? styles.ruleOk : ''}>Satu angka</span>
+                    <span className={actionPasswordChecks.symbol ? styles.ruleOk : ''}>Satu simbol</span>
+                    <span className={actionPasswordChecks.lower ? styles.ruleOk : ''}>Satu huruf kecil</span>
+                    <span className={actionPasswordChecks.upper ? styles.ruleOk : ''}>Satu huruf kapital</span>
+                    <span className={actionPasswordChecks.length ? styles.ruleOk : ''}>Minimal 8 karakter</span>
+                    <span className={actionPasswordChecks.latin ? styles.ruleOk : ''}>Hanya huruf Latin</span>
+                  </div>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setPasswordMailbox(null)}>Batal</button>
+                    <button className={styles.saveBtn} disabled={!actionPasswordValid} onClick={updateMailboxPassword}>Update</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {deleteMailboxTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteMailboxTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Nonaktifkan mailbox?</h2>
+                  <p>Mailbox <strong>{deleteMailboxTarget.email}</strong> akan dihapus dari daftar aktif dan tidak bisa login lagi. Data email yang sudah ada tetap tersimpan.</p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteMailboxTarget(null)}>Batal</button>
+                    <button
+                      className={styles.dangerBtn}
+                      onClick={async () => {
+                        const target = deleteMailboxTarget
+                        setDeleteMailboxTarget(null)
+                        await removeMailbox(target)
+                      }}
+                    >
+                      Nonaktifkan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {forwarderMailbox && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setForwarderMailbox(null)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Buat forwarder</h2>
+                      <p>Kendalikan kotak masuk Anda dengan mengalihkan email ke alamat penerusan pilihan Anda.</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setForwarderMailbox(null)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Teruskan semua email yang dikirim ke</label>
+                  <input className={styles.modalInput} value={forwarderMailbox.email} readOnly />
+                  <label className={styles.modalLabel}>Ke alamat email</label>
+                  <input
+                    className={styles.modalInput}
+                    value={forwarderTarget}
+                    onChange={(e) => { setForwarderTarget(e.target.value); setMailboxError('') }}
+                    placeholder="forward@example.com"
+                    autoFocus
+                  />
+                  <label className={styles.switchRow}>
+                    <input type="checkbox" checked={forwarderKeepCopy} onChange={(e) => setForwarderKeepCopy(e.target.checked)} />
+                    <span>Simpan salinan email yang diteruskan</span>
+                  </label>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setForwarderMailbox(null)}>Tutup</button>
+                    <button className={styles.saveBtn} onClick={saveForwarder}>Buat</button>
+                  </div>
+                </div>
+              </div>
+            )}
             {createMailboxOpen && (
               <div className={styles.mailboxModalOverlay} onClick={() => setCreateMailboxOpen(false)}>
                 <div className={styles.mailboxModal} onClick={(e) => e.stopPropagation()}>
