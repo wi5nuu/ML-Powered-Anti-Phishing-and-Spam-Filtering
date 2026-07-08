@@ -26,7 +26,7 @@ export default function LoginPage() {
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
-    return '/user/dashboard'
+    return '/inbox'
   }
 
   useEffect(() => {

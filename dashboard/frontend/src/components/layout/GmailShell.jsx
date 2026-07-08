@@ -295,6 +295,7 @@ export default function GmailShell({ children }) {
               <span>Tulis</span>
             </button>
 
+            {navItem('/metrics', <BarChart2 size={18} />, 'Dashboard', 0)}
             {navItem('/inbox', <Inbox size={18} />, 'Kotak Masuk', 0)}
             {navItem('/inbox?folder=starred', <Star size={18} />, 'Berbintang', 0)}
             {navItem('/sent', <Send size={18} />, 'Terkirim', 0)}

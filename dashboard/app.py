@@ -58,7 +58,7 @@ from sqlalchemy import func, case, text, or_, and_
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox
+from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox, UserRole
 from dashboard.database import get_db, SessionLocal
 from dashboard.auth import (
     hash_password, verify_password, create_access_token, decode_token, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -446,7 +446,7 @@ async def google_callback(request: Request, code: str = "", error: str = "", db:
     elif user.role == "admin":
         redirect_url = "/admin/dashboard"
     else:
-        redirect_url = "/user/dashboard"
+        redirect_url = "/inbox"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="access_token", value=token,
@@ -2108,15 +2108,28 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
         raise HTTPException(status_code=403, detail="Access denied")
+
     users = db.query(User).filter(User.is_active == True).all()
     result = []
     for u in users:
-        total = db.query(QuarantineEmail).count()
+        recipient = u.email or u.username
+        if recipient:
+            total_emails = db.query(QuarantineEmail).filter(QuarantineEmail.recipient_list.ilike(f"%{recipient}%")).count()
+        else:
+            total_emails = 0
+
+        org_name = None
+        if u.organization_id:
+            org = db.query(Organization).filter(Organization.id == u.organization_id).first()
+            org_name = org.name if org else None
+
         result.append({
             "username": u.username,
             "email": u.email,
             "role": u.role,
-            "total_emails": total,
+            "organization_id": u.organization_id,
+            "organization_name": org_name,
+            "total_emails": total_emails,
             "is_active": u.is_active,
         })
     return result
@@ -2130,15 +2143,107 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(404, "User not found")
-    emails = db.query(QuarantineEmail).order_by(QuarantineEmail.created_at.desc()).limit(200).all()
+
+    recipient = user.email or user.username
+    if recipient:
+        emails = db.query(QuarantineEmail).filter(QuarantineEmail.recipient_list.ilike(f"%{recipient}%")).order_by(QuarantineEmail.created_at.desc()).limit(200).all()
+    else:
+        emails = []
+
     return [
         {
-            "email_id": e.email_id, "subject": e.subject, "sender": e.sender,
-            "label": e.label, "status": e.status, "fused_score": e.fused_score,
-            "category": e.category, "received_at": e.received_at,
+            "email_id": e.email_id,
+            "subject": e.subject,
+            "sender": e.sender,
+            "label": e.label,
+            "status": e.status,
+            "fused_score": e.fused_score,
+            "category": e.category,
+            "received_at": e.received_at,
         }
         for e in emails
     ]
+
+
+@app.get("/api/admin/track")
+async def api_admin_track(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmin can access tracking data")
+
+    total_emails = db.query(func.count(QuarantineEmail.id)).scalar() or 0
+    total_clean = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.label == "CLEAN").scalar() or 0
+    total_warn = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.label == "WARN").scalar() or 0
+    total_quarantine = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.label == "QUARANTINE").scalar() or 0
+
+    organizations = []
+    org_rows = db.query(Organization).order_by(Organization.name).all()
+    for org in org_rows:
+        org_total = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id).scalar() or 0
+        organizations.append({
+            "organization_id": org.id,
+            "organization_name": org.name,
+            "users": db.query(func.count(User.id)).filter(User.organization_id == org.id, User.role == UserRole.USER.value, User.is_active == True).scalar() or 0,
+            "total_emails": org_total,
+            "clean": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "CLEAN").scalar() or 0,
+            "warn": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "WARN").scalar() or 0,
+            "quarantine": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "QUARANTINE").scalar() or 0,
+        })
+
+    admins = []
+    admin_rows = db.query(User).filter(User.role.in_((UserRole.SUPERADMIN.value, UserRole.ADMIN.value))).all()
+    for admin in admin_rows:
+        org_name = None
+        if admin.organization_id:
+            org = db.query(Organization).filter(Organization.id == admin.organization_id).first()
+            org_name = org.name if org else None
+        admins.append({
+            "username": admin.username,
+            "email": admin.email,
+            "role": admin.role,
+            "organization_id": admin.organization_id,
+            "organization_name": org_name,
+            "active": admin.is_active,
+            "recent_actions": [
+                {
+                    "action": a.action,
+                    "details": a.details,
+                    "ip_address": a.ip_address,
+                    "created_at": str(a.created_at),
+                }
+                for a in db.query(AuditLog).filter(AuditLog.user == admin.username).order_by(AuditLog.created_at.desc()).limit(8).all()
+            ],
+            "suspicious_actions": [
+                {
+                    "action": a.action,
+                    "details": a.details,
+                    "ip_address": a.ip_address,
+                    "created_at": str(a.created_at),
+                }
+                for a in db.query(AuditLog).filter(AuditLog.user == admin.username, AuditLog.ip_address != None).order_by(AuditLog.created_at.desc()).limit(5).all()
+            ],
+        })
+
+    suspicious_activities = [
+        {
+            "user": a.user,
+            "action": a.action,
+            "details": a.details,
+            "ip_address": a.ip_address,
+            "created_at": str(a.created_at),
+        }
+        for a in db.query(AuditLog).filter(AuditLog.ip_address != None).order_by(AuditLog.created_at.desc()).limit(40).all()
+    ]
+
+    return {
+        "total_emails": total_emails,
+        "total_clean": total_clean,
+        "total_warn": total_warn,
+        "total_quarantine": total_quarantine,
+        "organizations": organizations,
+        "admins": admins,
+        "suspicious_activities": suspicious_activities,
+    }
 
 
 # Catch-all Route to serve React SPA
