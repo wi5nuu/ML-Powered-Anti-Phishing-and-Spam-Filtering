@@ -56,10 +56,12 @@ export default function ProfilePage() {
                 <div className={styles.profileAvatar}>{displayInitial}</div>
                 <div>
                   <div className={styles.profileName}>{displayName}</div>
-                  <div className={styles.profileRole}>
-                    <Shield size={14} />
-                    {displayRole}
-                  </div>
+                  {activeMailbox && (
+                    <div className={styles.profileRole}>
+                      <Shield size={14} />
+                      {displayRole}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -84,7 +86,6 @@ export default function ProfilePage() {
                 <span className={styles.infoLabel}>Role</span>
                 <span className={styles.infoValue}>{roleLabel}</span>
               </div>
-
               <div className={styles.infoRow}>
                 <Calendar size={15} className={styles.infoIcon} />
                 <span className={styles.infoLabel}>Member since</span>

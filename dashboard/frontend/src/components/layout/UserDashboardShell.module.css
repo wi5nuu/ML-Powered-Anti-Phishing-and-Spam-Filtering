@@ -295,7 +295,10 @@
 .content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #F5F7FB;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Dark mode ── */

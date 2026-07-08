@@ -1,8 +1,11 @@
 .wrapper {
-  padding: 32px;
+  padding: 28px 32px 60px;
   font-family: 'Google Sans', 'Roboto', sans-serif;
   color: var(--text);
   box-sizing: border-box;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .title {

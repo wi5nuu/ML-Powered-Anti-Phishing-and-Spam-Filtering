@@ -1,11 +1,12 @@
 .wrap {
-  padding: 24px;
+  padding: 28px 32px;
   font-family: 'Google Sans', Roboto, sans-serif;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  background: var(--bg);
-  min-height: calc(100vh - 64px);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
