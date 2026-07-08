@@ -5,6 +5,7 @@ import api from '../api/client'
 import { useMe } from '../api/auth'
 import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward } from 'lucide-react'
 import SuperadminDashboardOverview from './SuperadminDashboardOverview'
+import SuperadminUserManagement from './SuperadminUserManagement'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -828,7 +829,10 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'users' && (
+        {tab === 'users' && isSuper && (
+          <SuperadminUserManagement />
+        )}
+        {tab === 'users' && !isSuper && (
           <div className={styles.section}>
             {/* Toolbar: search + role filter + add */}
             <div className={styles.sectionHeader}>
