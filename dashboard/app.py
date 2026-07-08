@@ -1262,6 +1262,17 @@ async def api_get_emails(
     if user_info["role"] == "mailbox":
         mailbox = user_info["mailbox_email"]
         mailbox_id = user_info["mailbox_id"]
+    elif user_info["role"] == "user" and not mailbox and not mailbox_id:
+        user = db.query(User).filter(User.username == user_info["username"]).first()
+        user_email = user.email if user and user.email else None
+        if user_email:
+            mb = db.query(AdminMailbox).filter(
+                AdminMailbox.email == user_email.lower(),
+                AdminMailbox.is_active == True,
+            ).first()
+            if mb:
+                mailbox = mb.email
+                mailbox_id = str(mb.id)
     
     if folder == "trash":
         query = query.filter(QuarantineEmail.status == "trash")
@@ -2949,6 +2960,30 @@ async def api_user_dashboard(request: Request, db: Session = Depends(get_db)):
         "recent_alerts": recent_alerts,
         "mailbox": mailbox_info,
     }
+
+
+@app.get("/api/user/mailbox")
+async def api_user_mailbox(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    user_email = user.email if user and user.email else user_info["username"]
+    if "@" not in user_email:
+        return {"mailbox": None}
+    mailbox_record = db.query(AdminMailbox).filter(
+        AdminMailbox.email == user_email.lower(),
+        AdminMailbox.is_active == True,
+    ).first()
+    if mailbox_record:
+        return {
+            "mailbox": {
+                "id": mailbox_record.id,
+                "email": mailbox_record.email,
+                "is_active": mailbox_record.is_active,
+            }
+        }
+    return {"mailbox": None}
 
 
 # ─── User Reports / Tickets ───────────────────────────────────────────

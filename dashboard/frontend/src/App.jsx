@@ -18,6 +18,7 @@ import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import UserDashboardShell from './components/layout/UserDashboardShell'
+import RequireMailbox from './components/layout/RequireMailbox'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
@@ -183,11 +184,11 @@ export default function App() {
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/audit" element={<AdminRoute><AuditPage /></AdminRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/starred" element={<MailboxRoute><StarredPage /></MailboxRoute>} />
-        <Route path="/sent" element={<MailboxRoute><SentPage /></MailboxRoute>} />
-        <Route path="/snoozed" element={<MailboxRoute><SnoozedPage /></MailboxRoute>} />
-        <Route path="/draft" element={<MailboxRoute><DraftPage /></MailboxRoute>} />
-        <Route path="/pembelian" element={<MailboxRoute><PembelianPage /></MailboxRoute>} />
+        <Route path="/starred" element={<RequireMailbox><MailboxRoute><StarredPage /></MailboxRoute></RequireMailbox>} />
+        <Route path="/sent" element={<RequireMailbox><MailboxRoute><SentPage /></MailboxRoute></RequireMailbox>} />
+        <Route path="/snoozed" element={<RequireMailbox><MailboxRoute><SnoozedPage /></MailboxRoute></RequireMailbox>} />
+        <Route path="/draft" element={<RequireMailbox><MailboxRoute><DraftPage /></MailboxRoute></RequireMailbox>} />
+        <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
         {/* User dashboard */}
