@@ -2779,6 +2779,97 @@ async def api_admin_quarantine(
     return {"emails": emails_data, "total": total, "page": page, "page_size": page_size}
 
 
+@app.get("/api/admin/detection-logs")
+async def api_admin_detection_logs(
+    request: Request,
+    q: str = Query(None),
+    label: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_AUDIT_LOG):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    org_id = user.organization_id if user and user.role == "admin" else None
+
+    query = db.query(QuarantineEmail)
+    query = query.filter(QuarantineEmail.status != "trash")
+
+    if org_id:
+        query = query.filter(QuarantineEmail.organization_id == org_id)
+    if label and label.upper() in {"CLEAN", "WARN", "QUARANTINE"}:
+        query = query.filter(QuarantineEmail.label == label.upper())
+
+    if q:
+        terms = [term for term in re.split(r"\s+", q.strip()) if term]
+        searchable_fields = [
+            QuarantineEmail.subject,
+            QuarantineEmail.sender,
+            QuarantineEmail.recipient_list,
+            QuarantineEmail.email_id,
+        ]
+        for term in terms:
+            pattern = f"%{term}%"
+            query = query.filter(or_(*[field.ilike(pattern) for field in searchable_fields]))
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    emails = (
+        query
+        .order_by(QuarantineEmail.received_at.desc(), QuarantineEmail.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    email_ids = [e.email_id for e in emails]
+    latest_actions = {}
+    if email_ids:
+        subq = (
+            db.query(
+                AuditLog.email_id,
+                AuditLog.action,
+                AuditLog.user,
+                AuditLog.created_at,
+                func.row_number().over(
+                    partition_by=AuditLog.email_id,
+                    order_by=AuditLog.created_at.desc()
+                ).label("rn")
+            )
+            .filter(AuditLog.email_id.in_(email_ids))
+            .subquery()
+        )
+        action_rows = db.query(subq).filter(subq.c.rn == 1).all()
+        for row in action_rows:
+            latest_actions[row.email_id] = {
+                "action": row.action,
+                "by": row.user,
+                "at": str(row.created_at) if row.created_at else None,
+            }
+
+    logs_data = []
+    for email in emails:
+        action_info = latest_actions.get(email.email_id, {})
+        logs_data.append({
+            "email_id": email.email_id,
+            "sender": email.sender,
+            "subject": email.subject,
+            "label": email.label,
+            "category": email.category or "",
+            "status": email.status,
+            "fused_score": email.fused_score,
+            "ml_probability": email.ml_probability,
+            "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
+            "action_taken": action_info.get("action"),
+            "action_by": action_info.get("by"),
+            "action_at": action_info.get("at"),
+        })
+
+    return {"logs": logs_data, "total": total, "page": page, "page_size": page_size}
+
+
 # ─── User Reports / Tickets ───────────────────────────────────────────
 
 @app.post("/api/reports")

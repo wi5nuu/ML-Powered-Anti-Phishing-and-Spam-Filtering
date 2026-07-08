@@ -11,6 +11,7 @@ import SuperadminSystemHealth from './SuperadminSystemHealth'
 import AdminUserManagement from './AdminUserManagement'
 import AdminMailboxManagement from './AdminMailboxManagement'
 import AdminQuarantineReview from './AdminQuarantineReview'
+import AdminDetectionLogs from './AdminDetectionLogs'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -39,6 +40,9 @@ export default function AdminPage() {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
     if (tab === 'review' && !isSuper && !isAdmin && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if (tab === 'logs' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
   }, [tab, isSuper, isAdmin, me])
@@ -325,6 +329,7 @@ export default function AdminPage() {
           <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>Mailboxes</button>
           <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>Reports</button>
           {!isSuper && <button className={`${styles.tab} ${tab === 'review' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'review' })}>Review</button>}
+          {!isSuper && <button className={`${styles.tab} ${tab === 'logs' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'logs' })}>Logs</button>}
           {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>Health</button>}
           <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
         </div>
@@ -1003,6 +1008,10 @@ export default function AdminPage() {
 
         {tab === 'review' && !isSuper && (
           <AdminQuarantineReview />
+        )}
+
+        {tab === 'logs' && !isSuper && (
+          <AdminDetectionLogs />
         )}
 
         {tab === 'health' && isSuper && (
