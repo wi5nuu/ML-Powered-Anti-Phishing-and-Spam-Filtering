@@ -64,6 +64,10 @@ from dashboard.auth import (
     hash_password, verify_password, create_access_token, decode_token, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
     get_current_user, require_role, log_audit, verify_api_key
 )
+from dashboard.rbac import (
+    Permission, check_permission, check_role, get_user_permissions, has_permission_dict, ROLE_DESCRIPTIONS, UserRole as RBACUserRole
+)
+from dashboard import admin_routes
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +115,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Register RBAC admin routes
+app.include_router(admin_routes.router)
 
 
 
@@ -1065,7 +1072,7 @@ async def api_download_attachment(email_id: str, attachment_index: int, request:
 @app.post("/api/emails/{email_id}/release")
 async def api_release_email(email_id: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.RELEASE_EMAIL):
         raise HTTPException(status_code=403, detail="You do not have permission to manage quarantine")
     email_record = db.query(QuarantineEmail).filter(
         QuarantineEmail.email_id == email_id
@@ -1084,7 +1091,7 @@ async def api_release_email(email_id: str, request: Request, db: Session = Depen
 @app.post("/api/emails/{email_id}/confirm-spam")
 async def api_confirm_spam(email_id: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.REVIEW_QUARANTINE):
         raise HTTPException(status_code=403, detail="You do not have permission to manage quarantine")
     email_record = db.query(QuarantineEmail).filter(
         QuarantineEmail.email_id == email_id
@@ -1108,7 +1115,7 @@ async def api_report_false_positive(
     db: Session = Depends(get_db)
 ):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.REVIEW_QUARANTINE):
         raise HTTPException(status_code=403, detail="You do not have permission to manage quarantine")
     feedback = Feedback(
         email_id=email_id,
@@ -1135,7 +1142,7 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
     ).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.DELETE_EMAIL):
         username_lower = user_info["username"].lower()
         recipients_lower = (email_record.recipient_list or "").lower()
         sender_lower = (email_record.sender or "").lower()
@@ -1159,7 +1166,7 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
 @app.post("/api/emails/{email_id}/restore")
 async def api_restore_email(email_id: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.REVIEW_QUARANTINE):
         raise HTTPException(status_code=403, detail="You do not have permission to restore emails")
     email_record = db.query(QuarantineEmail).filter(
         QuarantineEmail.email_id == email_id
@@ -1553,7 +1560,7 @@ async def api_get_audit_log(
 ):
     """Paginated audit log. Requires admin or above."""
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.ACCESS_AUDIT_LOG):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     query = db.query(AuditLog)
@@ -1610,7 +1617,7 @@ _SYSTEM_SETTINGS = {
 async def api_get_settings(request: Request, db: Session = Depends(get_db)):
     """Get current system settings. Requires admin or above."""
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.MANAGE_GLOBAL_SETTINGS):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     # Return copy without IMAP password for security
     safe = dict(_SYSTEM_SETTINGS)
@@ -1641,8 +1648,8 @@ async def api_update_settings(
 ):
     """Update system settings. Requires superadmin."""
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
-        raise HTTPException(status_code=403, detail="Only admin or above can change settings")
+    if not has_permission_dict(user_info, Permission.MANAGE_GLOBAL_SETTINGS):
+        raise HTTPException(status_code=403, detail="Only superadmin can change global settings")
 
     update_data = payload.model_dump(exclude_none=True)
     _SYSTEM_SETTINGS.update(update_data)
@@ -1658,7 +1665,7 @@ async def api_update_settings(
 async def api_test_imap(request: Request, db: Session = Depends(get_db)):
     """Test IMAP connection with current settings."""
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.MANAGE_GLOBAL_SETTINGS):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     host = _SYSTEM_SETTINGS.get("imap_host", "")
@@ -1685,7 +1692,7 @@ async def api_export_emails_csv(
 ):
     """Export email log as CSV. Requires admin or above."""
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ["superadmin", "admin"]:
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     query = db.query(QuarantineEmail)
@@ -1798,9 +1805,9 @@ async def api_analyze_email(
 @app.get("/api/admin/users")
 async def api_get_users(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
-    if user_info["role"] == "admin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         users = db.query(User).filter(User.role == "user").all()
     else:
         users = db.query(User).all()
@@ -1810,7 +1817,7 @@ async def api_get_users(request: Request, db: Session = Depends(get_db)):
 @app.post("/api/admin/users")
 async def api_create_user(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     username = payload.get("username")
     password = payload.get("password")
@@ -1847,7 +1854,7 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
 @app.post("/api/admin/settings")
 async def api_change_settings(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
+    if not has_permission_dict(user_info, Permission.MANAGE_GLOBAL_SETTINGS):
         raise HTTPException(status_code=403, detail="Only superadmin can change system settings")
     return {"ok": True, "message": "System settings updated successfully"}
 
@@ -1855,7 +1862,7 @@ async def api_change_settings(request: Request, payload: dict, db: Session = Dep
 @app.get("/api/admin/mailboxes")
 async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     rows = db.query(AdminMailbox).filter(AdminMailbox.is_active == True).order_by(AdminMailbox.email.asc()).all()
     return [
@@ -1874,7 +1881,7 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 @app.post("/api/admin/mailboxes")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     email = str(payload.get("email", "")).strip().lower()
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
@@ -1939,7 +1946,7 @@ async def api_login_mailbox(payload: dict, db: Session = Depends(get_db)):
 @app.delete("/api/admin/mailboxes/{mailbox_id}")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
@@ -1953,19 +1960,19 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
 @app.put("/api/admin/users/{username}")
 async def api_update_user(username: str, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     # Enforce update role checks
-    if user_info["role"] == "admin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         if user.role != "user":
             raise HTTPException(status_code=403, detail="Admin can only edit users with 'user' role")
         if "role" in payload and payload["role"] != "user":
             raise HTTPException(status_code=403, detail="Admin can only set user role to 'user'")
-    elif user_info["role"] == "superadmin":
+    else:
         if "role" in payload:
             if payload["role"] not in ("admin", "user"):
                 raise HTTPException(status_code=403, detail="Superadmin can only set role to admin or user")
@@ -1985,14 +1992,14 @@ async def api_update_user(username: str, request: Request, payload: dict, db: Se
 @app.delete("/api/admin/users/{username}")
 async def api_delete_user(username: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     # Enforce delete restrictions
-    if user_info["role"] == "admin":
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         if user.role != "user":
             raise HTTPException(status_code=403, detail="Admin can only disable users with 'user' role")
             
@@ -2004,7 +2011,7 @@ async def api_delete_user(username: str, request: Request, db: Session = Depends
 @app.get("/api/admin/audit-logs")
 async def api_get_audit_logs(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.ACCESS_AUDIT_LOG):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view audit logs")
     logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
     return [
@@ -2016,7 +2023,7 @@ async def api_get_audit_logs(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/admin/stats")
 async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view stats")
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.is_active == True).count()
@@ -2069,7 +2076,7 @@ async def submit_report(request: Request, payload: dict, db: Session = Depends(g
 @app.get("/api/admin/reports")
 async def get_reports(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Access denied")
     reports = db.query(Report).order_by(Report.created_at.desc()).limit(100).all()
     return [
@@ -2084,7 +2091,7 @@ async def get_reports(request: Request, db: Session = Depends(get_db)):
 @app.put("/api/admin/reports/{report_id}")
 async def update_report(report_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Access denied")
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
@@ -2106,7 +2113,7 @@ async def update_report(report_id: int, request: Request, payload: dict, db: Ses
 @app.get("/api/admin/user-stats")
 async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Access denied")
 
     users = db.query(User).filter(User.is_active == True).all()
@@ -2138,7 +2145,7 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/admin/user-emails/{username}")
 async def api_user_emails(username: str, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Access denied")
     user = db.query(User).filter(User.username == username).first()
     if not user:
@@ -2168,7 +2175,7 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
 @app.get("/api/admin/track")
 async def api_admin_track(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
         raise HTTPException(status_code=403, detail="Only superadmin can access tracking data")
 
     total_emails = db.query(func.count(QuarantineEmail.id)).scalar() or 0
