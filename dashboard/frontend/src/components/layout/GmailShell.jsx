@@ -12,9 +12,11 @@ import {
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
 import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, setMailboxSession, withMailbox } from '../../utils/mailbox'
+import { useUserMailbox } from '../../api/userMailbox'
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {
+  const { data: assignedMailbox } = useUserMailbox()
   const { theme, toggle } = useTheme()
   const { data: me } = useMe()
   const { data: stats } = useStats()
@@ -55,13 +57,16 @@ export default function GmailShell({ children }) {
     return () => window.removeEventListener('open-compose', handleOpenCompose)
   }, [])
 
+  const { data: assignedMailbox } = useUserMailbox()
+
   const user = me?.user
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailboxId = getActiveMailboxId(searchParams)
   const userMailboxEmail = user?.role === 'mailbox' ? user?.mailbox_email || user?.username : ''
   const userMailboxId = user?.role === 'mailbox' ? user?.mailbox_id || '' : ''
-  const mailboxIdentity = activeMailbox || userMailboxEmail
-  const mailboxId = activeMailboxId || userMailboxId
+  const assignedEmail = (assignedMailbox?.email || '').toLowerCase()
+  const mailboxIdentity = activeMailbox || userMailboxEmail || assignedEmail
+  const mailboxId = activeMailboxId || userMailboxId || String(assignedMailbox?.id || '')
   const displayIdentity = mailboxIdentity || user?.username || ''
   const displayRole = mailboxIdentity ? 'Mailbox perusahaan' : user?.role
   const displayInitial = (displayIdentity || 'U')[0].toUpperCase()

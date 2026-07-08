@@ -1262,6 +1262,17 @@ async def api_get_emails(
     if user_info["role"] == "mailbox":
         mailbox = user_info["mailbox_email"]
         mailbox_id = user_info["mailbox_id"]
+    elif user_info["role"] == "user" and not mailbox and not mailbox_id:
+        user = db.query(User).filter(User.username == user_info["username"]).first()
+        user_email = user.email if user and user.email else None
+        if user_email:
+            mb = db.query(AdminMailbox).filter(
+                AdminMailbox.email == user_email.lower(),
+                AdminMailbox.is_active == True,
+            ).first()
+            if mb:
+                mailbox = mb.email
+                mailbox_id = str(mb.id)
     
     if folder == "trash":
         query = query.filter(QuarantineEmail.status == "trash")
@@ -2340,9 +2351,16 @@ async def api_change_settings(request: Request, payload: dict, db: Session = Dep
 @app.get("/api/admin/mailboxes")
 async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    query = db.query(AdminMailbox)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
-    rows = db.query(AdminMailbox).order_by(AdminMailbox.is_active.desc(), AdminMailbox.email.asc()).all()
+        user = db.query(User).filter(User.username == user_info["username"]).first()
+        if user and user.organization_id:
+            query = query.filter(AdminMailbox.assigned_to.in_(
+                db.query(User.username).filter(User.organization_id == user.organization_id)
+            ))
+    rows = query.order_by(AdminMailbox.is_active.desc(), AdminMailbox.email.asc()).all()
     return [
         {
             "id": row.id,
@@ -2366,8 +2384,8 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 @limiter.limit("10/minute")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     email = str(payload.get("email", "")).strip().lower()
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
     password = str(payload.get("password", ""))
@@ -2377,6 +2395,16 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
         raise HTTPException(status_code=400, detail="Invalid mailbox email")
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
+
+    # Admin can only assign to users in their organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and assigned_to:
+        target_user = db.query(User).filter(User.username == assigned_to).first()
+        current_user_obj = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user_obj or not current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Admin must belong to an organization")
+        if not target_user or target_user.organization_id != current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Can only assign mailboxes to users in your organization")
+
     actual_domain = email.split("@", 1)[1]
     if domain and actual_domain != domain:
         raise HTTPException(status_code=400, detail=f"Mailbox must use @{domain}")
@@ -2447,12 +2475,18 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
 @limiter.limit("20/minute")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    mailbox.is_active = False
+    # Admin can only delete mailboxes assigned to users in their org
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and mailbox.assigned_to:
+        target_user = db.query(User).filter(User.username == mailbox.assigned_to).first()
+        current_user_obj = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user_obj or not current_user_obj.organization_id or not target_user or target_user.organization_id != current_user_obj.organization_id:
+            raise HTTPException(status_code=403, detail="Can only manage mailboxes in your organization")
+    mailbox.is_active = False  # Soft delete
     log_audit(db, user_info["username"], "delete_mailbox", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
     return {"ok": True}
@@ -2489,11 +2523,18 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
 @limiter.limit("20/minute")
 async def api_update_admin_mailbox(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and not has_permission_dict(user_info, Permission.MANAGE_ORG_MAILBOXES):
+        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
+        mailbox_user = db.query(User).filter(User.username == mailbox.assigned_to).first()
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        if not mailbox_user or mailbox_user.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Can only manage mailboxes in your organization")
     if "email" in payload:
         new_email = str(payload["email"]).strip().lower()
         if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", new_email):
@@ -2632,6 +2673,317 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
         "quarantine": quarantine_count,
         "audit_logs": audit_count,
     }
+
+
+@app.get("/api/admin/quarantine")
+async def api_admin_quarantine(
+    request: Request,
+    q: str = Query(None),
+    category: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.REVIEW_QUARANTINE):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    org_id = user.organization_id if user and user.role == "admin" else None
+
+    query = db.query(QuarantineEmail)
+    query = query.filter(QuarantineEmail.status.notin_(["trash", "released"]))
+    query = query.filter(QuarantineEmail.label.in_(["QUARANTINE", "WARN"]))
+
+    if org_id:
+        query = query.filter(QuarantineEmail.organization_id == org_id)
+
+    if category and category in {"spam", "phishing", "malware"}:
+        if category == "spam":
+            query = query.filter(or_(
+                and_(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == "spam"),
+                and_(QuarantineEmail.label == "QUARANTINE", or_(
+                    QuarantineEmail.category == "",
+                    QuarantineEmail.category.is_(None),
+                    ~QuarantineEmail.category.in_(["spam", "phishing", "malware"]),
+                )),
+                QuarantineEmail.label == "WARN",
+            ))
+        else:
+            query = query.filter(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == category)
+
+    if q:
+        terms = [term for term in re.split(r"\s+", q.strip()) if term]
+        searchable_fields = [
+            QuarantineEmail.subject,
+            QuarantineEmail.sender,
+            QuarantineEmail.recipient_list,
+            QuarantineEmail.xai_summary,
+            QuarantineEmail.routing_reason,
+            QuarantineEmail.email_id,
+        ]
+        for term in terms:
+            pattern = f"%{term}%"
+            query = query.filter(or_(*[field.ilike(pattern) for field in searchable_fields]))
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    emails = (
+        query
+        .order_by(QuarantineEmail.received_at.desc(), QuarantineEmail.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    emails_data = []
+    for email in emails:
+        cat = display_category(email)
+        raw_text = email.raw_content or ""
+        if "\n\n" in raw_text:
+            raw_text = raw_text.split("\n\n", 1)[1]
+        raw_text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", raw_text)
+        raw_text = re.sub(r"(?s)<[^>]+>", " ", raw_text)
+        body_preview = " ".join(html.unescape(raw_text).replace("\r", "\n").split())[:180]
+
+        xai_parts = email.xai_summary.split("; ") if email.xai_summary else []
+        human_reasons = []
+        reason_labels = {
+            "SpamProb": "Probabilitas spam tinggi",
+            "Urgency-Score": "Kata-kata mendesak/darurat",
+            "Lookalike-Domain": "Domain mencurigakan mirip domain resmi",
+            "SPF": "Verifikasi SPF gagal",
+            "DKIM": "DKIM tidak valid",
+            "Executable-Attachment": "Lampiran berbahaya",
+            "URL-Shortener": "Link dipersingkat",
+            "DisplayName-Mismatch": "Nama pengirim tidak cocok",
+            "HTML-Forms": "Formulir mencurigakan",
+            "FusedScore": "Skor gabungan tinggi",
+            "AnomalyScore": "Deteksi anomali",
+        }
+        if email.anomaly_score and email.anomaly_score > 0.3:
+            human_reasons.append("Pola email tidak biasa (anomali)")
+        for part in xai_parts:
+            key = part.split("=")[0] if "=" in part else part.split(":")[0] if ":" in part else part
+            if key in reason_labels:
+                human_reasons.append(reason_labels[key])
+
+        emails_data.append({
+            "email_id": email.email_id,
+            "sender": email.sender,
+            "subject": email.subject,
+            "body_preview": body_preview,
+            "label": email.label,
+            "category": cat,
+            "status": email.status,
+            "fused_score": email.fused_score,
+            "ml_probability": email.ml_probability,
+            "sa_score": email.sa_score,
+            "anomaly_score": email.anomaly_score,
+            "xai_summary": email.xai_summary,
+            "routing_reason": email.routing_reason,
+            "detection_reasons": human_reasons,
+            "has_attachments": bool(email.attachments_json and email.attachments_json != "[]"),
+            "recipient_list": email.recipient_list,
+            "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
+        })
+
+    return {"emails": emails_data, "total": total, "page": page, "page_size": page_size}
+
+
+@app.get("/api/admin/detection-logs")
+async def api_admin_detection_logs(
+    request: Request,
+    q: str = Query(None),
+    label: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_AUDIT_LOG):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    org_id = user.organization_id if user and user.role == "admin" else None
+
+    query = db.query(QuarantineEmail)
+    query = query.filter(QuarantineEmail.status != "trash")
+
+    if org_id:
+        query = query.filter(QuarantineEmail.organization_id == org_id)
+    if label and label.upper() in {"CLEAN", "WARN", "QUARANTINE"}:
+        query = query.filter(QuarantineEmail.label == label.upper())
+
+    if q:
+        terms = [term for term in re.split(r"\s+", q.strip()) if term]
+        searchable_fields = [
+            QuarantineEmail.subject,
+            QuarantineEmail.sender,
+            QuarantineEmail.recipient_list,
+            QuarantineEmail.email_id,
+        ]
+        for term in terms:
+            pattern = f"%{term}%"
+            query = query.filter(or_(*[field.ilike(pattern) for field in searchable_fields]))
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    emails = (
+        query
+        .order_by(QuarantineEmail.received_at.desc(), QuarantineEmail.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    email_ids = [e.email_id for e in emails]
+    latest_actions = {}
+    if email_ids:
+        subq = (
+            db.query(
+                AuditLog.email_id,
+                AuditLog.action,
+                AuditLog.user,
+                AuditLog.created_at,
+                func.row_number().over(
+                    partition_by=AuditLog.email_id,
+                    order_by=AuditLog.created_at.desc()
+                ).label("rn")
+            )
+            .filter(AuditLog.email_id.in_(email_ids))
+            .subquery()
+        )
+        action_rows = db.query(subq).filter(subq.c.rn == 1).all()
+        for row in action_rows:
+            latest_actions[row.email_id] = {
+                "action": row.action,
+                "by": row.user,
+                "at": str(row.created_at) if row.created_at else None,
+            }
+
+    logs_data = []
+    for email in emails:
+        action_info = latest_actions.get(email.email_id, {})
+        logs_data.append({
+            "email_id": email.email_id,
+            "sender": email.sender,
+            "subject": email.subject,
+            "label": email.label,
+            "category": email.category or "",
+            "status": email.status,
+            "fused_score": email.fused_score,
+            "ml_probability": email.ml_probability,
+            "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
+            "action_taken": action_info.get("action"),
+            "action_by": action_info.get("by"),
+            "action_at": action_info.get("at"),
+        })
+
+    return {"logs": logs_data, "total": total, "page": page, "page_size": page_size}
+
+
+@app.get("/api/user/dashboard")
+async def api_user_dashboard(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    identifiers = [user_info["username"].lower()]
+    if user and user.email:
+        identifiers.append(user.email.lower())
+    identity_filters = [
+        or_(
+            QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
+            QuarantineEmail.sender.ilike(f"%{identifier}%"),
+        )
+        for identifier in identifiers
+    ]
+    base = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status != "trash",
+        QuarantineEmail.label.notin_(["DRAFT", "SENT"]),
+    )
+    for f in identity_filters:
+        base = base.filter(f)
+    total_inbox = base.count() or 0
+    safe = base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+    spam = base.filter(or_(
+        and_(QuarantineEmail.label == "QUARANTINE", QuarantineEmail.category == "spam"),
+        and_(QuarantineEmail.label == "QUARANTINE", or_(
+            QuarantineEmail.category == "",
+            QuarantineEmail.category.is_(None),
+            ~QuarantineEmail.category.in_(["spam", "phishing", "malware"]),
+        )),
+        QuarantineEmail.label == "WARN",
+    )).count() or 0
+    phishing = base.filter(
+        QuarantineEmail.label == "QUARANTINE",
+        QuarantineEmail.category == "phishing",
+    ).count() or 0
+    quarantined = base.filter(QuarantineEmail.label == "QUARANTINE").count() or 0
+    recent_alerts_data = base.filter(
+        QuarantineEmail.label.in_(["QUARANTINE", "WARN"]),
+    ).order_by(QuarantineEmail.created_at.desc()).limit(10).all()
+    recent_alerts = [
+        {
+            "email_id": e.email_id,
+            "sender": e.sender,
+            "subject": e.subject,
+            "label": e.label,
+            "category": e.category or "",
+            "fused_score": e.fused_score,
+            "received_at": str(e.received_at) if e.received_at else None,
+        }
+        for e in recent_alerts_data
+    ]
+    mailbox_info = None
+    mailbox_email = None
+    if user and user.email:
+        mailbox_email = user.email
+    elif user_info["username"] and "@" in user_info["username"]:
+        mailbox_email = user_info["username"]
+    if mailbox_email:
+        mailbox_record = db.query(AdminMailbox).filter(
+            AdminMailbox.email == mailbox_email.lower(),
+            AdminMailbox.is_active == True,
+        ).first()
+        if mailbox_record:
+            mailbox_info = {
+                "id": mailbox_record.id,
+                "email": mailbox_record.email,
+                "is_active": mailbox_record.is_active,
+            }
+    return {
+        "total_inbox": total_inbox,
+        "safe": safe,
+        "spam": spam,
+        "phishing": phishing,
+        "quarantined": quarantined,
+        "recent_alerts": recent_alerts,
+        "mailbox": mailbox_info,
+    }
+
+
+@app.get("/api/user/mailbox")
+async def api_user_mailbox(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    user_email = user.email if user and user.email else user_info["username"]
+    if "@" not in user_email:
+        return {"mailbox": None}
+    mailbox_record = db.query(AdminMailbox).filter(
+        AdminMailbox.email == user_email.lower(),
+        AdminMailbox.is_active == True,
+    ).first()
+    if mailbox_record:
+        return {
+            "mailbox": {
+                "id": mailbox_record.id,
+                "email": mailbox_record.email,
+                "is_active": mailbox_record.is_active,
+            }
+        }
+    return {"mailbox": None}
 
 
 # ─── User Reports / Tickets ───────────────────────────────────────────
@@ -2862,6 +3214,139 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
         "organizations": organizations,
         "admins": admins,
         "suspicious_activities": suspicious_activities,
+    }
+
+
+@app.get("/api/admin/system-health")
+async def api_system_health(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access system health")
+
+    services = {}
+
+    # 1. PostgreSQL
+    try:
+        db.execute(func.count(QuarantineEmail.id))
+        services["postgresql"] = {"status": "healthy", "detail": "Database connected"}
+    except Exception as e:
+        services["postgresql"] = {"status": "down", "detail": str(e)}
+
+    # 2. Redis
+    try:
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+        redis_client = aio_redis.from_url(redis_url)
+        await redis_client.ping()
+        await redis_client.aclose()
+        services["redis"] = {"status": "healthy", "detail": "Connected and responding"}
+    except Exception as e:
+        services["redis"] = {"status": "down", "detail": str(e)}
+
+    # 3. Classifier API
+    try:
+        classifier_url = os.getenv("CLASSIFIER_URL", "http://localhost:8001").rstrip("/")
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{classifier_url}/health")
+            if r.status_code == 200:
+                services["classifier_api"] = {"status": "healthy", "detail": "Responding on {0}".format(classifier_url)}
+            else:
+                services["classifier_api"] = {"status": "warning", "detail": "HTTP {0}".format(r.status_code)}
+    except httpx.TimeoutException:
+        services["classifier_api"] = {"status": "warning", "detail": "Connection timeout after 5s"}
+    except Exception as e:
+        services["classifier_api"] = {"status": "down", "detail": str(e)}
+
+    # 4. SMTP Receiver
+    try:
+        smtp_host = os.getenv("SMTP_HOST", "localhost")
+        smtp_port = int(os.getenv("SMTP_PUBLIC_PORT", os.getenv("SMTP_PORT", "2525")))
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(smtp_host, smtp_port), timeout=5
+        )
+        banner = await asyncio.wait_for(reader.readline(), timeout=3)
+        writer.close()
+        await writer.wait_closed()
+        banner_text = banner.decode("utf-8", errors="replace").strip()
+        services["smtp_receiver"] = {"status": "healthy", "detail": banner_text or "Connected"}
+    except asyncio.TimeoutError:
+        services["smtp_receiver"] = {"status": "warning", "detail": "Connection timeout"}
+    except Exception as e:
+        services["smtp_receiver"] = {"status": "down", "detail": str(e)}
+
+    # 5. Worker Pipeline
+    try:
+        recent = db.query(PipelineMetrics).order_by(PipelineMetrics.created_at.desc()).first()
+        if recent:
+            services["worker_pipeline"] = {
+                "status": "healthy",
+                "detail": "Last run: {0}, processed: {1}".format(
+                    recent.created_at.strftime("%Y-%m-%d %H:%M") if recent.created_at else "N/A",
+                    recent.total_processed or 0
+                )
+            }
+        else:
+            services["worker_pipeline"] = {"status": "warning", "detail": "No pipeline metrics recorded yet"}
+    except Exception as e:
+        services["worker_pipeline"] = {"status": "down", "detail": str(e)}
+
+    # 6. SpamAssassin
+    try:
+        sa_host = os.getenv("SPAMASSASSIN_HOST", "localhost")
+        sa_port = int(os.getenv("SPAMASSASSIN_PORT", "783"))
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(sa_host, sa_port), timeout=5
+        )
+        writer.close()
+        await writer.wait_closed()
+        services["spamassassin"] = {"status": "healthy", "detail": "TCP connected on {0}:{1}".format(sa_host, sa_port)}
+    except asyncio.TimeoutError:
+        services["spamassassin"] = {"status": "warning", "detail": "Connection timeout"}
+    except Exception as e:
+        services["spamassassin"] = {"status": "down", "detail": str(e)}
+
+    # 7. Dashboard Backend (self)
+    ws_count = len(manager.active_connections)
+    services["dashboard_backend"] = {
+        "status": "healthy",
+        "detail": "WebSocket connections: {0}, uptime: N/A".format(ws_count)
+    }
+
+    # 8. Docker Containers
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            containers = [c for c in result.stdout.strip().split("\n") if c]
+            services["docker"] = {
+                "status": "healthy" if containers else "warning",
+                "detail": "{0} running container(s)".format(len(containers)),
+                "containers": containers
+            }
+        else:
+            services["docker"] = {"status": "warning", "detail": "Docker not accessible"}
+    except FileNotFoundError:
+        services["docker"] = {"status": "warning", "detail": "Docker CLI not found"}
+    except subprocess.TimeoutExpired:
+        services["docker"] = {"status": "warning", "detail": "Docker command timed out"}
+    except Exception as e:
+        services["docker"] = {"status": "warning", "detail": str(e)}
+
+    # Overall status
+    statuses = [s["status"] for s in services.values()]
+    if "down" in statuses:
+        overall = "down"
+    elif "warning" in statuses:
+        overall = "warning"
+    else:
+        overall = "healthy"
+
+    return {
+        "overall": overall,
+        "services": services,
+        "checked_at": app_now_iso(),
     }
 
 
