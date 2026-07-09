@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-<<<<<<< HEAD
-import { ArrowLeft, Eye, EyeOff, KeyRound, Mail, Inbox } from 'lucide-react'
-=======
-import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
->>>>>>> f5db616a9f4ed868f8a0548d38ed539530ccc879
+import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {

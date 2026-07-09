@@ -86,6 +86,7 @@ export default function ProfilePage() {
                 <span className={styles.infoLabel}>Role</span>
                 <span className={styles.infoValue}>{roleLabel}</span>
               </div>
+
               <div className={styles.infoRow}>
                 <Calendar size={15} className={styles.infoIcon} />
                 <span className={styles.infoLabel}>Member since</span>
