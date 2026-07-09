@@ -57,8 +57,6 @@ export default function GmailShell({ children }) {
     return () => window.removeEventListener('open-compose', handleOpenCompose)
   }, [])
 
-  const { data: assignedMailbox } = useUserMailbox()
-
   const user = me?.user
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailboxId = getActiveMailboxId(searchParams)
