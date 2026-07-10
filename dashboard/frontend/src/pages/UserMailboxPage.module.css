@@ -1,0 +1,483 @@
+.wrap {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: 'Inter', 'Google Sans', -apple-system, sans-serif;
+  min-height: 100%;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 18px;
+  align-items: center;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, var(--role-soft) 0%, #F9FAFB 100%);
+  border: 1px solid var(--role-soft-strong);
+  border-radius: 18px;
+}
+
+.heroIcon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  color: var(--role-accent);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 12px rgba(5, 150, 105, 0.1);
+}
+
+.hero h1 {
+  margin: 0 0 4px;
+  font-size: 1.45rem;
+  color: #111827;
+}
+
+.hero p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.openBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.secondaryBtn {
+  min-height: 40px;
+  padding: 0 14px;
+  background: #FFFFFF;
+  color: var(--role-accent);
+  border: 1px solid color-mix(in srgb, var(--role-soft-strong) 80%, var(--role-accent));
+}
+
+.secondaryBtn:hover {
+  background: var(--role-soft);
+}
+
+.secondaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.primaryBtn {
+  min-height: 40px;
+  padding: 0 14px;
+  background: var(--role-accent);
+  color: #FFFFFF;
+}
+
+.primaryBtn:hover {
+  background: var(--role-dark);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--role-accent) 25%, transparent);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.panel {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.panelHeader span {
+  color: #6B7280;
+  font-size: 0.78rem;
+}
+
+.mailboxList {
+  display: flex;
+  flex-direction: column;
+}
+
+.mailboxRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.mailboxRow:last-child {
+  border-bottom: none;
+}
+
+.mailboxRow:hover {
+  background: #FAFAFA;
+}
+
+.mailIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--role-soft);
+  color: var(--role-accent);
+  display: grid;
+  place-items: center;
+}
+
+.mailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mailBody strong {
+  color: #111827;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mailBody span {
+  color: #6B7280;
+  font-size: 0.78rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--role-soft);
+  color: var(--role-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.openBtn {
+  min-height: 38px;
+  padding: 0 14px;
+  background: var(--role-accent);
+  color: #FFFFFF;
+}
+
+.openBtn:hover {
+  background: var(--role-dark);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  transform: translateY(-1px);
+}
+
+.emptyState,
+.errorBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px;
+  color: #6B7280;
+  font-size: 0.9rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.52);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(520px, 100%);
+  border-radius: 18px;
+  background: #FFFFFF;
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.26);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.modalHeader h2 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 1.35rem;
+}
+
+.modalHeader p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.88rem;
+}
+
+.closeBtn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #6B7280;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  background: #F3F4F6;
+}
+
+.modalLabel {
+  display: block;
+  margin: 12px 0 7px;
+  color: #111827;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.modalInput,
+.passwordInput input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  padding: 0 14px;
+  color: #111827;
+  font: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.splitEmailInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 46px;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.splitEmailInput:focus-within {
+  border-color: var(--role-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--role-accent) 15%, transparent);
+}
+
+.splitEmailInput input {
+  min-width: 0;
+  border: none;
+  padding: 0 14px;
+  color: #111827;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.splitEmailInput input:focus {
+  outline: none;
+}
+
+.splitEmailInput span {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-left: 1px solid #D1D5DB;
+  background: #F9FAFB;
+  color: #6B7280;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.modalInput:focus,
+.passwordInput input:focus {
+  outline: none;
+  border-color: var(--role-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--role-accent) 15%, transparent);
+}
+
+.passwordInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+}
+
+.passwordInput input {
+  border-radius: 10px 0 0 10px;
+}
+
+.passwordInput button {
+  border: 1px solid #D1D5DB;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  background: #FFFFFF;
+  color: #6B7280;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.formError {
+  margin-top: 12px;
+  color: #DC2626;
+  font-size: 0.82rem;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cancelBtn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--role-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  background: var(--role-soft);
+}
+
+.errorBox {
+  border: 1px solid #FECACA;
+  border-radius: 12px;
+  background: #FEF2F2;
+  color: #DC2626;
+}
+
+[data-theme='dark'] .wrap {
+  background: #111318;
+}
+
+[data-theme='dark'] .hero {
+  background: linear-gradient(135deg, #052e16 0%, #111318 100%);
+  border-color: #166534;
+}
+
+[data-theme='dark'] .heroIcon,
+[data-theme='dark'] .panel,
+[data-theme='dark'] .modal {
+  background: #1A1D23;
+}
+
+[data-theme='dark'] .hero h1,
+[data-theme='dark'] .panelHeader h2,
+[data-theme='dark'] .mailBody strong,
+[data-theme='dark'] .modalHeader h2,
+[data-theme='dark'] .modalLabel {
+  color: #F3F4F6;
+}
+
+[data-theme='dark'] .hero p,
+[data-theme='dark'] .mailBody span,
+[data-theme='dark'] .panelHeader span,
+[data-theme='dark'] .emptyState,
+[data-theme='dark'] .modalHeader p {
+  color: #9CA3AF;
+}
+
+[data-theme='dark'] .panel {
+  border-color: #2D3139;
+}
+
+[data-theme='dark'] .modalInput,
+[data-theme='dark'] .passwordInput input,
+[data-theme='dark'] .passwordInput button,
+[data-theme='dark'] .splitEmailInput,
+[data-theme='dark'] .splitEmailInput input {
+  background: #111318;
+  border-color: #374151;
+  color: #F3F4F6;
+}
+
+[data-theme='dark'] .splitEmailInput span {
+  background: #1A1D23;
+  border-left-color: #374151;
+  color: #9CA3AF;
+}
+
+[data-theme='dark'] .panelHeader,
+[data-theme='dark'] .mailboxRow {
+  border-bottom-color: #2D3139;
+}
+
+[data-theme='dark'] .mailboxRow:hover {
+  background: #2D3139;
+}
+
+@media (max-width: 760px) {
+  .wrap {
+    padding: 16px;
+  }
+
+  .hero,
+  .mailboxRow {
+    grid-template-columns: 1fr;
+  }
+
+  .heroIcon,
+  .heroActions,
+  .statusBadge,
+  .openBtn {
+    justify-self: start;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions button {
+    width: 100%;
+  }
+}

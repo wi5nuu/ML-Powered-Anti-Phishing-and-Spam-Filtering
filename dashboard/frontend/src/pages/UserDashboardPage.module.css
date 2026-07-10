@@ -19,8 +19,8 @@
   gap: 24px;
   align-items: center;
   padding: 28px 32px;
-  background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 50%, #F9FAFB 100%);
-  border: 1px solid #D1FAE5;
+  background: linear-gradient(135deg, var(--role-soft) 0%, #F0FDF4 50%, #F9FAFB 100%);
+  border: 1px solid var(--role-soft-strong);
   border-radius: 18px;
   box-shadow: 0 1px 4px rgba(5,150,105,0.08);
 }
@@ -47,7 +47,7 @@
 }
 
 .heroName {
-  color: #059669;
+  color: var(--role-accent);
 }
 
 .heroBadge {
@@ -55,12 +55,12 @@
   align-items: center;
   gap: 5px;
   padding: 4px 12px;
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: var(--role-soft);
+  border: 1px solid color-mix(in srgb, var(--role-soft-strong) 80%, var(--role-accent));
   border-radius: 20px;
   font-size: 0.72rem;
   font-weight: 600;
-  color: #059669;
+  color: var(--role-accent);
 }
 
 .heroSub {
@@ -84,7 +84,7 @@
   width: 220px;
   padding: 16px;
   background: #FFFFFF;
-  border: 1px solid #D1FAE5;
+  border: 1px solid var(--role-soft-strong);
   border-radius: 14px;
   box-shadow: 0 2px 12px rgba(5,150,105,0.1);
   display: flex;
@@ -98,7 +98,7 @@
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #059669;
+  color: var(--role-accent);
 }
 
 .protStatus {
@@ -111,20 +111,20 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10B981;
-  box-shadow: 0 0 0 3px #D1FAE5;
+  background: var(--role-accent-2);
+  box-shadow: 0 0 0 3px var(--role-soft-strong);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 3px #D1FAE5; }
-  50% { box-shadow: 0 0 0 6px #A7F3D0; }
+  0%, 100% { box-shadow: 0 0 0 3px var(--role-soft-strong); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--role-soft-strong) 80%, var(--role-accent)); }
 }
 
 .protStatusText {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #059669;
+  color: var(--role-accent);
 }
 
 .protStats {
@@ -268,12 +268,12 @@
   color: #111827;
 }
 
-.scardIcon { color: #059669; flex-shrink: 0; }
+.scardIcon { color: var(--role-accent); flex-shrink: 0; }
 
 .scardLink {
   margin-left: auto;
   font-size: 0.75rem;
-  color: #059669;
+  color: var(--role-accent);
   font-weight: 500;
   border: none;
   background: none;
@@ -307,16 +307,16 @@
 }
 
 .qaBtnPrimary {
-  background: #059669;
+  background: var(--role-accent);
   color: #fff;
 }
-.qaBtnPrimary:hover { background: #047857; box-shadow: 0 4px 12px rgba(5,150,105,0.3); }
+.qaBtnPrimary:hover { background: var(--role-dark); box-shadow: 0 4px 12px rgba(5,150,105,0.3); }
 
 .qaBtnSecondary {
-  background: #EEF2FF;
-  color: #4F46E5;
+  background: var(--role-soft);
+  color: var(--role-accent);
 }
-.qaBtnSecondary:hover { background: #E0E7FF; }
+.qaBtnSecondary:hover { background: var(--role-soft-strong); }
 
 .qaBtnWarning {
   background: #FFFBEB;
@@ -398,7 +398,7 @@
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  background: conic-gradient(#059669 0%, #059669 calc(var(--pct, 100) * 1%), #F3F4F6 0%);
+  background: conic-gradient(var(--role-accent) 0%, var(--role-accent) calc(var(--pct, 100) * 1%), #F3F4F6 0%);
   display: flex;
   flex-direction: column;
   align-items: center;

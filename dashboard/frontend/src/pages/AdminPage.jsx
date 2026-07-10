@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell from '../components/layout/AdminShell'
 import api from '../api/client'
 import { useMe } from '../api/auth'
-import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward } from 'lucide-react'
+import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, Pencil, Trash2 } from 'lucide-react'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
 
@@ -23,12 +23,17 @@ export default function AdminPage() {
   const tab = searchParams.get('tab') || 'overview'
   const isSuper = me?.user?.role === 'superadmin'
   const isAdmin = me?.user?.role === 'admin'
-  // Safety: redirect unauthorized users away from tabs
   useEffect(() => {
     if (tab === 'users' && !isSuper && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
-    if (tab === 'email' && !isSuper && me) {
+    if (tab === 'email' && !isSuper && !isAdmin && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if ((tab === 'health') && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if ((tab === 'quarantine' || tab === 'logs') && !isAdmin && me) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
   }, [tab, isSuper, isAdmin, me])
@@ -46,7 +51,8 @@ export default function AdminPage() {
   const [reports, setReports] = useState([])
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [newEmail, setNewEmail] = useState('')
+  const [newUsername, setNewUsername] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState('user')
   const [msg, setMsg] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
@@ -58,6 +64,7 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState(null)
   const [editRole, setEditRole] = useState('')
   const [editPassword, setEditPassword] = useState('')
+  const [deleteUserTarget, setDeleteUserTarget] = useState(null)
   const [mailDomain, setMailDomainState] = useState(() => getMailDomain())
   const [mailboxRows, setMailboxRows] = useState([])
   const [mailboxes, setMailboxState] = useState(() => getMailboxes())
@@ -66,6 +73,10 @@ export default function AdminPage() {
   const [mailboxSenderName, setMailboxSenderName] = useState('')
   const [showMailboxPassword, setShowMailboxPassword] = useState(false)
   const [createMailboxOpen, setCreateMailboxOpen] = useState(false)
+  const [addEmailOpen, setAddEmailOpen] = useState(false)
+  const [addEmailAddress, setAddEmailAddress] = useState('')
+  const [addEmailPassword, setAddEmailPassword] = useState('')
+  const [showAddEmailPassword, setShowAddEmailPassword] = useState(false)
   const [mailboxError, setMailboxError] = useState('')
   const [domainDraft, setDomainDraft] = useState(() => getMailDomain())
   const [domainError, setDomainError] = useState('')
@@ -77,6 +88,7 @@ export default function AdminPage() {
   const [forwarderTarget, setForwarderTarget] = useState('')
   const [forwarderKeepCopy, setForwarderKeepCopy] = useState(true)
   const [deleteMailboxTarget, setDeleteMailboxTarget] = useState(null)
+  const [deleteForwarderTarget, setDeleteForwarderTarget] = useState(null)
 
   const fetchData = () => {
     api.get('/admin/users').then((r) => setUsers(r.data)).catch(() => {})
@@ -109,12 +121,21 @@ export default function AdminPage() {
   }
 
   const handleAddUser = async () => {
-    if (!newEmail.includes('@')) return
-    const username = newEmail.split('@')[0]
+    const username = newUsername.trim().toLowerCase()
+    if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
+      setMsg('Gagal: username hanya boleh huruf, angka, titik, underscore, atau strip; minimal 3 karakter')
+      setTimeout(() => setMsg(''), 5000)
+      return
+    }
+    if (!newPassword || newPassword.length < 8) {
+      setMsg('Gagal: password minimal 8 karakter')
+      setTimeout(() => setMsg(''), 5000)
+      return
+    }
     try {
-      await api.post('/admin/users', { username, password: 'Welcome123!', email: newEmail, role: newRole })
-      setMsg(`User ${username} berhasil ditambahkan. Password: Welcome123!`)
-      setNewEmail(''); setShowAdd(false); fetchData()
+      const response = await api.post('/admin/users', { username, password: newPassword, role: newRole })
+      setMsg(`Akun ${response.data?.username || username} berhasil ditambahkan.`)
+      setNewUsername(''); setNewPassword(''); setShowAdd(false); fetchData()
     } catch (e) {
       setMsg('Gagal: ' + (e.response?.data?.detail || 'unknown error'))
     }
@@ -143,13 +164,15 @@ export default function AdminPage() {
     setTimeout(() => setMsg(''), 5000)
   }
 
-  const handleDeleteUser = async (username) => {
-    if (!window.confirm(`Yakin menonaktifkan user "${username}"?`)) return
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget?.username) return
+    const username = deleteUserTarget.username
+    setDeleteUserTarget(null)
     try {
       await api.delete(`/admin/users/${username}`)
-      setMsg(`User ${username} dinonaktifkan.`)
+      setMsg(`Akun ${username} berhasil dihapus.`)
       fetchData()
-    } catch (e) { setMsg('Gagal menonaktifkan user') }
+    } catch (e) { setMsg('Gagal menghapus akun: ' + (e.response?.data?.detail || 'error')) }
     setTimeout(() => setMsg(''), 5000)
   }
 
@@ -211,11 +234,25 @@ export default function AdminPage() {
 
   const handleAddMailbox = async () => {
     const localPart = mailboxInput.trim().toLowerCase().replace(/@.*$/, '')
+    const senderName = mailboxSenderName.trim()
     const email = `${localPart}@${mailDomain}`
     setMailboxError('')
 
     if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
       setMailboxError('Masukkan nama email yang valid.')
+      return
+    }
+    const usedLocalParts = new Set(
+      mailboxes
+        .map((item) => String(item || '').split('@')[0].trim().toLowerCase())
+        .filter(Boolean)
+    )
+    if (usedLocalParts.has(localPart)) {
+      setMailboxError('Nama email ini sudah dipakai.')
+      return
+    }
+    if (!senderName) {
+      setMailboxError('Nama sender wajib diisi.')
       return
     }
     if (!passwordValid) {
@@ -232,7 +269,7 @@ export default function AdminPage() {
         email,
         domain: mailDomain,
         password: mailboxPassword,
-        sender_name: mailboxSenderName,
+        sender_name: senderName,
       })
       await fetchMailboxes()
       setMailboxInput('')
@@ -317,6 +354,54 @@ export default function AdminPage() {
     }
   }
 
+  const handleAddExistingEmail = async () => {
+    const localPart = addEmailAddress.trim().toLowerCase().replace(/@.*$/, '')
+    const email = `${localPart}@${mailDomain}`
+    if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
+      setMailboxError('Masukkan nama email yang valid.')
+      return
+    }
+    if (!addEmailPassword) {
+      setMailboxError('Masukkan password email.')
+      return
+    }
+    setMailboxError('')
+    try {
+      await api.post('/mailboxes/claim', {
+        email,
+        password: addEmailPassword,
+      })
+      await fetchMailboxes()
+      setAddEmailAddress('')
+      setAddEmailPassword('')
+      setShowAddEmailPassword(false)
+      setAddEmailOpen(false)
+      setMsg(`Email ${email} berhasil ditambahkan.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menambahkan email.')
+    }
+  }
+
+  const deleteForwarder = async () => {
+    if (!deleteForwarderTarget?.id) return
+    const target = deleteForwarderTarget
+    setDeleteForwarderTarget(null)
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${target.id}/forwarder`, {
+        target: '',
+        enabled: false,
+        keep_copy: true,
+      })
+      await fetchMailboxes()
+      setMsg(`Forwarder ${target.email} berhasil dihapus.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menghapus forwarder.')
+    }
+  }
+
   const handleSaveDomain = () => {
     const clean = domainDraft.trim().toLowerCase().replace(/^@+/, '')
     setDomainError('')
@@ -348,6 +433,19 @@ export default function AdminPage() {
       return
     }
     navigate(target)
+  }
+
+  const getMailboxAccessLabel = (row) => {
+    const accounts = Array.isArray(row.access_accounts) && row.access_accounts.length > 0
+      ? row.access_accounts
+      : [{ username: row.owner_username || row.created_by, role: row.owner_role }]
+    return accounts
+      .filter((account) => account?.username)
+      .map((account) => {
+        const role = ROLE_LABELS[account.role] || account.role || 'Akun'
+        return `${account.username} (${role})`
+      })
+      .join(', ') || 'Tidak diketahui'
   }
 
   const filteredUsers = users.filter((u) => {
@@ -441,7 +539,6 @@ export default function AdminPage() {
 
         {tab === 'overview' && (
           <div className={styles.dashWrap}>
-            {/* ── Hero Header ── */}
             <div className={styles.dashHero}>
               <div className={styles.dashHeroLeft}>
                 <div className={styles.dashGreetRow}>
@@ -469,10 +566,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* ── Stat Cards ── */}
             {stats && (
               <div className={styles.statsGrid6}>
-                {/* Card 1: Users */}
                 <div className={`${styles.statCard2} ${styles.scBlue}`}>
                   <div className={styles.sc2Icon} style={{ background: '#EFF6FF', color: '#2563EB' }}>
                     <Users size={18} />
@@ -485,7 +580,6 @@ export default function AdminPage() {
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
 
-                {/* Card 2: Mailboxes */}
                 <div className={`${styles.statCard2} ${styles.scIndigo}`}>
                   <div className={styles.sc2Icon} style={{ background: '#EEF2FF', color: '#4F46E5' }}>
                     <Mail size={18} />
@@ -498,7 +592,6 @@ export default function AdminPage() {
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
 
-                {/* Card 3: Emails Processed */}
                 <div className={`${styles.statCard2} ${styles.scGray}`}>
                   <div className={styles.sc2Icon} style={{ background: '#F9FAFB', color: '#374151' }}>
                     <Inbox size={18} />
@@ -511,7 +604,6 @@ export default function AdminPage() {
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
 
-                {/* Card 4: Threats */}
                 <div className={`${styles.statCard2} ${styles.scRed}`}>
                   <div className={styles.sc2Icon} style={{ background: '#FEF2F2', color: '#DC2626' }}>
                     <ShieldAlert size={18} />
@@ -524,7 +616,6 @@ export default function AdminPage() {
                   <TrendingDown size={14} className={styles.sc2Arrow} style={{ color: '#DC2626' }} />
                 </div>
 
-                {/* Card 5: Quarantined */}
                 <div className={`${styles.statCard2} ${styles.scOrange}`}>
                   <div className={styles.sc2Icon} style={{ background: '#FFFBEB', color: '#D97706' }}>
                     <AlertTriangle size={18} />
@@ -537,7 +628,6 @@ export default function AdminPage() {
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
 
-                {/* Card 6: System Health / Pending */}
                 <div className={`${styles.statCard2} ${styles.scGreen}`}>
                   <div className={styles.sc2Icon} style={{ background: '#ECFDF5', color: '#059669' }}>
                     <ShieldCheck size={18} />
@@ -554,12 +644,9 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* ── Main Content Grid ── */}
             <div className={styles.dashGrid}>
-              {/* LEFT COLUMN */}
               <div className={styles.dashCol}>
 
-                {/* Security Overview */}
                 {stats && (
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
@@ -626,7 +713,6 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Mailbox Overview (superadmin) or Threat Breakdown (admin) */}
                 {isSuper ? (
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
@@ -691,10 +777,8 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* RIGHT COLUMN */}
               <div className={styles.dashCol}>
 
-                {/* System Health (superadmin) or Security Queue (admin) */}
                 {isSuper ? (
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
@@ -745,7 +829,6 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Recent Activity */}
                 <div className={styles.sectionCard}>
                   <div className={styles.sectionCardHeader}>
                     <Activity size={16} className={styles.sectionCardIcon} />
@@ -777,7 +860,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Quick Actions */}
                 <div className={styles.sectionCard}>
                   <div className={styles.sectionCardHeader}>
                     <Zap size={16} className={styles.sectionCardIcon} />
@@ -786,11 +868,11 @@ export default function AdminPage() {
                   <div className={styles.quickActions}>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'email' })}>
                       <Mail size={16} />
-                      <span>{isSuper ? 'Manage Mailboxes' : 'Review Quarantine'}</span>
+                      <span>{isSuper ? 'Manage Mailboxes' : 'Manage Mailboxes'}</span>
                     </button>
-                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'users' })}>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: isSuper ? 'users' : 'quarantine' })}>
                       <Users size={16} />
-                      <span>{isSuper ? 'Manage Users' : 'Add Whitelist'}</span>
+                      <span>{isSuper ? 'Manage Users' : 'Review Quarantine'}</span>
                     </button>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'reports' })}>
                       <FileText size={16} />
@@ -809,7 +891,6 @@ export default function AdminPage() {
 
         {tab === 'users' && (
           <div className={styles.section}>
-            {/* Toolbar: search + role filter + add */}
             <div className={styles.sectionHeader}>
               <input className={styles.searchInput} placeholder="Cari username atau email..." value={search} onChange={(e) => setSearch(e.target.value)} />
               {isSuper && (
@@ -829,10 +910,15 @@ export default function AdminPage() {
               <button className={styles.addBtn} onClick={() => setShowAdd(true)}><Plus size={16} /> Tambah User</button>
             </div>
 
-            {/* Add user form */}
             {showAdd && (
               <div className={styles.addForm}>
-                <input placeholder="Email (contoh: user@company.com)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+                <input placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
                 {isSuper && (
                   <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
                     <option value="admin">Admin</option>
@@ -871,6 +957,11 @@ export default function AdminPage() {
                         <button className={styles.actionBtn} onClick={() => handleToggleUser(u.username, u.is_active)}>
                           {u.is_active ? 'Nonaktif' : 'Aktif'}
                         </button>
+                        {u.username !== me?.user?.username && u.role !== 'superadmin' && (
+                          <button className={`${styles.actionBtn} ${styles.dangerActionBtn}`} onClick={() => setDeleteUserTarget(u)}>
+                            Hapus
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -878,7 +969,6 @@ export default function AdminPage() {
               </tbody>
             </table>
 
-            {/* Edit user modal overlay */}
             {editUser && (
               <div className={styles.overlay} onClick={() => setEditUser(null)}>
                 <div className={styles.editModal} onClick={(e) => e.stopPropagation()}>
@@ -926,6 +1016,24 @@ export default function AdminPage() {
                     <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}>Batal</button>
                     <button className={styles.saveBtn} onClick={handleEditUser} disabled={editRole === editUser.role && !editPassword}>
                       <Check size={16} /> Simpan Perubahan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {deleteUserTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteUserTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Hapus akun?</h2>
+                  <p>
+                    Akun <strong>{deleteUserTarget.username}</strong> akan dihapus dari sistem.
+                    Mailbox yang sebelumnya dimiliki akun ini akan dikembalikan ke akun Anda.
+                  </p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteUserTarget(null)}>Batal</button>
+                    <button className={styles.dangerBtn} onClick={handleDeleteUser}>
+                      Hapus
                     </button>
                   </div>
                 </div>
@@ -987,7 +1095,6 @@ export default function AdminPage() {
                       )}
                     </div>
 
-                    {/* Expanded detail */}
                     {expandedReport === r.id && (
                       <div className={styles.reportDetail}>
                         {r.admin_reply && (
@@ -1029,8 +1136,17 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'activity' && (
+        {(tab === 'activity' || tab === 'logs') && (
           <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Activity size={18} />
+                <div>
+                  <strong>{tab === 'logs' ? 'Detection Logs' : isSuper ? 'Audit Logs' : 'Security Activity'}</strong>
+                  <span>{tab === 'logs' ? 'Riwayat klasifikasi dan aksi keamanan email.' : 'Aktivitas penting pada dashboard dan mailbox.'}</span>
+                </div>
+              </div>
+            </div>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -1056,6 +1172,57 @@ export default function AdminPage() {
           </div>
         )}
 
+        {tab === 'quarantine' && isAdmin && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>Quarantine Review</strong>
+                  <span>Ringkasan email berisiko yang perlu ditinjau admin.</span>
+                </div>
+              </div>
+              <button className={styles.addBtn} onClick={() => navigate('/metrics')}>
+                Buka Metrics
+              </button>
+            </div>
+            <div className={styles.statsGrid} style={{ padding: 16, marginBottom: 0 }}>
+              <div className={styles.statCard}>
+                <ShieldAlert size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.quarantine ?? 0}</span>
+                  <span className={styles.statLabel}>Quarantined Emails</span>
+                  <span className={styles.statSub}>Butuh review keamanan</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <AlertTriangle size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.warn ?? 0}</span>
+                  <span className={styles.statLabel}>Spam / Warning</span>
+                  <span className={styles.statSub}>Email mencurigakan</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <CheckCircle2 size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.clean ?? 0}</span>
+                  <span className={styles.statLabel}>Safe Emails</span>
+                  <span className={styles.statSub}>Terkirim bersih</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <FileText size={20} />
+                <div>
+                  <span className={styles.statValue}>{openReports.length}</span>
+                  <span className={styles.statLabel}>Pending Reports</span>
+                  <span className={styles.statSub}>Laporan user terbuka</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab === 'email' && (
           <>
             <div className={styles.mailboxHero}>
@@ -1064,9 +1231,11 @@ export default function AdminPage() {
                 <h2>{mailDomain}</h2>
                 <p>Default domain email perusahaan. Semua mailbox baru dibuat dengan domain ini.</p>
               </div>
-              <button className={styles.addBtn} onClick={() => { setCreateMailboxOpen(true); setMailboxError('') }}>
-                <Plus size={16} /> Add mailboxes
-              </button>
+              {!isSuper && (
+                <button className={styles.addBtn} onClick={() => { setAddEmailOpen(true); setMailboxError('') }}>
+                  <Plus size={16} /> Add Email
+                </button>
+              )}
             </div>
 
             <div className={`${styles.section} ${styles.mailboxSection}`}>
@@ -1074,16 +1243,20 @@ export default function AdminPage() {
                 <div className={styles.sectionTitle}>
                   <Shield size={18} />
                   <div>
-                    <strong>Manage mailboxes</strong>
+                    <strong>Mailbox & Email</strong>
                     <span>{mailboxes.length} email aktif dari domain @{mailDomain}</span>
                   </div>
                 </div>
                 <button className={styles.addBtn} onClick={() => { setCreateMailboxOpen(true); setMailboxError('') }}>
-                  <Plus size={16} /> Add mailboxes
+                  <Plus size={16} /> Buat Mailbox Baru
                 </button>
               </div>
               {mailboxes.length === 0 ? (
-                <div className={styles.emptyState}>Belum ada mailbox. Tambahkan email dengan domain @{mailDomain}.</div>
+                <div className={styles.emptyState}>
+                  {isSuper
+                    ? 'Belum ada email aktif. Buat mailbox baru untuk mulai menambahkan email perusahaan.'
+                    : 'Belum ada email aktif. Gunakan Add Email untuk menambahkan email yang sudah dibuat superadmin atau admin lain, atau buat mailbox baru jika diperlukan.'}
+                </div>
               ) : (
                 <div className={styles.mailboxTable}>
                   <div className={styles.mailboxTableHead}>
@@ -1097,6 +1270,10 @@ export default function AdminPage() {
                         <div className={styles.mailboxInfo}>
                           <strong>{row.email}</strong>
                           <span>ID: {row.id} · {row.sender_name || 'Sender name belum diatur'}</span>
+                          <span className={styles.ownerInfo}>Aktif di: {getMailboxAccessLabel(row)}</span>
+                          {row.forward_enabled && row.forward_to && (
+                            <span className={styles.forwardInfo}>Forward: {row.forward_to}</span>
+                          )}
                         </div>
                         <button
                           className={styles.copyBtn}
@@ -1123,10 +1300,16 @@ export default function AdminPage() {
                               <KeyRound size={15} /> Ubah Password
                             </button>
                             <button onClick={() => openForwarderModal(row)}>
-                              <Forward size={15} /> Buat Forwarder
+                              {row.forward_enabled && row.forward_to ? <Pencil size={15} /> : <Forward size={15} />}
+                              {row.forward_enabled && row.forward_to ? 'Edit Forwarder' : 'Buat Forwarder'}
                             </button>
+                            {row.forward_enabled && row.forward_to && (
+                              <button onClick={() => { setMailboxMenuId(null); setDeleteForwarderTarget(row) }}>
+                                <Trash2 size={15} /> Hapus Forwarder
+                              </button>
+                            )}
                             <button className={styles.menuDanger} onClick={() => { setMailboxMenuId(null); setDeleteMailboxTarget(row) }}>
-                              Nonaktifkan Mailbox
+                              <Trash2 size={15} /> Hapus Mailbox
                             </button>
                           </div>
                         )}
@@ -1179,7 +1362,7 @@ export default function AdminPage() {
             {deleteMailboxTarget && (
               <div className={styles.mailboxModalOverlay} onClick={() => setDeleteMailboxTarget(null)}>
                 <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
-                  <h2>Nonaktifkan mailbox?</h2>
+                  <h2>Hapus mailbox?</h2>
                   <p>Mailbox <strong>{deleteMailboxTarget.email}</strong> akan dihapus dari daftar aktif dan tidak bisa login lagi. Data email yang sudah ada tetap tersimpan.</p>
                   <div className={styles.mailboxModalActions}>
                     <button className={styles.linkBtn} onClick={() => setDeleteMailboxTarget(null)}>Batal</button>
@@ -1191,7 +1374,24 @@ export default function AdminPage() {
                         await removeMailbox(target)
                       }}
                     >
-                      Nonaktifkan
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {deleteForwarderTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteForwarderTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Hapus forwarder?</h2>
+                  <p>
+                    Forwarder dari <strong>{deleteForwarderTarget.email}</strong> ke{' '}
+                    <strong>{deleteForwarderTarget.forward_to}</strong> akan dihapus. Email baru tidak akan diteruskan lagi.
+                  </p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteForwarderTarget(null)}>Batal</button>
+                    <button className={styles.dangerBtn} onClick={deleteForwarder}>
+                      Hapus
                     </button>
                   </div>
                 </div>
@@ -1202,7 +1402,7 @@ export default function AdminPage() {
                 <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
                   <div className={styles.mailboxModalHeader}>
                     <div>
-                      <h2>Buat forwarder</h2>
+                      <h2>{forwarderMailbox.forward_enabled && forwarderMailbox.forward_to ? 'Edit forwarder' : 'Buat forwarder'}</h2>
                       <p>Kendalikan kotak masuk Anda dengan mengalihkan email ke alamat penerusan pilihan Anda.</p>
                     </div>
                     <button className={styles.modalCloseBtn} onClick={() => setForwarderMailbox(null)}><X size={20} /></button>
@@ -1224,7 +1424,51 @@ export default function AdminPage() {
                   {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
                   <div className={styles.mailboxModalActions}>
                     <button className={styles.linkBtn} onClick={() => setForwarderMailbox(null)}>Tutup</button>
-                    <button className={styles.saveBtn} onClick={saveForwarder}>Buat</button>
+                    <button className={styles.saveBtn} onClick={saveForwarder}>
+                      {forwarderMailbox.forward_enabled && forwarderMailbox.forward_to ? 'Simpan' : 'Buat'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {addEmailOpen && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setAddEmailOpen(false)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Add Email</h2>
+                      <p>Tambahkan email yang sudah dibuat oleh superadmin atau admin lain.</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setAddEmailOpen(false)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Alamat email</label>
+                  <div className={styles.splitEmailInput}>
+                    <input
+                      value={addEmailAddress}
+                      onChange={(e) => { setAddEmailAddress(e.target.value.replace(/@.*$/, '')); setMailboxError('') }}
+                      placeholder="nama"
+                      autoFocus
+                    />
+                    <span>@{mailDomain}</span>
+                  </div>
+                  <label className={styles.modalLabel}>Password email</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      type={showAddEmailPassword ? 'text' : 'password'}
+                      value={addEmailPassword}
+                      onChange={(e) => { setAddEmailPassword(e.target.value); setMailboxError('') }}
+                      placeholder="Password email"
+                    />
+                    <button type="button" onClick={() => setShowAddEmailPassword((v) => !v)} title="Lihat password">
+                      {showAddEmailPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setAddEmailOpen(false)}>Batal</button>
+                    <button className={styles.saveBtn} disabled={!addEmailAddress.trim() || !addEmailPassword} onClick={handleAddExistingEmail}>
+                      Tambahkan Email
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1234,29 +1478,29 @@ export default function AdminPage() {
                 <div className={styles.mailboxModal} onClick={(e) => e.stopPropagation()}>
                   <div className={styles.mailboxModalHeader}>
                     <div>
-                      <h2>Create mailbox</h2>
-                      <p>Start sending and receiving emails</p>
+                      <h2>Buat Mailbox Baru</h2>
+                      <p>Buat alamat email baru dengan domain perusahaan.</p>
                     </div>
                     <button className={styles.modalCloseBtn} onClick={() => setCreateMailboxOpen(false)}><X size={20} /></button>
                   </div>
 
-                  <label className={styles.modalLabel}>New email address</label>
+                  <label className={styles.modalLabel}>Alamat email baru</label>
                   <div className={styles.splitEmailInput}>
                     <input
                       value={mailboxInput}
-                      onChange={(e) => { setMailboxInput(e.target.value); setMailboxError('') }}
-                      placeholder="New email address"
+                      onChange={(e) => { setMailboxInput(e.target.value.replace(/@.*$/, '')); setMailboxError('') }}
+                      placeholder="nama"
                       autoFocus
                     />
                     <span>@{mailDomain}</span>
                   </div>
 
-                  <label className={styles.modalLabel}>Sender name</label>
+                  <label className={styles.modalLabel}>Nama sender</label>
                   <input
                     className={styles.modalInput}
                     value={mailboxSenderName}
-                    onChange={(e) => setMailboxSenderName(e.target.value)}
-                    placeholder="Opsional, contoh: Support Zenime"
+                    onChange={(e) => { setMailboxSenderName(e.target.value); setMailboxError('') }}
+                    placeholder="Contoh: Support Zenime"
                   />
 
                   <label className={styles.modalLabel}>Password</label>
@@ -1285,7 +1529,7 @@ export default function AdminPage() {
                   {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
                   <div className={styles.mailboxModalActions}>
                     <button className={styles.cancelBtn} onClick={() => setCreateMailboxOpen(false)}>Batal</button>
-                    <button className={styles.saveBtn} disabled={!mailboxInput.trim() || !passwordValid} onClick={handleAddMailbox}>
+                    <button className={styles.saveBtn} disabled={!mailboxInput.trim() || !mailboxSenderName.trim() || !passwordValid} onClick={handleAddMailbox}>
                       Create
                     </button>
                   </div>
@@ -1293,6 +1537,34 @@ export default function AdminPage() {
               </div>
             )}
           </>
+        )}
+
+        {tab === 'health' && isSuper && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Server size={18} />
+                <div>
+                  <strong>System Health Monitoring</strong>
+                  <span>Status service utama CogniMail.</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.healthList} style={{ padding: 16 }}>
+              {systemServices.map((svc) => {
+                const meta = statusMeta[svc.status]
+                return (
+                  <div key={svc.name} className={styles.healthRow}>
+                    <span className={styles.healthIcon} style={{ background: '#F9FAFB', color: '#374151' }}>{svc.icon}</span>
+                    <span className={styles.healthName}>{svc.name}</span>
+                    <span className={styles.healthBadge} style={{ background: meta.bg, color: meta.color }}>
+                      {meta.icon} {meta.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {tab === 'settings' && (

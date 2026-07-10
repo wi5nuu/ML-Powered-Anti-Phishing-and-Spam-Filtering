@@ -7,7 +7,6 @@ import {
   CheckCircle2, Clock, Zap, FileText, Lock, BarChart2,
   ArrowUpRight, TrendingDown, Eye, AlertCircle
 } from 'lucide-react'
-import { getMailboxIdByEmail } from '../utils/mailbox'
 import { APP_TIME_ZONE } from '../utils/time'
 import styles from './UserDashboardPage.module.css'
 
@@ -31,9 +30,8 @@ export default function UserDashboardPage() {
   const { data: me } = useMe()
   const { data: stats } = useStats()
   const user = me?.user
-  const userMailboxId = getMailboxIdByEmail(user?.email) || user?.email || user?.username || ''
-  const inboxPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/inbox` : '/inbox'
-  const metricsPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/metrics` : '/metrics'
+  const mailboxPath = '/user/mailboxes'
+  const metricsPath = '/metrics'
 
   // /stats API returns: { total, quarantine, warn, clean, trash, avg_anomaly_score, avg_fused_score, categories }
   const total = stats?.total ?? 0
@@ -96,7 +94,7 @@ export default function UserDashboardPage() {
 
         {/* ── Stat Cards ── */}
         <div className={styles.statsGrid}>
-          <div className={`${styles.statCard} ${styles.scGray}`} onClick={() => navigate(inboxPath)}>
+          <div className={`${styles.statCard} ${styles.scGray}`} onClick={() => navigate(mailboxPath)}>
             <div className={styles.scIcon} style={{ background: '#F9FAFB', color: '#374151' }}>
               <Inbox size={18} />
             </div>
@@ -169,9 +167,9 @@ export default function UserDashboardPage() {
                 <span>Quick Actions</span>
               </div>
               <div className={styles.quickActions}>
-                <button className={`${styles.qaBtn} ${styles.qaBtnPrimary}`} onClick={() => navigate(inboxPath)}>
+                <button className={`${styles.qaBtn} ${styles.qaBtnPrimary}`} onClick={() => navigate(mailboxPath)}>
                   <Inbox size={18} />
-                  <span>Open Inbox</span>
+                  <span>Mailbox</span>
                 </button>
                 <button className={`${styles.qaBtn} ${styles.qaBtnSecondary}`} onClick={() => window.dispatchEvent(new CustomEvent('open-compose'))}>
                   <Mail size={18} />

@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from email import policy
 from email.parser import Parser
+from email.utils import getaddresses
 
 import httpx
 import redis.asyncio as aio_redis
@@ -58,6 +59,22 @@ MAX_ATTACHMENT_BYTES = int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 102
 MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
 AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror", "permerror", "policy")
 THREAT_CATEGORIES = {"spam", "phishing", "malware"}
+
+
+def normalize_addresses(values) -> list[str]:
+    if not values:
+        return []
+    if isinstance(values, str):
+        values = [values]
+    addresses = []
+    for _, address in getaddresses([str(value) for value in values if value]):
+        clean = address.strip().lower()
+        if clean:
+            addresses.append(clean)
+    if addresses:
+        return list(dict.fromkeys(addresses))
+    fallback = [str(value).strip().lower() for value in values if str(value).strip()]
+    return list(dict.fromkeys(fallback))
 
 PHISHING_HINTS = (
     "phishing", "verify your account", "verify account", "confirm your account",
@@ -261,9 +278,7 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
 
     subject = str(msg.get("subject", "") or "")
     sender = str(msg.get("from", "") or payload.get("sender", "") or "")
-    recipients = msg.get_all("to", []) or payload.get("recipients", [])
-    if isinstance(recipients, str):
-        recipients = [recipients]
+    recipients = normalize_addresses(msg.get_all("to", []) or payload.get("recipients", []))
 
     html_body = ""
     plain_body = ""
@@ -543,8 +558,6 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
                 continue
             forward_payload = dict(payload)
             forward_recipients = [mailbox.forward_to]
-            if mailbox.forward_keep_copy:
-                forward_recipients.append(mailbox.email)
             forward_payload["recipients"] = list(dict.fromkeys(
                 recipient.strip().lower() for recipient in forward_recipients if recipient
             ))

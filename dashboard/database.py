@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 
-from database.models import Base
+from database.models import AdminMailbox, AdminMailboxAccess, AuditLog, Base
 
 # Use absolute path to project root so worker & dashboard share the same DB.
 # For production, prefer DASHBOARD_DB_URL/DB_SYNC_URL because the worker uses
@@ -27,6 +27,7 @@ Base.metadata.create_all(engine)
 
 def _ensure_schema_compatibility():
     inspector = inspect(engine)
+    Base.metadata.create_all(engine)
     if "admin_mailboxes" not in inspector.get_table_names():
         return
     columns = {column["name"] for column in inspector.get_columns("admin_mailboxes")}
@@ -48,7 +49,46 @@ def _ensure_schema_compatibility():
           conn.execute(text(statement))
 
 
+def _seed_mailbox_access():
+    with Session(engine) as db:
+        rows = db.query(AdminMailbox).all()
+        changed = False
+
+        def add_access(mailbox_id, username):
+            nonlocal changed
+            if not mailbox_id or not username:
+                return
+            existing = db.query(AdminMailboxAccess).filter(
+                AdminMailboxAccess.mailbox_id == mailbox_id,
+                AdminMailboxAccess.username == username,
+            ).first()
+            if existing:
+                return
+            db.add(AdminMailboxAccess(mailbox_id=mailbox_id, username=username))
+            changed = True
+
+        for mailbox in rows:
+            if not mailbox.created_by:
+                continue
+            add_access(mailbox.id, mailbox.created_by)
+
+        mailbox_by_email = {mailbox.email.lower(): mailbox for mailbox in rows if mailbox.email}
+        logs = db.query(AuditLog).filter(
+            AuditLog.action.in_(("create_mailbox", "add_existing_email"))
+        ).all()
+        for log in logs:
+            email = (log.details or "").strip().lower()
+            mailbox = mailbox_by_email.get(email)
+            if not mailbox:
+                continue
+            add_access(mailbox.id, log.user)
+
+        if changed:
+            db.commit()
+
+
 _ensure_schema_compatibility()
+_seed_mailbox_access()
 SessionLocal = sessionmaker(bind=engine)
 
 

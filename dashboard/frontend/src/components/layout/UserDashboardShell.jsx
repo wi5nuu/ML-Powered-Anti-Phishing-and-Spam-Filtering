@@ -3,9 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useMe, useLogout } from '../../api/auth'
 import {
   Shield, Mail, LogOut, BarChart2, ChevronRight,
-  Inbox, Lock, Settings, Bell, Home, Flag
+  Inbox, Lock, Settings, Bell, Home, Flag, Menu, X
 } from 'lucide-react'
-import { getMailboxIdByEmail } from '../../utils/mailbox'
 import styles from './UserDashboardShell.module.css'
 
 export default function UserDashboardShell({ children }) {
@@ -16,12 +15,14 @@ export default function UserDashboardShell({ children }) {
   const location = useLocation()
   const user = me?.user
   const initials = (user?.username || 'U').slice(0, 2).toUpperCase()
-  const userMailboxId = getMailboxIdByEmail(user?.email) || user?.email || user?.username || ''
-  const inboxPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/inbox` : '/inbox'
-  const metricsPath = userMailboxId ? `/mail/${encodeURIComponent(userMailboxId)}/metrics` : '/metrics'
+  const mailboxPath = '/user/mailboxes'
+  const metricsPath = '/metrics'
+  const currentPage = location.pathname === mailboxPath || location.pathname.startsWith('/mail/')
+    ? 'Mailbox'
+    : 'Dashboard'
 
   const NavItem = ({ to, icon, label, external }) => {
-    const isActive = location.pathname === to
+    const isActive = location.pathname === to || (to === mailboxPath && location.pathname.startsWith('/mail/'))
     return (
       <button
         className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
@@ -53,8 +54,9 @@ export default function UserDashboardShell({ children }) {
           <button
             className={styles.collapseBtn}
             onClick={() => setSidebarOpen(v => !v)}
+            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            {sidebarOpen ? '←' : '→'}
+            {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>
 
@@ -64,6 +66,7 @@ export default function UserDashboardShell({ children }) {
             <div className={styles.ucAvatar}>{initials}</div>
             <div className={styles.ucInfo}>
               <span className={styles.ucName}>{user?.username}</span>
+              <span className={styles.ucRole}>User</span>
             </div>
           </div>
         )}
@@ -72,7 +75,7 @@ export default function UserDashboardShell({ children }) {
         <nav className={styles.nav}>
           <div className={styles.sectionLabel}>MAILBOX</div>
           <NavItem to="/user/dashboard" icon={<Home size={17} />} label="Dashboard" />
-          <NavItem to={inboxPath} icon={<Inbox size={17} />} label="Open Inbox" />
+          <NavItem to={mailboxPath} icon={<Inbox size={17} />} label="Mailbox" />
 
           <div className={styles.sectionLabel}>SECURITY</div>
           <NavItem to={metricsPath} icon={<BarChart2 size={17} />} label="Security Report" />
@@ -100,7 +103,7 @@ export default function UserDashboardShell({ children }) {
               <Shield size={15} className={styles.breadcrumbIcon} />
               <span className={styles.breadcrumbRoot}>CogniMail</span>
               <ChevronRight size={13} className={styles.breadcrumbSep} />
-              <span className={styles.breadcrumbCurrent}>Dashboard</span>
+              <span className={styles.breadcrumbCurrent}>{currentPage}</span>
             </div>
           </div>
           <div className={styles.topRight}>
@@ -111,6 +114,7 @@ export default function UserDashboardShell({ children }) {
               <div className={styles.avatar}>{initials}</div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
+                <span className={styles.userRole}>User</span>
               </div>
             </div>
             <button className={styles.logoutBtn} onClick={() => logout()} title="Logout">

@@ -60,7 +60,7 @@ from sqlalchemy import func, case, text, or_, and_
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox
+from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox, AdminMailboxAccess
 from dashboard.database import get_db, SessionLocal
 from dashboard.auth import (
     hash_password, verify_password, create_access_token, decode_token, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -114,7 +114,6 @@ Instrumentator().instrument(app).expose(app)
 csrf_secret = os.getenv("DASHBOARD_SECRET_KEY") or _secrets.token_hex(32)
 app.add_middleware(SessionMiddleware, secret_key=csrf_secret, same_site="lax", https_only=False)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
-# Default CORS origins — includes Vite dev (5173), production build (8081), and configurable extras
 _default_cors = "http://localhost:5173,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8081"
 app.add_middleware(
     CORSMiddleware,
@@ -152,7 +151,6 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 
-# ─── WebSocket Connection Manager ───────────────────────────────────────────────
 
 class ConnectionManager:
     def __init__(self):
@@ -204,7 +202,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")):
         manager.disconnect(websocket)
 
 
-# ─── Redis Pub/Sub → WebSocket Bridge (background task) ────────────────────────
 
 REDIS_URL_WS = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -252,7 +249,6 @@ async def stop_pubsub_bridge():
             await task
 
 
-# ─── Seed Admin User ────────────────────────────────────────────────────────────
 
 ALLOWED_ROLES = {"superadmin", "admin", "user"}
 
@@ -335,23 +331,20 @@ def seed_admin():
 seed_admin()
 
 
-# ─── Auth Endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request, db: Session = Depends(get_db)):
-    # Priority 1: dashboard token (admin / superadmin / user)
     token = request.cookies.get("access_token")
-    # Priority 2: mailbox token (webmail users)
     mailbox_token = request.cookies.get("mailbox_token")
     client_host = request.client.host if request.client else "unknown"
-    logger.info(f"auth_me: client={client_host} dashboard_token={bool(token)} mailbox_token={bool(mailbox_token)} url={request.url.path}")
+    referer = request.headers.get("referer", "")
+    mailbox_context = any(path in referer for path in ("/mailbox-login", "/mail/"))
+    logger.info(f"auth_me: client={client_host} dashboard_token={bool(token)} mailbox_token={bool(mailbox_token)} mailbox_context={mailbox_context} url={request.url.path}")
 
-    # --- Try dashboard token first ---
     if token:
         try:
             payload = decode_token(token)
             if payload.get("role") != "mailbox":
-                # This is a real dashboard user (admin / superadmin / user)
                 user = db.query(User).filter(User.username == payload.get("sub")).first()
                 if user and user.is_active:
                     logger.info(f"auth_me: authenticated dashboard user={user.username} role={user.role}")
@@ -362,8 +355,9 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
         except Exception as e:
             logger.warning(f"auth_me: dashboard token decode failed: {e}")
 
-    # --- Try mailbox token ---
-    if mailbox_token:
+    # --- Try mailbox token only from webmail pages. Dashboard login/root must not
+    # treat a mailbox cookie as an authenticated dashboard session.
+    if mailbox_token and mailbox_context:
         try:
             payload = decode_token(mailbox_token)
             if payload.get("role") == "mailbox":
@@ -395,9 +389,7 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
 @limiter.limit("20/minute")
 async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(),
                      db: Session = Depends(get_db)):
-    user = db.query(User).filter(
-        (User.username == form_data.username) | (User.email == form_data.username)
-    ).first()
+    user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(401, "Invalid username or password")
     if not user.is_active:
@@ -438,7 +430,6 @@ async def mailbox_logout():
     return response
 
 
-# ─── Google OAuth ───────────────────────────────────────────────────────
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
@@ -534,7 +525,6 @@ async def google_callback(request: Request, code: str = "", error: str = "", db:
     return response
 
 
-# ─── Profile Endpoints ─────────────────────────────────────────────────
 
 @app.get("/api/auth/profile")
 async def get_profile(request: Request, db: Session = Depends(get_db)):
@@ -714,7 +704,6 @@ async def get_activity(request: Request, db: Session = Depends(get_db)):
     ]
 
 
-# ─── API endpoints and static React SPA routing ─────────────────────────
 
 
 @app.get("/api/feedback-export")
@@ -782,7 +771,6 @@ async def api_stats(db: Session = Depends(get_db)):
     ).scalar() or 0
     avg_anomaly = db.query(func.avg(QuarantineEmail.anomaly_score)).scalar() or 0
     avg_fused = db.query(func.avg(QuarantineEmail.fused_score)).scalar() or 0
-    # Per-category breakdown
     cat_rows = db.query(
         QuarantineEmail.category, func.count(QuarantineEmail.id)
     ).filter(
@@ -803,10 +791,8 @@ async def api_stats(db: Session = Depends(get_db)):
     }
 
 
-# ─── New API Endpoints & SPA Routing ───────────────────────────────────────────
 
 def get_authenticated_api_user(request: Request, db: Session = Depends(get_db)) -> dict:
-    # Prefer the dashboard token; fall back to mailbox_token for webmail endpoints.
     token = request.cookies.get("access_token") or request.cookies.get("mailbox_token")
     if not token:
         logger.warning(f"get_authenticated_api_user: no cookie from {request.client.host if request.client else 'unknown'}")
@@ -913,12 +899,173 @@ def resolve_active_mailbox(
     return mailbox
 
 
-def ensure_email_access(email_record: QuarantineEmail, user_info: dict):
+def is_superadmin(user_info: dict) -> bool:
+    return user_info.get("role") == "superadmin"
+
+
+def is_admin(user_info: dict) -> bool:
+    return user_info.get("role") == "admin"
+
+
+def is_user(user_info: dict) -> bool:
+    return user_info.get("role") == "user"
+
+
+def can_manage_mailboxes(user_info: dict) -> bool:
+    return user_info.get("role") in ("superadmin", "admin", "user")
+
+
+def can_manage_users(user_info: dict) -> bool:
+    return user_info.get("role") in ("superadmin", "admin")
+
+
+def ensure_mailbox_account_access(db: Session, mailbox_id: int, username: str):
+    if not mailbox_id or not username:
+        return None
+    existing = db.query(AdminMailboxAccess).filter(
+        AdminMailboxAccess.mailbox_id == mailbox_id,
+        AdminMailboxAccess.username == username,
+    ).first()
+    if existing:
+        return existing
+    access = AdminMailboxAccess(mailbox_id=mailbox_id, username=username)
+    db.add(access)
+    return access
+
+
+def mailbox_access_account_map(db: Session, rows: list[AdminMailbox]) -> dict[int, list[dict]]:
+    mailbox_ids = [row.id for row in rows if row.id]
+    if not mailbox_ids:
+        return {}
+    access_rows = (
+        db.query(AdminMailboxAccess, User)
+        .outerjoin(User, User.username == AdminMailboxAccess.username)
+        .filter(AdminMailboxAccess.mailbox_id.in_(mailbox_ids))
+        .order_by(AdminMailboxAccess.username.asc())
+        .all()
+    )
+    account_map: dict[int, list[dict]] = {mailbox_id: [] for mailbox_id in mailbox_ids}
+    for access, user in access_rows:
+        account_map.setdefault(access.mailbox_id, []).append({
+            "username": access.username,
+            "role": user.role if user else "",
+        })
+    for row in rows:
+        if not row.created_by:
+            continue
+        accounts = account_map.setdefault(row.id, [])
+        if not any(account["username"] == row.created_by for account in accounts):
+            owner = db.query(User).filter(User.username == row.created_by).first()
+            accounts.append({
+                "username": row.created_by,
+                "role": owner.role if owner else "",
+            })
+    return account_map
+
+
+def mailbox_account_access_exists(db: Session, mailbox_id: int, username: str) -> bool:
+    if not mailbox_id or not username:
+        return False
+    return db.query(AdminMailboxAccess.id).filter(
+        AdminMailboxAccess.mailbox_id == mailbox_id,
+        AdminMailboxAccess.username == username,
+    ).first() is not None
+
+
+def user_record_for_info(db: Session, user_info: dict) -> User | None:
+    username = user_info.get("username")
+    if not username:
+        return None
+    return db.query(User).filter(User.username == username).first()
+
+
+def can_access_mailbox_record(db: Session, user_info: dict, mailbox: AdminMailbox) -> bool:
+    if not mailbox or not mailbox.is_active:
+        return False
+    if is_superadmin(user_info):
+        return True
+    if is_admin(user_info) or is_user(user_info):
+        username = user_info.get("username")
+        return mailbox.created_by == username or mailbox_account_access_exists(db, mailbox.id, username)
+    if user_info.get("role") == "mailbox":
+        return str(mailbox.id) == str(user_info.get("mailbox_id")) or mailbox.email.lower() == (user_info.get("mailbox_email") or "").lower()
+    return False
+
+
+def ensure_mailbox_access(db: Session, user_info: dict, mailbox: AdminMailbox):
+    if not can_access_mailbox_record(db, user_info, mailbox):
+        raise HTTPException(status_code=403, detail="You do not have permission to access this mailbox")
+    return mailbox
+
+
+def mailbox_scope_query(db: Session, user_info: dict):
+    query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
+    if is_superadmin(user_info):
+        return query
+    if is_admin(user_info) or is_user(user_info):
+        username = user_info.get("username")
+        mailbox_ids = [
+            row[0]
+            for row in db.query(AdminMailboxAccess.mailbox_id)
+            .filter(AdminMailboxAccess.username == username)
+            .all()
+        ]
+        return query.filter(or_(AdminMailbox.created_by == username, AdminMailbox.id.in_(mailbox_ids)))
+    if user_info.get("role") == "mailbox":
+        return query.filter(AdminMailbox.id == int(user_info.get("mailbox_id") or 0))
+    return query.filter(False)
+
+
+def accessible_mailbox_emails(db: Session, user_info: dict) -> list[str]:
+    return [row.email for row in mailbox_scope_query(db, user_info).all()]
+
+
+def mailbox_filter_for_emails(mailbox_emails: list[str]):
+    filters = []
+    for email in mailbox_emails:
+        filters.extend(_mailbox_identity_filters(QuarantineEmail.recipient_list, email))
+        filters.extend(_mailbox_identity_filters(QuarantineEmail.sender, email))
+    return or_(*filters) if filters else None
+
+
+def ensure_email_access(email_record: QuarantineEmail, user_info: dict, db: Session | None = None):
     if user_info["role"] in ["superadmin", "admin"]:
         return
+    if db is not None and user_info["role"] == "user":
+        for mailbox_email in accessible_mailbox_emails(db, user_info):
+            if email_belongs_to_identity(email_record, mailbox_email):
+                return
     if email_belongs_to_identity(email_record, user_info.get("mailbox_email") or user_info.get("username")):
         return
     raise HTTPException(status_code=403, detail="You do not have permission to access this email")
+
+
+def resolve_sender_address(db: Session, user_info: dict, requested_from: str = "") -> str:
+    requested_sender = (requested_from or "").strip().lower()
+    if requested_sender:
+        if user_info["role"] == "mailbox" and requested_sender != user_info["mailbox_email"]:
+            raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
+        mailbox = db.query(AdminMailbox).filter(
+            AdminMailbox.email == requested_sender,
+            AdminMailbox.is_active == True,
+        ).first()
+        if not mailbox:
+            raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
+        ensure_mailbox_access(db, user_info, mailbox)
+        return mailbox.email
+
+    if user_info["role"] == "mailbox":
+        return user_info["mailbox_email"]
+
+    if user_info["role"] == "user":
+        mailbox_emails = accessible_mailbox_emails(db, user_info)
+        if len(mailbox_emails) == 1:
+            return mailbox_emails[0]
+        if mailbox_emails:
+            raise HTTPException(status_code=403, detail="Choose one of your mailboxes before sending email")
+        raise HTTPException(status_code=403, detail="No mailbox available for this user")
+
+    return f"{user_info['username']}@lodaya.id"
 
 CATEGORY_ICONS = {
     "transaction": "receipt",
@@ -1265,10 +1412,17 @@ async def api_get_emails(
 
     if mailbox:
         mailbox_record = resolve_active_mailbox(db, mailbox_id, mailbox, missing_status_code=404, missing_detail="Mailbox not found")
+        ensure_mailbox_access(db, user_info, mailbox_record)
         query = query.filter(or_(
             *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
             *_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email),
         ))
+    elif user_info["role"] == "user":
+        mailbox_filter = mailbox_filter_for_emails(accessible_mailbox_emails(db, user_info))
+        if mailbox_filter is None:
+            query = query.filter(False)
+        else:
+            query = query.filter(mailbox_filter)
 
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
@@ -1380,7 +1534,7 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    ensure_email_access(email_record, user_info)
+    ensure_email_access(email_record, user_info, db)
     is_regular_user = (user_info["role"] == "user")
 
     xai_parts = email_record.xai_summary.split("; ") if email_record.xai_summary else []
@@ -1464,7 +1618,7 @@ async def api_toggle_read(email_id: str, payload: dict, request: Request, db: Se
     email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
-    ensure_email_access(email_record, user_info)
+    ensure_email_access(email_record, user_info, db)
     
     is_read = payload.get("is_read", True)
     email_record.is_read = bool(is_read)
@@ -1484,7 +1638,7 @@ async def api_download_attachment(
     email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
-    ensure_email_access(email_record, user_info)
+    ensure_email_access(email_record, user_info, db)
     try:
         attachments = json.loads(email_record.attachments_json or "[]")
     except Exception:
@@ -1580,13 +1734,13 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
     if email_record.label == "DRAFT":
-        ensure_email_access(email_record, user_info)
+        ensure_email_access(email_record, user_info, db)
         db.delete(email_record)
         log_audit(db, user_info["username"], "discard_draft", email_id,
                   request.client.host if request.client else None)
         db.commit()
         return {"ok": True, "status": "deleted"}
-    ensure_email_access(email_record, user_info)
+    ensure_email_access(email_record, user_info, db)
     if email_record.status == "trash":
         db.delete(email_record)
         action = "delete_permanent"
@@ -1610,7 +1764,7 @@ async def api_restore_email(email_id: str, request: Request, db: Session = Depen
     ).first()
     if not email_record:
         raise HTTPException(status_code=404, detail="Email not found")
-    ensure_email_access(email_record, user_info)
+    ensure_email_access(email_record, user_info, db)
     email_record.status = "pending" if email_record.label == "QUARANTINE" else "released"
     email_record.deleted_at = None
     log_audit(db, user_info["username"], "restore", email_id,
@@ -1662,18 +1816,7 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
     if not any([req.to.strip(), req.subject.strip(), req.body.strip(), uploaded_files]):
         raise HTTPException(status_code=400, detail="Draft is empty")
 
-    if req.from_email.strip():
-        requested_sender = req.from_email.strip().lower()
-        if user_info["role"] == "mailbox" and requested_sender != user_info["mailbox_email"]:
-            raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
-        mailbox = db.query(AdminMailbox).filter(
-            AdminMailbox.email == requested_sender,
-            AdminMailbox.is_active == True,
-        ).first()
-        if not mailbox:
-            raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
-
-    sender_address = req.from_email.strip().lower() or user_info.get("mailbox_email") or f"{user_info['username']}@lodaya.id"
+    sender_address = resolve_sender_address(db, user_info, req.from_email)
     stored_attachments = []
     for file_index, upload in enumerate(uploaded_files[:20]):
         data = await upload.read()
@@ -1768,29 +1911,16 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=400, detail=f"Invalid recipient email: {invalid[0]}")
         return recipients
 
-    if req.from_email.strip():
-        requested_sender = req.from_email.strip().lower()
-        if user_info["role"] == "mailbox" and requested_sender != user_info["mailbox_email"]:
-            raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
-        mailbox = db.query(AdminMailbox).filter(
-            AdminMailbox.email == requested_sender,
-            AdminMailbox.is_active == True,
-        ).first()
-        if not mailbox:
-            raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
+    sender_address = resolve_sender_address(db, user_info, req.from_email)
     
-    # Construct sender address
-    sender_address = req.from_email.strip().lower() or user_info.get("mailbox_email") or f"{user_info['username']}@lodaya.id"
-    
-    # Determine subject and body based on action
     final_subject = req.subject
     final_body = req.body
     
     if req.action == "share" and req.share_with:
         dest_recipients = parse_recipients(req.share_with)
-        # Fetch original email
         orig = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == req.reply_to_id).first()
         if orig:
+            ensure_email_access(orig, user_info, db)
             final_subject = f"Shared Threat Intel: {orig.subject}"
             final_body = f"Analis {user_info['username']} membagikan email karantina ini kepada Anda.\n\n" \
                          f"Catatan Analis: {req.body}\n\n" \
@@ -1810,6 +1940,7 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             QuarantineEmail.email_id == req.reply_to_id.strip()
         ).first()
         if original_email:
+            ensure_email_access(original_email, user_info, db)
             final_body = append_thread_context(final_body, original_email, req.action)
         
     stored_attachments = []
@@ -1939,24 +2070,21 @@ async def api_get_metrics(
     account_filters = []
     if mailbox:
         mailbox_record = resolve_active_mailbox(db, mailbox_id, mailbox, missing_status_code=404, missing_detail="Mailbox not found")
+        if user_info:
+            ensure_mailbox_access(db, user_info, mailbox_record)
         scope_label = mailbox_record.email
         account_filters.append(or_(
             *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
             *_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email),
         ))
     elif user_info and user_info["role"] == "user":
-        user = db.query(User).filter(User.username == user_info["username"]).first()
-        identifiers = [user_info["username"].lower()]
-        if user and user.email:
-            identifiers.append(user.email.lower())
-        scope_label = user.email or user_info["username"] if user else user_info["username"]
-        account_filters.append(or_(*[
-            or_(
-                QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
-                QuarantineEmail.sender.ilike(f"%{identifier}%"),
-            )
-            for identifier in identifiers
-        ]))
+        mailbox_emails = accessible_mailbox_emails(db, user_info)
+        scope_label = ", ".join(mailbox_emails) if mailbox_emails else user_info["username"]
+        mailbox_filter = mailbox_filter_for_emails(mailbox_emails)
+        if mailbox_filter is not None:
+            account_filters.append(mailbox_filter)
+        else:
+            account_filters.append(False)
 
     base_query = db.query(QuarantineEmail).filter(
         QuarantineEmail.status != "trash",
@@ -2008,7 +2136,6 @@ async def api_get_metrics(
     }
 
 
-# ─── Audit Log ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/audit-log")
 async def api_get_audit_log(
@@ -2054,7 +2181,6 @@ async def api_get_audit_log(
     }
 
 
-# ─── System Settings ─────────────────────────────────────────────────────────────
 
 # In-memory settings store (persisted to .env file on save in prod; kept simple here)
 _SYSTEM_SETTINGS = {
@@ -2143,7 +2269,6 @@ async def api_test_imap(request: Request, db: Session = Depends(get_db)):
         return {"ok": False, "message": str(e)}
 
 
-# ─── CSV Export ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/emails/export-csv")
 async def api_export_emails_csv(
@@ -2186,7 +2311,6 @@ async def api_export_emails_csv(
     )
 
 
-# ─── Manual Email Analyzer ───────────────────────────────────────────────────────
 
 class AnalyzeEmailRequest(BaseModel):
     raw_email: str
@@ -2216,7 +2340,6 @@ async def api_analyze_email(
             resp.raise_for_status()
             result = resp.json()
     except httpx.ConnectError:
-        # Fallback: use local classifier if running in same process
         try:
             from classifier.features import EmailParser, FeatureExtractor
             from decision_engine.xai import build_xai_header, human_readable_reasons
@@ -2263,7 +2386,6 @@ async def api_analyze_email(
 
 
 
-# ─── User & Settings Management placeholders for Superadmin ──────────────────────
 
 @app.get("/api/admin/users")
 async def api_get_users(request: Request, db: Session = Depends(get_db)):
@@ -2282,25 +2404,28 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
-    username = payload.get("username")
-    password = payload.get("password")
+    username = str(payload.get("username") or "").strip().lower()
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "")
     role = payload.get("role", "user")
-    email = payload.get("email", "")
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="Username and password are required")
+    if not username or not re.match(r"^[a-z0-9._-]{3,64}$", username):
+        raise HTTPException(status_code=400, detail="Valid username is required")
+    if email and not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+        raise HTTPException(status_code=400, detail="Invalid email")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     
-    # Enforce role restrictions
     if user_info["role"] == "admin":
         role = "user"  # Admin can only create 'user' role
     elif user_info["role"] == "superadmin":
         if role not in ("admin", "user"):
             raise HTTPException(status_code=403, detail="Superadmin can only create admin or user role")
             
-    existing = db.query(User).filter(User.username == username).first()
+    existing = db.query(User).filter(func.lower(User.username) == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
     if email:
-        existing_email = db.query(User).filter(User.email == email).first()
+        existing_email = db.query(User).filter(func.lower(User.email) == email).first()
         if existing_email:
             raise HTTPException(status_code=400, detail="Email already registered")
     new_user = User(
@@ -2311,7 +2436,7 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
     )
     db.add(new_user)
     db.commit()
-    return {"ok": True, "message": f"User {username} created"}
+    return {"ok": True, "message": f"User {username} created", "username": username}
 
 
 @app.post("/api/admin/settings")
@@ -2325,9 +2450,17 @@ async def api_change_settings(request: Request, payload: dict, db: Session = Dep
 @app.get("/api/admin/mailboxes")
 async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
-    rows = db.query(AdminMailbox).filter(AdminMailbox.is_active == True).order_by(AdminMailbox.email.asc()).all()
+    if not can_manage_mailboxes(user_info):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only admin or superadmin can create new mailbox")
+    rows = mailbox_scope_query(db, user_info).order_by(AdminMailbox.email.asc()).all()
+    owner_names = [row.created_by for row in rows if row.created_by]
+    owners = {
+        user.username: user.role
+        for user in db.query(User).filter(User.username.in_(owner_names)).all()
+    } if owner_names else {}
+    access_accounts = mailbox_access_account_map(db, rows)
     return [
         {
             "id": row.id,
@@ -2338,6 +2471,9 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
             "forward_enabled": bool(row.forward_enabled),
             "forward_keep_copy": bool(row.forward_keep_copy),
             "created_by": row.created_by,
+            "owner_username": row.created_by,
+            "owner_role": owners.get(row.created_by, ""),
+            "access_accounts": access_accounts.get(row.id, []),
             "created_at": str(row.created_at),
         }
         for row in rows
@@ -2348,36 +2484,52 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
 @limiter.limit("10/minute")
 async def api_create_admin_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not can_manage_mailboxes(user_info):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
+    if user_info["role"] not in ("superadmin", "admin"):
+        raise HTTPException(status_code=403, detail="Only admin or superadmin can create new mailbox")
     email = str(payload.get("email", "")).strip().lower()
     domain = str(payload.get("domain", "")).strip().lower().lstrip("@")
     password = str(payload.get("password", ""))
     sender_name = str(payload.get("sender_name", "")).strip()
+    locked_domain = (
+        os.getenv("VITE_MAIL_DOMAIN")
+        or os.getenv("MAIL_DOMAIN")
+        or os.getenv("SMTP_DOMAIN", "").removeprefix("mail.")
+        or domain
+    ).strip().lower().lstrip("@")
     if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
         raise HTTPException(status_code=400, detail="Invalid mailbox email")
+    if not sender_name:
+        raise HTTPException(status_code=400, detail="Sender name is required")
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
     actual_domain = email.split("@", 1)[1]
-    if domain and actual_domain != domain:
-        raise HTTPException(status_code=400, detail=f"Mailbox must use @{domain}")
-    existing = db.query(AdminMailbox).filter(AdminMailbox.email == email).first()
+    expected_domain = locked_domain or domain
+    if expected_domain and actual_domain != expected_domain:
+        raise HTTPException(status_code=400, detail=f"Mailbox must use @{expected_domain}")
+    existing = db.query(AdminMailbox).filter(func.lower(AdminMailbox.email) == email).first()
     if existing:
         if existing.is_active:
             raise HTTPException(status_code=400, detail="Mailbox already exists")
+        if not is_superadmin(user_info) and existing.created_by != user_info["username"]:
+            raise HTTPException(status_code=400, detail="Mailbox already exists")
         existing.is_active = True
         existing.domain = actual_domain
-        existing.created_by = user_info["username"]
         existing.password_hash = hash_password(password)
         existing.sender_name = sender_name
+        ensure_mailbox_account_access(db, existing.id, user_info["username"])
     else:
-        db.add(AdminMailbox(
+        mailbox = AdminMailbox(
             email=email,
             domain=actual_domain,
             password_hash=hash_password(password),
             sender_name=sender_name,
             created_by=user_info["username"],
-        ))
+        )
+        db.add(mailbox)
+        db.flush()
+        ensure_mailbox_account_access(db, mailbox.id, user_info["username"])
     log_audit(db, user_info["username"], "create_mailbox", None, request.client.host if request.client else None, email)
     db.commit()
     return {"ok": True, "email": email, "domain": actual_domain}
@@ -2422,16 +2574,91 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
     return response
 
 
+@app.get("/api/user/mailboxes")
+async def api_get_user_mailboxes(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin", "mailbox"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    rows = mailbox_scope_query(db, user_info).order_by(AdminMailbox.email.asc()).all()
+    owner_names = [row.created_by for row in rows if row.created_by]
+    owners = {
+        user.username: user.role
+        for user in db.query(User).filter(User.username.in_(owner_names)).all()
+    } if owner_names else {}
+    access_accounts = mailbox_access_account_map(db, rows)
+    return [
+        {
+            "id": row.id,
+            "email": row.email,
+            "domain": row.domain,
+            "sender_name": row.sender_name or "",
+            "owner_username": row.created_by,
+            "owner_role": owners.get(row.created_by, ""),
+            "access_accounts": access_accounts.get(row.id, []),
+        }
+        for row in rows
+    ]
+
+
+@app.post("/api/mailboxes/claim")
+@limiter.limit("10/minute")
+async def api_claim_mailbox(request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("admin", "user"):
+        raise HTTPException(status_code=403, detail="Only admin or user accounts can add existing email")
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    locked_domain = (
+        os.getenv("VITE_MAIL_DOMAIN")
+        or os.getenv("MAIL_DOMAIN")
+        or os.getenv("SMTP_DOMAIN", "").removeprefix("mail.")
+        or ""
+    ).strip().lower().lstrip("@")
+    if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    actual_domain = email.split("@", 1)[1]
+    if locked_domain and actual_domain != locked_domain:
+        raise HTTPException(status_code=400, detail=f"Email must use @{locked_domain}")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    mailbox = db.query(AdminMailbox).filter(
+        func.lower(AdminMailbox.email) == email,
+        AdminMailbox.is_active == True,
+    ).first()
+    if not mailbox or not verify_password(password, mailbox.password_hash or ""):
+        raise HTTPException(status_code=400, detail="Email or password is invalid")
+    if mailbox_account_access_exists(db, mailbox.id, user_info["username"]):
+        return {"ok": True, "email": mailbox.email, "id": mailbox.id, "message": "Email already added"}
+    owner = db.query(User).filter(User.username == mailbox.created_by).first()
+    if not owner or owner.role not in ("superadmin", "admin"):
+        raise HTTPException(status_code=400, detail="Email is already used by another account")
+    ensure_mailbox_account_access(db, mailbox.id, user_info["username"])
+    log_audit(db, user_info["username"], "add_existing_email", None, request.client.host if request.client else None, mailbox.email)
+    db.commit()
+    return {"ok": True, "email": mailbox.email, "id": mailbox.id}
+
+
 @app.delete("/api/admin/mailboxes/{mailbox_id}")
 @limiter.limit("20/minute")
 async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmin can manage mailboxes")
+    if not can_manage_mailboxes(user_info):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    mailbox.is_active = False
+    ensure_mailbox_access(db, user_info, mailbox)
+    if is_superadmin(user_info):
+        mailbox.is_active = False
+        db.query(AdminMailboxAccess).filter(AdminMailboxAccess.mailbox_id == mailbox.id).delete(synchronize_session=False)
+    else:
+        db.query(AdminMailboxAccess).filter(
+            AdminMailboxAccess.mailbox_id == mailbox.id,
+            AdminMailboxAccess.username == user_info["username"],
+        ).delete(synchronize_session=False)
+        remaining = db.query(AdminMailboxAccess.id).filter(AdminMailboxAccess.mailbox_id == mailbox.id).first()
+        if not remaining and mailbox.created_by == user_info["username"]:
+            mailbox.is_active = False
     log_audit(db, user_info["username"], "delete_mailbox", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
     return {"ok": True}
@@ -2441,11 +2668,12 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
 @limiter.limit("20/minute")
 async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
-        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    if not can_manage_mailboxes(user_info):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    ensure_mailbox_access(db, user_info, mailbox)
     target = str(payload.get("target", "")).strip().lower()
     enabled = bool(payload.get("enabled", True))
     keep_copy = bool(payload.get("keep_copy", True))
@@ -2468,14 +2696,15 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
 @limiter.limit("10/minute")
 async def api_update_admin_mailbox_password(mailbox_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
-    if user_info["role"] not in ("superadmin", "admin"):
-        raise HTTPException(status_code=403, detail="Only superadmin/admin can manage mailboxes")
+    if not can_manage_mailboxes(user_info):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
     password = str(payload.get("password", ""))
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    ensure_mailbox_access(db, user_info, mailbox)
     mailbox.password_hash = hash_password(password)
     log_audit(db, user_info["username"], "update_mailbox_password", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
@@ -2491,7 +2720,6 @@ async def api_update_user(username: str, request: Request, payload: dict, db: Se
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Enforce update role checks
     if user_info["role"] == "admin":
         if user.role != "user":
             raise HTTPException(status_code=403, detail="Admin can only edit users with 'user' role")
@@ -2522,15 +2750,24 @@ async def api_delete_user(username: str, request: Request, db: Session = Depends
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Enforce delete restrictions
+    if username == user_info["username"]:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    if user.role == "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin account cannot be deleted")
+
     if user_info["role"] == "admin":
         if user.role != "user":
-            raise HTTPException(status_code=403, detail="Admin can only disable users with 'user' role")
-            
-    user.is_active = False
+            raise HTTPException(status_code=403, detail="Admin can only delete users with 'user' role")
+
+    db.query(AdminMailboxAccess).filter(AdminMailboxAccess.username == username).delete(synchronize_session=False)
+    db.query(AdminMailbox).filter(AdminMailbox.created_by == username).update(
+        {"created_by": user_info["username"]},
+        synchronize_session=False,
+    )
+    log_audit(db, user_info["username"], "delete_user", None, request.client.host if request.client else None, username)
+    db.delete(user)
     db.commit()
-    return {"ok": True, "message": f"User {username} disabled"}
+    return {"ok": True, "message": f"User {username} deleted"}
 
 
 @app.get("/api/admin/audit-logs")
@@ -2577,7 +2814,6 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     }
 
 
-# ─── User Reports / Tickets ───────────────────────────────────────────
 
 @app.post("/api/reports")
 async def submit_report(request: Request, payload: dict, db: Session = Depends(get_db)):
@@ -2642,7 +2878,6 @@ async def update_report(report_id: int, request: Request, payload: dict, db: Ses
     return {"ok": True}
 
 
-# ─── Admin: Per-User Monitoring ────────────────────────────────────────
 
 @app.get("/api/admin/user-stats")
 async def api_user_stats(request: Request, db: Session = Depends(get_db)):
@@ -2714,12 +2949,16 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
     ]
 
 
-# Catch-all Route to serve React SPA
 dist_dir = Path(__file__).parent / "static" / "dist"
+
+
+@app.get("/")
+async def serve_dashboard_root():
+    return RedirectResponse(url="/login", status_code=307)
+
 
 @app.get("/{file_path:path}")
 async def serve_react_app(request: Request, file_path: str):
-    # Skip standard API, WS, and static/ templates endpoints
     if (
         file_path.startswith("api/") or 
         file_path == "ws" or 
@@ -2729,12 +2968,10 @@ async def serve_react_app(request: Request, file_path: str):
     ):
         raise HTTPException(status_code=404, detail="Not Found")
     
-    # Check if requested path is a file in Vite build outputs
     local_file = dist_dir / file_path
     if file_path and local_file.is_file():
         return FileResponse(local_file)
     
-    # Return index.html for SPA frontend routing
     index_file = dist_dir / "index.html"
     if index_file.is_file():
         return FileResponse(index_file)

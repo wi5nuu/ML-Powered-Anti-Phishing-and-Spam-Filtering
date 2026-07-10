@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -29,11 +29,12 @@ export default function LoginPage() {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
     if (role === 'user') return '/user/dashboard'
-    return '/mailbox-login'
+    return '/login'
   }
 
   useEffect(() => {
     if (!me?.authenticated) return
+    if (me.user?.role === 'mailbox') return
     navigate(dashboardPathForRole(me.user?.role), { replace: true })
   }, [me, navigate])
 
@@ -55,7 +56,7 @@ export default function LoginPage() {
     setError('')
     setResetMessage('')
     if (!resetIdentity.trim()) {
-      setError('Masukkan username atau email akun Anda.')
+      setError('Masukkan username akun Anda.')
       return
     }
     setResetMessage(
@@ -65,13 +66,11 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page}>
-      {/* Background decorative elements */}
       <div className={styles.bgDecor1} />
       <div className={styles.bgDecor2} />
       <div className={styles.bgDecor3} />
 
       <div className={styles.card}>
-        {/* Logo & Brand */}
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
             <Shield size={22} strokeWidth={2.5} />
@@ -84,7 +83,6 @@ export default function LoginPage() {
 
         <div className={styles.divider} />
 
-        {/* Title */}
         <div className={styles.titleBlock}>
           <h1 className={styles.title}>
             {mode === 'login' ? 'Selamat Datang' : 'Reset Password'}
@@ -92,7 +90,7 @@ export default function LoginPage() {
           <p className={styles.subtitle}>
             {mode === 'login'
               ? 'Masuk dengan akun organisasi Anda yang telah terdaftar.'
-              : 'Masukkan username atau email untuk meminta reset password.'}
+              : 'Masukkan username untuk meminta reset password.'}
           </p>
         </div>
 
@@ -113,7 +111,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="username" className={styles.fieldLabel}>
-                Email atau Username
+                Username
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -121,7 +119,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username atau email@company.com"
+                  placeholder="username"
                   required
                   autoFocus
                   autoComplete="username"
@@ -176,7 +174,7 @@ export default function LoginPage() {
           <form onSubmit={handleForgotPassword} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="resetIdentity" className={styles.fieldLabel}>
-                Username atau Email
+                Username
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -184,7 +182,7 @@ export default function LoginPage() {
                   type="text"
                   value={resetIdentity}
                   onChange={(e) => setResetIdentity(e.target.value)}
-                  placeholder="username atau email@company.com"
+                  placeholder="username"
                   required
                   autoFocus
                   autoComplete="username"
@@ -219,11 +217,6 @@ export default function LoginPage() {
             </span>
           </div>
           <p className={styles.footerNote}>ML-Powered Anti-Phishing &amp; Spam Filtering System</p>
-          <div className={styles.switchLogin}>
-            <Inbox size={15} />
-            <span>Pengguna email?</span>
-            <Link to="/mailbox-login" className={styles.switchLink}>Masuk ke Webmail</Link>
-          </div>
         </div>
       </div>
     </div>

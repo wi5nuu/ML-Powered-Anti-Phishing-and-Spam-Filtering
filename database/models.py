@@ -63,6 +63,15 @@ class AdminMailbox(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 
+class AdminMailboxAccess(Base):
+    __tablename__ = "admin_mailbox_access"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    mailbox_id = Column(Integer, ForeignKey("admin_mailboxes.id"), nullable=False, index=True)
+    username = Column(String(64), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

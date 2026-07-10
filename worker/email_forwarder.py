@@ -26,6 +26,7 @@ from email import policy
 from email.parser import BytesParser
 
 import aiosmtplib
+from email.utils import getaddresses
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,26 @@ SPAM_HEADER_VAL = "CogniMail: Potential spam (score {score:.2f})"
 RE_DOMAIN = re.compile(r"@([\w.-]+)")
 
 
+def _normalize_recipients(values) -> list[str]:
+    if not values:
+        return []
+    if isinstance(values, str):
+        values = [values]
+    addresses = []
+    for _, address in getaddresses([str(value) for value in values if value]):
+        clean = address.strip().lower()
+        if clean:
+            addresses.append(clean)
+    if addresses:
+        return list(dict.fromkeys(addresses))
+    fallback = [str(value).strip().lower() for value in values if str(value).strip()]
+    return list(dict.fromkeys(fallback))
+
+
 def _parse_recipients(raw_email: str, payload_recipients: list) -> list:
     """Extract recipient addresses from raw email or payload."""
     if payload_recipients:
-        return payload_recipients
+        return _normalize_recipients(payload_recipients)
     # Parse From/To dari raw email
     recipients = []
     for line in raw_email.splitlines():
@@ -57,7 +74,7 @@ def _parse_recipients(raw_email: str, payload_recipients: list) -> list:
             addr = line[3:].strip()
             if addr:
                 recipients.append(addr)
-    return recipients
+    return _normalize_recipients(recipients)
 
 
 def _inject_header(raw_email: str, header_name: str, header_val: str) -> str:
@@ -99,9 +116,9 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
     # forwarder settings and must not be replaced by the legacy override.
     payload_recipients = payload.get("recipients", [])
     if payload_recipients:
-        recipients = payload_recipients
+        recipients = _normalize_recipients(payload_recipients)
     elif FORWARDER_DESTINATION_OVERRIDE:
-        recipients = [FORWARDER_DESTINATION_OVERRIDE]
+        recipients = _normalize_recipients([FORWARDER_DESTINATION_OVERRIDE])
     else:
         recipients = _parse_recipients(raw_email, payload_recipients)
     if not recipients:
