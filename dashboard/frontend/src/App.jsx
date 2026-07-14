@@ -16,14 +16,13 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
-import UserDashboardPage from './pages/UserDashboardPage'
 import UserMailboxPage from './pages/UserMailboxPage'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
-  if (role === 'user') return '/user/dashboard'
+  if (role === 'user') return '/user/mailboxes'
   return '/login'
 }
 
@@ -115,7 +114,7 @@ function AdminRoute({ children, scope }) {
 
   const role = data?.user?.role
   if (role !== 'superadmin' && role !== 'admin') {
-    return <Navigate to="/user/dashboard" replace />
+    return <Navigate to="/user/mailboxes" replace />
   }
 
   const correctPath = dashboardPathForRole(role)
@@ -191,7 +190,7 @@ export default function App() {
 
         {/* User Dashboard — only for regular users */}
         <Route path="/dashboard" element={<RoleRedirect />} />
-        <Route path="/user/dashboard" element={<UserRoute><UserDashboardPage /></UserRoute>} />
+        <Route path="/user/dashboard" element={<UserRoute><Navigate to="/user/mailboxes" replace /></UserRoute>} />
         <Route path="/user/mailboxes" element={<UserRoute><UserMailboxPage /></UserRoute>} />
 
         {/* Admin routes — split URL by role */}

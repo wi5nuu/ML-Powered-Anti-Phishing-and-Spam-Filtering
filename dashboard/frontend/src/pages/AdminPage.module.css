@@ -587,10 +587,26 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #e8f0fe;
-  color: var(--role-accent);
+  background: var(--role-accent);
+  color: #fff;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mailboxIcon span {
+  line-height: 1;
+}
+
+.mailboxAvatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .mailboxInfo {

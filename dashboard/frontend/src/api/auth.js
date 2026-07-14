@@ -28,7 +28,7 @@ export const useLogin = () => {
       })
     },
     onSuccess: async (res) => {
-      if (res?.data?.role) {
+      if (res?.data?.role && res.data.role !== 'mailbox') {
         qc.setQueryData(['me'], {
           authenticated: true,
           user: { username: res.data.username, role: res.data.role },
@@ -62,4 +62,3 @@ export const useLogout = () => {
     },
   })
 }
-

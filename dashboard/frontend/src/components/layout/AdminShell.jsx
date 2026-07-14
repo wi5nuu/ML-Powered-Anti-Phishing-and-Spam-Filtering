@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMe, useLogout } from '../../api/auth'
 import {
@@ -6,12 +6,14 @@ import {
   Mail, Settings, ChevronRight, Bell, Server, Menu, X,
   Home, FileText, Lock
 } from 'lucide-react'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
 import styles from './AdminShell.module.css'
 
 export default function AdminShell({ children }) {
   const { data: me } = useMe()
   const { mutate: logout } = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [avatarFailed, setAvatarFailed] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'overview'
   const navigate = useNavigate()
@@ -73,7 +75,19 @@ export default function AdminShell({ children }) {
   const SectionLabel = ({ label }) =>
     sidebarOpen ? <div className={styles.sectionLabel}>{label}</div> : <div className={styles.sectionDivider} />
 
-  const initials = (user?.username || 'A').slice(0, 2).toUpperCase()
+  const avatarKey = user?.username || 'A'
+  const initials = avatarText(avatarKey, 2)
+  const userAvatarUrl = user?.avatar_url || ''
+  const userAvatar = hasUploadedAvatar(userAvatarUrl) && !avatarFailed
+    ? <img src={userAvatarUrl} alt="" className={styles.avatarImage} onError={() => setAvatarFailed(true)} />
+    : initials
+  const generatedAvatarStyle = hasUploadedAvatar(userAvatarUrl) && !avatarFailed
+    ? undefined
+    : { background: avatarColor(avatarKey) }
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [userAvatarUrl])
 
   return (
     <div className={styles.shell} style={shellStyle}>
@@ -99,7 +113,7 @@ export default function AdminShell({ children }) {
 
         {sidebarOpen && (
           <div className={styles.userCard}>
-            <div className={styles.ucAvatar}>{initials}</div>
+            <div className={styles.ucAvatar} style={generatedAvatarStyle}>{userAvatar}</div>
             <div className={styles.ucInfo}>
               <span className={styles.ucName}>{user?.username}</span>
               <span className={styles.ucRole}>{roleLabel}</span>
@@ -154,7 +168,7 @@ export default function AdminShell({ children }) {
               <Bell size={17} />
             </button>
             <div className={styles.userChip}>
-              <div className={styles.avatar}>{initials}</div>
+              <div className={styles.avatar} style={generatedAvatarStyle}>{userAvatar}</div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
                 <span className={styles.userRole}>{roleLabel}</span>

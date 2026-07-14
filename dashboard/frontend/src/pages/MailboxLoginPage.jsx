@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { Eye, EyeOff, LayoutDashboard } from 'lucide-react'
 import api from '../api/client'
 import { getMailboxById, getMailboxSession, setMailboxSession } from '../utils/mailbox'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
 import styles from './MailboxLoginPage.module.css'
 
 export default function MailboxLoginPage() {
@@ -89,7 +90,16 @@ export default function MailboxLoginPage() {
             </p>
             {hasPresetEmail && email && (
               <div className={styles.accountChip}>
-                <span>{email.slice(0, 1).toUpperCase()}</span>
+                <span
+                  className={styles.accountAvatar}
+                  style={!hasUploadedAvatar(directoryMailbox?.avatar_url) ? { background: avatarColor(email) } : undefined}
+                >
+                  {hasUploadedAvatar(directoryMailbox?.avatar_url) ? (
+                    <img src={directoryMailbox.avatar_url} alt="" />
+                  ) : (
+                    avatarText(email, 1)
+                  )}
+                </span>
                 <strong>{email}</strong>
               </div>
             )}

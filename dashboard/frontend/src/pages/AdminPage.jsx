@@ -5,6 +5,7 @@ import api from '../api/client'
 import { useMe } from '../api/auth'
 import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, Pencil, Trash2 } from 'lucide-react'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
 import styles from './AdminPage.module.css'
 
 const CATEGORY_LABELS = { bug: 'Bug / Error', question: 'Pertanyaan', access: 'Akses', false_positive: 'False Positive', other: 'Lainnya' }
@@ -16,6 +17,11 @@ const ROLE_LABELS = {
   admin: 'Admin',
   user: 'User',
 }
+
+function mailboxAvatarLabel(row) {
+  return avatarText(row?.email || '?', 1)
+}
+
 export default function AdminPage() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -1266,7 +1272,16 @@ export default function AdminPage() {
                   {mailboxRows.map((row) => (
                     <div key={row.id || row.email} className={styles.mailboxTableRow}>
                       <div className={styles.mailboxInfoCell}>
-                        <div className={styles.mailboxIcon}><Mail size={18} /></div>
+                        <div
+                          className={styles.mailboxIcon}
+                          style={!hasUploadedAvatar(row.avatar_url) ? { background: avatarColor(row.email) } : undefined}
+                        >
+                          {hasUploadedAvatar(row.avatar_url) ? (
+                            <img src={row.avatar_url} alt="" className={styles.mailboxAvatarImage} />
+                          ) : (
+                            <span>{mailboxAvatarLabel(row)}</span>
+                          )}
+                        </div>
                         <div className={styles.mailboxInfo}>
                           <strong>{row.email}</strong>
                           <span>ID: {row.id} · {row.sender_name || 'Sender name belum diatur'}</span>

@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from './client'
 
-export const useProfile = () =>
+export const useProfile = (mailboxId = '') =>
   useQuery({
-    queryKey: ['profile'],
+    queryKey: ['profile', mailboxId],
     queryFn: async () => {
-      const { data } = await api.get('/auth/profile')
+      const { data } = await api.get('/auth/profile', {
+        params: mailboxId ? { mailbox_id: mailboxId } : {},
+      })
       return data
     },
     retry: false,
@@ -23,6 +25,26 @@ export const useUpdateProfile = () => {
   return useMutation({
     mutationFn: ({ username, current_password, new_password }) =>
       api.put('/auth/profile', { username, current_password, new_password }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile'] })
+      qc.invalidateQueries({ queryKey: ['me'] })
+    },
+  })
+}
+
+export const useUploadProfileAvatar = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input) => {
+      const file = input?.file || input
+      const mailboxId = input?.mailboxId || ''
+      const formData = new FormData()
+      formData.append('avatar', file)
+      return api.post('/auth/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: mailboxId ? { mailbox_id: mailboxId } : {},
+      })
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profile'] })
       qc.invalidateQueries({ queryKey: ['me'] })

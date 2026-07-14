@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
 import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
+import { setMailboxSession } from '../utils/mailbox'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -28,14 +29,36 @@ export default function LoginPage() {
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
-    if (role === 'user') return '/user/dashboard'
+    if (role === 'user') return '/user/mailboxes'
     return '/login'
+  }
+
+  const mailboxPathForUser = async () => {
+    try {
+      const { data } = await api.get('/user/mailboxes')
+      const rows = Array.isArray(data) ? data : []
+      const firstMailbox = rows[0]
+      const mailboxId = firstMailbox?.id || firstMailbox?.email
+      if (mailboxId) return `/mail/${encodeURIComponent(mailboxId)}/inbox`
+    } catch {
+      // Fall back to the mailbox list; route guards still enforce permissions.
+    }
+    return '/user/mailboxes'
+  }
+
+  const postLoginPathForRole = async (role) => {
+    if (role === 'user') return mailboxPathForUser()
+    return dashboardPathForRole(role)
   }
 
   useEffect(() => {
     if (!me?.authenticated) return
     if (me.user?.role === 'mailbox') return
-    navigate(dashboardPathForRole(me.user?.role), { replace: true })
+    let cancelled = false
+    postLoginPathForRole(me.user?.role).then((target) => {
+      if (!cancelled) navigate(target, { replace: true })
+    })
+    return () => { cancelled = true }
   }, [me, navigate])
 
   const handleSubmit = async (e) => {
@@ -43,9 +66,19 @@ export default function LoginPage() {
     setError('')
     try {
       const res = await login({ username, password })
+      if (res?.data?.role === 'mailbox') {
+        const mailbox = res.data.mailbox || {
+          id: res.data.mailbox_id || res.data.username,
+          email: res.data.mailbox_email || res.data.username,
+        }
+        setMailboxSession({ ...mailbox, login_source: 'main_login' })
+        const mailboxId = mailbox.id || mailbox.email
+        window.location.replace(`/mail/${encodeURIComponent(mailboxId)}/inbox`)
+        return
+      }
       const meRes = await api.get('/auth/me').catch(() => null)
       const role = meRes?.data?.user?.role || res?.data?.role || res?.data?.user?.role
-      window.location.replace(dashboardPathForRole(role))
+      window.location.replace(await postLoginPathForRole(role))
     } catch (err) {
       setError(err.response?.data?.detail || 'Login gagal. Periksa username dan password Anda.')
     }
@@ -111,7 +144,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="username" className={styles.fieldLabel}>
-                Username
+                Username atau Email
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -119,7 +152,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
+                  placeholder="username atau email"
                   required
                   autoFocus
                   autoComplete="username"
@@ -167,7 +200,7 @@ export default function LoginPage() {
               ) : (
                 <Lock size={17} />
               )}
-              {isPending ? 'Memproses...' : 'Masuk ke Dashboard'}
+              {isPending ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
         ) : (

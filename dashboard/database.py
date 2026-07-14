@@ -28,6 +28,12 @@ Base.metadata.create_all(engine)
 def _ensure_schema_compatibility():
     inspector = inspect(engine)
     Base.metadata.create_all(engine)
+    table_names = inspector.get_table_names()
+    if "users" in table_names:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        if "avatar_url" not in user_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''"))
     if "admin_mailboxes" not in inspector.get_table_names():
         return
     columns = {column["name"] for column in inspector.get_columns("admin_mailboxes")}
@@ -36,6 +42,8 @@ def _ensure_schema_compatibility():
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN password_hash VARCHAR(128) DEFAULT ''")
     if "sender_name" not in columns:
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN sender_name VARCHAR(255) DEFAULT ''")
+    if "avatar_url" not in columns:
+        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''")
     if "forward_to" not in columns:
         statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''")
     if "forward_enabled" not in columns:

@@ -115,10 +115,17 @@
   gap: 16px;
 }
 
+.avatarField {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .profileAvatar {
+  position: relative;
   width: 56px;
   height: 56px;
   border-radius: 50%;
+  border: none;
   background: var(--text);
   color: var(--bg);
   display: flex;
@@ -126,7 +133,41 @@
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
-  flex-shrink: 0;
+  cursor: pointer;
+  overflow: visible;
+  padding: 0;
+}
+
+.profileAvatar:disabled {
+  cursor: wait;
+  opacity: 0.82;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--gmail-blue);
+  color: #fff;
+  border: 2px solid var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarInput {
+  display: none;
 }
 
 .profileName {
@@ -135,13 +176,17 @@
   color: var(--text);
 }
 
-.profileRole {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.profileEmail {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-top: 4px;
+  word-break: break-word;
+}
+
+.avatarError {
+  color: var(--gmail-red);
+  font-size: 0.78rem;
+  margin-top: 6px;
 }
 
 .infoRow {

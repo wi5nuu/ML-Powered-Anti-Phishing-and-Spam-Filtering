@@ -47,6 +47,8 @@ export function setMailboxDirectory(mailboxes) {
     .map((mailbox) => ({
       id: String(mailbox?.id || mailbox?.mailbox_id || mailbox?.email || ''),
       email: String(mailbox?.email || ''),
+      sender_name: String(mailbox?.sender_name || ''),
+      avatar_url: String(mailbox?.avatar_url || ''),
     }))
     .filter((mailbox) => mailbox.id && mailbox.email)
   localStorage.setItem(MAILBOX_DIRECTORY_KEY, JSON.stringify(normalized))
@@ -106,9 +108,14 @@ function mailboxSessionKeys(mailboxId, email) {
 
 export function setMailboxSession(mailbox) {
   if (!mailbox?.email) return
+  const sessionId = String(mailbox.id || mailbox.mailbox_id || mailbox.email)
+  const previousSession = getMailboxSession(sessionId, mailbox.email)
   const session = {
-    id: String(mailbox.id || mailbox.mailbox_id || mailbox.email),
+    id: sessionId,
     email: mailbox.email,
+    sender_name: mailbox.sender_name || '',
+    avatar_url: mailbox.avatar_url || '',
+    login_source: mailbox.login_source || mailbox.auth_source || previousSession?.login_source || '',
     createdAt: Date.now(),
   }
   mailboxSessionKeys(session.id, session.email).forEach((key) => {
@@ -116,7 +123,7 @@ export function setMailboxSession(mailbox) {
   })
   const directory = getMailboxDirectory()
   const next = directory.filter((item) => String(item.id) !== session.id)
-  next.push({ id: session.id, email: session.email })
+  next.push({ id: session.id, email: session.email, sender_name: session.sender_name, avatar_url: session.avatar_url })
   localStorage.setItem(MAILBOX_DIRECTORY_KEY, JSON.stringify(next))
 }
 

@@ -3,8 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useMe, useLogout } from '../../api/auth'
 import {
   Shield, Mail, LogOut, BarChart2, ChevronRight,
-  Inbox, Lock, Settings, Bell, Home, Flag, Menu, X
+  Inbox, Lock, Settings, Bell, Flag, Menu, X
 } from 'lucide-react'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
 import styles from './UserDashboardShell.module.css'
 
 export default function UserDashboardShell({ children }) {
@@ -14,7 +15,14 @@ export default function UserDashboardShell({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const user = me?.user
-  const initials = (user?.username || 'U').slice(0, 2).toUpperCase()
+  const avatarKey = user?.username || 'U'
+  const initials = avatarText(avatarKey, 2)
+  const userAvatarUrl = user?.avatar_url || ''
+  const uploadedAvatar = hasUploadedAvatar(userAvatarUrl)
+  const userAvatar = uploadedAvatar
+    ? <img src={userAvatarUrl} alt="" className={styles.avatarImage} />
+    : initials
+  const generatedAvatarStyle = uploadedAvatar ? undefined : { background: avatarColor(avatarKey) }
   const mailboxPath = '/user/mailboxes'
   const metricsPath = '/metrics'
   const currentPage = location.pathname === mailboxPath || location.pathname.startsWith('/mail/')
@@ -63,7 +71,7 @@ export default function UserDashboardShell({ children }) {
         {/* User info */}
         {sidebarOpen && (
           <div className={styles.userCard}>
-            <div className={styles.ucAvatar}>{initials}</div>
+            <div className={styles.ucAvatar} style={generatedAvatarStyle}>{userAvatar}</div>
             <div className={styles.ucInfo}>
               <span className={styles.ucName}>{user?.username}</span>
               <span className={styles.ucRole}>User</span>
@@ -74,7 +82,6 @@ export default function UserDashboardShell({ children }) {
         {/* Nav */}
         <nav className={styles.nav}>
           <div className={styles.sectionLabel}>MAILBOX</div>
-          <NavItem to="/user/dashboard" icon={<Home size={17} />} label="Dashboard" />
           <NavItem to={mailboxPath} icon={<Inbox size={17} />} label="Mailbox" />
 
           <div className={styles.sectionLabel}>SECURITY</div>
@@ -111,7 +118,7 @@ export default function UserDashboardShell({ children }) {
               <Bell size={17} />
             </button>
             <div className={styles.userChip}>
-              <div className={styles.avatar}>{initials}</div>
+              <div className={styles.avatar} style={generatedAvatarStyle}>{userAvatar}</div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
                 <span className={styles.userRole}>User</span>

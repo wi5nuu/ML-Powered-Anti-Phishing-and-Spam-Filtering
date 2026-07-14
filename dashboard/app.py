@@ -23,6 +23,7 @@ import logging
 import mimetypes
 import os
 import re
+import struct
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 import secrets as _secrets
@@ -45,7 +46,7 @@ from email.utils import getaddresses
 from pydantic import BaseModel
 import csv
 import io
-from fastapi import FastAPI, Request, Depends, Form, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile
+from fastapi import FastAPI, Request, Depends, Form, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
 from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
@@ -107,6 +108,69 @@ if not DASHBOARD_SECRET_KEY:
     logger.warning("DASHBOARD_SECRET_KEY not set. Generated ephemeral key.")
 
 static_dir = Path(__file__).parent / "static"
+avatar_dir = static_dir / "uploads" / "avatars"
+avatar_dir.mkdir(parents=True, exist_ok=True)
+DEFAULT_AVATAR_URL = "/static/default-avatar.svg"
+MAX_AVATAR_BYTES = 1 * 1024 * 1024
+ALLOWED_AVATAR_TYPES = {
+    "image/jpeg": (b"\xff\xd8\xff", ".jpg"),
+    "image/png": (b"\x89PNG\r\n\x1a\n", ".png"),
+    "image/gif": (b"GIF", ".gif"),
+    "image/webp": (b"RIFF", ".webp"),
+}
+
+
+def avatar_url_or_default(avatar_url: str = "") -> str:
+    return avatar_url or DEFAULT_AVATAR_URL
+
+
+def is_mailbox_request_context(request: Request) -> bool:
+    referer = request.headers.get("referer", "")
+    return any(path in referer for path in ("/mailbox-login", "/mail/"))
+
+
+def get_profile_session_token(request: Request) -> str:
+    access_token = request.cookies.get("access_token")
+    mailbox_token = request.cookies.get("mailbox_token")
+    if mailbox_token and is_mailbox_request_context(request):
+        return mailbox_token
+    return access_token or mailbox_token or ""
+
+
+def authenticated_user_from_token(db: Session, token: str) -> dict | None:
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        if payload.get("role") == "mailbox":
+            mailbox = resolve_active_mailbox(
+                db,
+                payload.get("mailbox_id"),
+                payload.get("mailbox_email"),
+                missing_status_code=401,
+                missing_detail="Mailbox is disabled or inactive",
+                inactive_detail="Mailbox is disabled or inactive",
+            )
+            return {
+                "username": mailbox.email.lower(),
+                "role": "mailbox",
+                "mailbox_id": str(mailbox.id),
+                "mailbox_email": mailbox.email.lower(),
+            }
+        user = db.query(User).filter(User.username == payload.get("sub")).first()
+        if not user or not user.is_active:
+            return None
+        return {"username": user.username, "role": user.role}
+    except Exception:
+        return None
+
+
+def authorize_requested_mailbox(request: Request, db: Session, mailbox: AdminMailbox) -> dict:
+    for token in (request.cookies.get("access_token"), request.cookies.get("mailbox_token")):
+        user_info = authenticated_user_from_token(db, token)
+        if user_info and can_access_mailbox_record(db, user_info, mailbox):
+            return user_info
+    raise HTTPException(status_code=403, detail="You do not have permission to access this mailbox")
 
 app = FastAPI(title="CogniMail Dashboard", version="3.0.0")
 Instrumentator().instrument(app).expose(app)
@@ -278,12 +342,20 @@ def seed_admin():
     db = SessionLocal()
     dialect = db.bind.dialect.name
     if dialect == "postgresql":
+        db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(512) DEFAULT ''"))
+        db.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(512) DEFAULT ''"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS attachments_json TEXT"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
     elif dialect == "sqlite":
+        user_columns = [row[1] for row in db.execute(text("PRAGMA table_info(users)")).fetchall()]
+        if "avatar_url" not in user_columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''"))
+        mailbox_columns = [row[1] for row in db.execute(text("PRAGMA table_info(admin_mailboxes)")).fetchall()]
+        if "avatar_url" not in mailbox_columns:
+            db.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''"))
         columns = [row[1] for row in db.execute(text("PRAGMA table_info(quarantine_emails)")).fetchall()]
         if "deleted_at" not in columns:
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN deleted_at TIMESTAMP"))
@@ -350,7 +422,12 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
                     logger.info(f"auth_me: authenticated dashboard user={user.username} role={user.role}")
                     return JSONResponse({
                         "authenticated": True,
-                        "user": {"username": user.username, "role": user.role}
+                        "user": {
+                            "username": user.username,
+                            "email": user.email,
+                            "role": user.role,
+                            "avatar_url": avatar_url_or_default(user.avatar_url),
+                        }
                     })
         except Exception as e:
             logger.warning(f"auth_me: dashboard token decode failed: {e}")
@@ -376,6 +453,7 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
                         "role": "mailbox",
                         "mailbox_id": str(mailbox.id),
                         "mailbox_email": mailbox.email.lower(),
+                        "avatar_url": avatar_url_or_default(mailbox.avatar_url),
                     }
                 })
         except Exception as e:
@@ -389,26 +467,69 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
 @limiter.limit("20/minute")
 async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(),
                      db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(401, "Invalid username or password")
-    if not user.is_active:
-        raise HTTPException(403, "Account is disabled")
-    token = create_access_token({"sub": user.username, "role": user.role})
-    response = JSONResponse({
-        "access_token": token,
-        "token_type": "bearer",
-        "username": user.username,
-        "role": user.role,
-    })
-    response.set_cookie(
-        key="access_token", value=token,
-        httponly=True, samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=os.getenv("ENV", "development") == "production",
-        path="/",
-    )
-    return response
+    login_identity = (form_data.username or "").strip().lower()
+    user = db.query(User).filter(
+        or_(
+            func.lower(User.username) == login_identity,
+            func.lower(User.email) == login_identity,
+        )
+    ).first()
+    if user and verify_password(form_data.password, user.hashed_password):
+        if not user.is_active:
+            raise HTTPException(403, "Account is disabled")
+        token = create_access_token({"sub": user.username, "role": user.role})
+        response = JSONResponse({
+            "access_token": token,
+            "token_type": "bearer",
+            "username": user.username,
+            "role": user.role,
+        })
+        response.set_cookie(
+            key="access_token", value=token,
+            httponly=True, samesite="lax",
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            secure=os.getenv("ENV", "development") == "production",
+            path="/",
+        )
+        return response
+
+    if "@" in login_identity:
+        mailbox = db.query(AdminMailbox).filter(
+            func.lower(AdminMailbox.email) == login_identity,
+            AdminMailbox.is_active == True,
+        ).first()
+        if mailbox and verify_password(form_data.password, mailbox.password_hash or ""):
+            mailbox_token = create_access_token({
+                "sub": f"mailbox:{mailbox.id}",
+                "role": "mailbox",
+                "mailbox_id": str(mailbox.id),
+                "mailbox_email": mailbox.email.lower(),
+            })
+            response = JSONResponse({
+                "access_token": mailbox_token,
+                "token_type": "bearer",
+                "username": mailbox.email.lower(),
+                "role": "mailbox",
+                "mailbox": {
+                    "id": mailbox.id,
+                    "email": mailbox.email,
+                    "domain": mailbox.domain,
+                    "sender_name": mailbox.sender_name or "",
+                    "avatar_url": avatar_url_or_default(mailbox.avatar_url),
+                },
+            })
+            response.set_cookie(
+                key="mailbox_token",
+                value=mailbox_token,
+                httponly=True,
+                samesite="lax",
+                max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                secure=os.getenv("ENV", "development") == "production",
+                path="/",
+            )
+            return response
+
+    raise HTTPException(401, "Invalid username or password")
 
 
 @app.post("/api/auth/logout")
@@ -513,7 +634,7 @@ async def google_callback(request: Request, code: str = "", error: str = "", db:
     elif user.role == "admin":
         redirect_url = "/admin/dashboard"
     else:
-        redirect_url = "/user/dashboard"
+        redirect_url = "/user/mailboxes"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="access_token", value=token,
@@ -527,8 +648,23 @@ async def google_callback(request: Request, code: str = "", error: str = "", db:
 
 
 @app.get("/api/auth/profile")
-async def get_profile(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
+async def get_profile(request: Request, mailbox_id: str = Query(""), db: Session = Depends(get_db)):
+    if mailbox_id:
+        mailbox = resolve_active_mailbox(db, mailbox_id)
+        authorize_requested_mailbox(request, db, mailbox)
+        return {
+            "username": mailbox.email.lower(),
+            "role": "mailbox",
+            "is_active": mailbox.is_active,
+            "created_at": str(mailbox.created_at) if mailbox.created_at else None,
+            "mailbox_id": str(mailbox.id),
+            "mailbox_email": mailbox.email.lower(),
+            "domain": mailbox.domain,
+            "sender_name": mailbox.sender_name or "",
+            "avatar_url": avatar_url_or_default(mailbox.avatar_url),
+        }
+
+    token = get_profile_session_token(request)
     if not token:
         raise HTTPException(401, "Not authenticated")
     payload = decode_token(token)
@@ -547,17 +683,179 @@ async def get_profile(request: Request, db: Session = Depends(get_db)):
             "mailbox_email": mailbox.email.lower(),
             "domain": mailbox.domain,
             "sender_name": mailbox.sender_name or "",
+            "avatar_url": avatar_url_or_default(mailbox.avatar_url),
         }
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
     return {
         "username": user.username,
+        "email": user.email,
+        "avatar_url": avatar_url_or_default(user.avatar_url),
         "role": user.role,
         "is_active": user.is_active,
         "created_at": str(user.created_at) if user.created_at else None,
         "organization_id": user.organization_id,
     }
+
+
+def _avatar_extension(content_type: str, data: bytes) -> str:
+    avatar_type = ALLOWED_AVATAR_TYPES.get(content_type)
+    if not avatar_type:
+        raise HTTPException(400, "Avatar must be a JPG, PNG, GIF, or WEBP image")
+    signature, extension = avatar_type
+    if not data.startswith(signature):
+        raise HTTPException(400, "Avatar file content does not match its image type")
+    if content_type == "image/webp" and data[8:12] != b"WEBP":
+        raise HTTPException(400, "Avatar file content does not match its image type")
+    return extension
+
+
+def _jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
+    if not data.startswith(b"\xff\xd8"):
+        return None
+    index = 2
+    while index + 9 < len(data):
+        if data[index] != 0xFF:
+            index += 1
+            continue
+        while index < len(data) and data[index] == 0xFF:
+            index += 1
+        if index >= len(data):
+            return None
+        marker = data[index]
+        index += 1
+        if marker in {0xD8, 0xD9}:
+            continue
+        if marker == 0xDA or index + 2 > len(data):
+            return None
+        segment_length = struct.unpack(">H", data[index:index + 2])[0]
+        if segment_length < 2 or index + segment_length > len(data):
+            return None
+        if marker in {
+            0xC0, 0xC1, 0xC2, 0xC3,
+            0xC5, 0xC6, 0xC7,
+            0xC9, 0xCA, 0xCB,
+            0xCD, 0xCE, 0xCF,
+        }:
+            if index + 7 > len(data):
+                return None
+            height = struct.unpack(">H", data[index + 3:index + 5])[0]
+            width = struct.unpack(">H", data[index + 5:index + 7])[0]
+            return width, height
+        index += segment_length
+    return None
+
+
+def _webp_dimensions(data: bytes) -> tuple[int, int] | None:
+    if len(data) < 30 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        return None
+    chunk = data[12:16]
+    if chunk == b"VP8X" and len(data) >= 30:
+        width = int.from_bytes(data[24:27], "little") + 1
+        height = int.from_bytes(data[27:30], "little") + 1
+        return width, height
+    if chunk == b"VP8 " and len(data) >= 30:
+        width = struct.unpack("<H", data[26:28])[0] & 0x3FFF
+        height = struct.unpack("<H", data[28:30])[0] & 0x3FFF
+        return width, height
+    if chunk == b"VP8L" and len(data) >= 25 and data[20] == 0x2F:
+        bits = int.from_bytes(data[21:25], "little")
+        width = (bits & 0x3FFF) + 1
+        height = ((bits >> 14) & 0x3FFF) + 1
+        return width, height
+    return None
+
+
+def _image_dimensions(content_type: str, data: bytes) -> tuple[int, int] | None:
+    if content_type == "image/png" and len(data) >= 24:
+        return struct.unpack(">II", data[16:24])
+    if content_type == "image/gif" and len(data) >= 10:
+        return struct.unpack("<HH", data[6:10])
+    if content_type == "image/jpeg":
+        return _jpeg_dimensions(data)
+    if content_type == "image/webp":
+        return _webp_dimensions(data)
+    return None
+
+
+def _validate_square_avatar(content_type: str, data: bytes):
+    dimensions = _image_dimensions(content_type, data)
+    if not dimensions:
+        raise HTTPException(400, "Avatar image dimensions could not be read")
+    width, height = dimensions
+    if width <= 0 or height <= 0:
+        raise HTTPException(400, "Avatar image dimensions are invalid")
+    if width != height:
+        raise HTTPException(400, "Avatar image ratio must be 1:1")
+
+
+def _remove_old_avatar(avatar_url: str):
+    if not avatar_url or not avatar_url.startswith("/static/uploads/avatars/"):
+        return
+    old_path = avatar_dir / Path(avatar_url).name
+    try:
+        if old_path.is_file() and old_path.parent == avatar_dir:
+            old_path.unlink()
+    except Exception as e:
+        logger.warning("avatar_cleanup_failed: %s", e)
+
+
+@app.post("/api/auth/profile/avatar")
+async def upload_profile_avatar(
+    request: Request,
+    mailbox_id: str = Query(""),
+    avatar: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    token = get_profile_session_token(request)
+    if not token:
+        raise HTTPException(401, "Not authenticated")
+
+    content_type = (avatar.content_type or "").lower()
+    data = await avatar.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(400, "Avatar image must be 1 MB or smaller")
+    if not data:
+        raise HTTPException(400, "Avatar image is required")
+
+    extension = _avatar_extension(content_type, data)
+    _validate_square_avatar(content_type, data)
+    filename = f"{_secrets.token_urlsafe(18)}{extension}"
+    target_path = avatar_dir / filename
+    avatar_url = f"/static/uploads/avatars/{filename}"
+
+    if mailbox_id:
+        mailbox = resolve_active_mailbox(db, mailbox_id)
+        authorize_requested_mailbox(request, db, mailbox)
+        target_path.write_bytes(data)
+        _remove_old_avatar(mailbox.avatar_url or "")
+        mailbox.avatar_url = avatar_url
+        actor = mailbox.email.lower()
+    else:
+        payload = decode_token(token)
+        if payload.get("role") == "mailbox":
+            mailbox = resolve_active_mailbox(
+                db,
+                payload.get("mailbox_id"),
+                payload.get("mailbox_email"),
+            )
+            target_path.write_bytes(data)
+            _remove_old_avatar(mailbox.avatar_url or "")
+            mailbox.avatar_url = avatar_url
+            actor = mailbox.email.lower()
+        else:
+            user = db.query(User).filter(User.username == payload.get("sub")).first()
+            if not user:
+                raise HTTPException(404, "User not found")
+            target_path.write_bytes(data)
+            _remove_old_avatar(user.avatar_url or "")
+            user.avatar_url = avatar_url
+            actor = user.username
+
+    db.commit()
+    log_audit(db, actor, "upload_avatar", details="Profile avatar updated")
+    return {"ok": True, "avatar_url": avatar_url}
 
 
 @app.post("/api/auth/change-password")
@@ -2467,6 +2765,7 @@ async def api_get_admin_mailboxes(request: Request, db: Session = Depends(get_db
             "email": row.email,
             "domain": row.domain,
             "sender_name": row.sender_name or "",
+            "avatar_url": avatar_url_or_default(row.avatar_url),
             "forward_to": row.forward_to or "",
             "forward_enabled": bool(row.forward_enabled),
             "forward_keep_copy": bool(row.forward_keep_copy),
@@ -2551,6 +2850,7 @@ async def api_login_mailbox(request: Request, payload: dict, db: Session = Depen
             "email": mailbox.email,
             "domain": mailbox.domain,
             "sender_name": mailbox.sender_name or "",
+            "avatar_url": avatar_url_or_default(mailbox.avatar_url),
         }
     })
     # Use a SEPARATE cookie (mailbox_token) so that the mailbox session
@@ -2592,6 +2892,7 @@ async def api_get_user_mailboxes(request: Request, db: Session = Depends(get_db)
             "email": row.email,
             "domain": row.domain,
             "sender_name": row.sender_name or "",
+            "avatar_url": avatar_url_or_default(row.avatar_url),
             "owner_username": row.created_by,
             "owner_role": owners.get(row.created_by, ""),
             "access_accounts": access_accounts.get(row.id, []),
