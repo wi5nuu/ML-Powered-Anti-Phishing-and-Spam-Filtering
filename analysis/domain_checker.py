@@ -18,7 +18,6 @@ Usage:
 """
 
 import logging
-import re
 import socket
 import unicodedata
 from dataclasses import dataclass, field

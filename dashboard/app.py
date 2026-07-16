@@ -17,36 +17,33 @@ Features:
 import asyncio
 import base64
 import contextlib
+import csv
 import html
+import io
 import json
 import logging
 import mimetypes
 import os
 import re
-import struct
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 import secrets as _secrets
+import struct
+import uuid
 from datetime import datetime, timedelta
+from email import encoders, policy
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.parser import Parser
+from email.utils import formatdate, getaddresses, make_msgid
 from pathlib import Path
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
+
+import aiosmtplib
 import httpx
 import redis.asyncio as aio_redis
-import uuid
-import aiosmtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-from email import policy
-from email.parser import Parser
-from email.utils import getaddresses
-
 from pydantic import BaseModel
-import csv
-import io
-from fastapi import FastAPI, Request, Depends, Form, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
+from fastapi import FastAPI, Request, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
 from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
@@ -61,11 +58,13 @@ from sqlalchemy import func, case, text, or_, and_
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox, AdminMailboxAccess
+from dashboard import environment as _environment  # noqa: F401 - loads .env before configuration imports
+from database.models import ApiKey, QuarantineEmail, Feedback, User, AuditLog, Report, AdminMailbox, AdminMailboxAccess
+from mail_delivery import deliver_direct_mx
 from dashboard.database import get_db, SessionLocal
 from dashboard.auth import (
-    hash_password, verify_password, create_access_token, decode_token, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_current_user, require_role, log_audit, verify_api_key
+    hash_password, verify_password, create_access_token, decode_token, ACCESS_TOKEN_EXPIRE_MINUTES,
+    log_audit
 )
 
 logger = logging.getLogger(__name__)
@@ -106,6 +105,29 @@ DASHBOARD_SECRET_KEY = os.getenv("DASHBOARD_SECRET_KEY")
 if not DASHBOARD_SECRET_KEY:
     DASHBOARD_SECRET_KEY = _secrets.token_hex(32)
     logger.warning("DASHBOARD_SECRET_KEY not set. Generated ephemeral key.")
+
+
+def validate_production_configuration() -> None:
+    if os.getenv("ENV", "development").lower() != "production":
+        return
+    insecure = []
+    password_defaults = {
+        "ADMIN_PASSWORD": {"", "admin"},
+        "SUPERADMIN_PASSWORD": {"", "super", "superadmin"},
+        "USER_PASSWORD": {"", "user"},
+    }
+    for variable, rejected in password_defaults.items():
+        if os.getenv(variable, "").strip().lower() in rejected:
+            insecure.append(variable)
+    if not os.getenv("DASHBOARD_SECRET_KEY", "").strip():
+        insecure.append("DASHBOARD_SECRET_KEY")
+    if os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower() == "direct":
+        helo = os.getenv("OUTBOUND_HELO_HOSTNAME", "").strip().lower()
+        if not helo or helo == "localhost":
+            insecure.append("OUTBOUND_HELO_HOSTNAME")
+    if insecure:
+        names = ", ".join(sorted(set(insecure)))
+        raise RuntimeError(f"Konfigurasi production tidak aman atau belum lengkap: {names}")
 
 static_dir = Path(__file__).parent / "static"
 avatar_dir = static_dir / "uploads" / "avatars"
@@ -176,7 +198,12 @@ app = FastAPI(title="CogniMail Dashboard", version="3.0.0")
 Instrumentator().instrument(app).expose(app)
 
 csrf_secret = os.getenv("DASHBOARD_SECRET_KEY") or _secrets.token_hex(32)
-app.add_middleware(SessionMiddleware, secret_key=csrf_secret, same_site="lax", https_only=False)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=csrf_secret,
+    same_site="lax",
+    https_only=os.getenv("ENV", "development") == "production",
+)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
 _default_cors = "http://localhost:5173,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8081"
 app.add_middleware(
@@ -244,7 +271,11 @@ PUBSUB_CHANNEL = os.getenv("PUBSUB_CHANNEL", "email:processed")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query("")):
-    token = token or websocket.cookies.get("access_token", "")
+    token = (
+        token
+        or websocket.cookies.get("mailbox_token", "")
+        or websocket.cookies.get("access_token", "")
+    )
     if not token:
         await websocket.close(code=4001)
         return
@@ -317,8 +348,18 @@ async def stop_pubsub_bridge():
 ALLOWED_ROLES = {"superadmin", "admin", "user"}
 
 
-def _upsert_seed_user(db, username: str, password: str, role: str, email: str = None, legacy_usernames=None):
+def _upsert_seed_user(
+    db,
+    username: str,
+    password: str,
+    role: str,
+    email: str = None,
+    legacy_usernames=None,
+    insecure_passwords=None,
+):
     legacy_usernames = legacy_usernames or []
+    insecure_passwords = insecure_passwords or []
+    created = False
     user = db.query(User).filter(User.username == username).first()
     if not user:
         for old_username in legacy_usernames:
@@ -330,9 +371,18 @@ def _upsert_seed_user(db, username: str, password: str, role: str, email: str = 
     if not user:
         user = User(username=username)
         db.add(user)
+        created = True
+        user.hashed_password = hash_password(password)
+    elif any(
+        verify_password(candidate, user.hashed_password or "")
+        for candidate in insecure_passwords
+    ):
+        # Upgrade only known development credentials. A password changed from
+        # the UI must survive future container restarts.
+        user.hashed_password = hash_password(password)
 
-    user.email = email
-    user.hashed_password = hash_password(password)
+    if created or email is not None:
+        user.email = email
     user.role = role
     user.is_active = True
     return user
@@ -383,23 +433,27 @@ def seed_admin():
         "superadmin",
         os.getenv("SUPERADMIN_EMAIL") or None,
         legacy_usernames=["superadmin"],
+        insecure_passwords=["super", "superadmin"],
     )
     _upsert_seed_user(
         db,
         os.getenv("ADMIN_USERNAME", "admin"),
         os.getenv("ADMIN_PASSWORD", "admin"),
         "admin",
+        insecure_passwords=["admin"],
     )
     _upsert_seed_user(
         db,
         os.getenv("USER_USERNAME", "user"),
         os.getenv("USER_PASSWORD", "user"),
         "user",
+        insecure_passwords=["user"],
     )
 
     db.commit()
     db.close()
 
+validate_production_configuration()
 seed_admin()
 
 
@@ -413,27 +467,8 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
     mailbox_context = any(path in referer for path in ("/mailbox-login", "/mail/"))
     logger.info(f"auth_me: client={client_host} dashboard_token={bool(token)} mailbox_token={bool(mailbox_token)} mailbox_context={mailbox_context} url={request.url.path}")
 
-    if token:
-        try:
-            payload = decode_token(token)
-            if payload.get("role") != "mailbox":
-                user = db.query(User).filter(User.username == payload.get("sub")).first()
-                if user and user.is_active:
-                    logger.info(f"auth_me: authenticated dashboard user={user.username} role={user.role}")
-                    return JSONResponse({
-                        "authenticated": True,
-                        "user": {
-                            "username": user.username,
-                            "email": user.email,
-                            "role": user.role,
-                            "avatar_url": avatar_url_or_default(user.avatar_url),
-                        }
-                    })
-        except Exception as e:
-            logger.warning(f"auth_me: dashboard token decode failed: {e}")
-
-    # --- Try mailbox token only from webmail pages. Dashboard login/root must not
-    # treat a mailbox cookie as an authenticated dashboard session.
+    # Webmail pages must prefer their independent mailbox session. If that
+    # token is invalid, a valid dashboard session remains a safe fallback.
     if mailbox_token and mailbox_context:
         try:
             payload = decode_token(mailbox_token)
@@ -454,10 +489,29 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
                         "mailbox_id": str(mailbox.id),
                         "mailbox_email": mailbox.email.lower(),
                         "avatar_url": avatar_url_or_default(mailbox.avatar_url),
-                    }
+                    },
                 })
         except Exception as e:
             logger.warning(f"auth_me: mailbox token decode failed: {e}")
+
+    if token:
+        try:
+            payload = decode_token(token)
+            if payload.get("role") != "mailbox":
+                user = db.query(User).filter(User.username == payload.get("sub")).first()
+                if user and user.is_active:
+                    logger.info(f"auth_me: authenticated dashboard user={user.username} role={user.role}")
+                    return JSONResponse({
+                        "authenticated": True,
+                        "user": {
+                            "username": user.username,
+                            "email": user.email,
+                            "role": user.role,
+                            "avatar_url": avatar_url_or_default(user.avatar_url),
+                        },
+                    })
+        except Exception as e:
+            logger.warning(f"auth_me: dashboard token decode failed: {e}")
 
     logger.warning(f"auth_me: no valid session from {client_host}")
     return JSONResponse({"authenticated": False, "user": None})
@@ -496,7 +550,7 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
     if "@" in login_identity:
         mailbox = db.query(AdminMailbox).filter(
             func.lower(AdminMailbox.email) == login_identity,
-            AdminMailbox.is_active == True,
+            AdminMailbox.is_active.is_(True),
         ).first()
         if mailbox and verify_password(form_data.password, mailbox.password_hash or ""):
             mailbox_token = create_access_token({
@@ -616,8 +670,6 @@ async def google_callback(request: Request, code: str = "", error: str = "", db:
         userinfo = userinfo_resp.json()
 
     google_email = userinfo.get("email", "")
-    google_name = userinfo.get("name", google_email.split("@")[0])
-
     if not google_email:
         return RedirectResponse(url="/login?error=no_email")
 
@@ -920,6 +972,8 @@ async def update_profile(request: Request, data: dict, db: Session = Depends(get
             httponly=True,
             samesite="lax",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            secure=os.getenv("ENV", "development") == "production",
+            path="/",
         )
     return response
 
@@ -952,7 +1006,8 @@ async def create_api_key(request: Request, data: dict, db: Session = Depends(get
     if not user:
         raise HTTPException(404, "User not found")
     name = data.get("name", "Untitled Key")
-    import secrets, hashlib
+    import secrets
+    import hashlib
     raw_key = f"cm_{secrets.token_hex(24)}"
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
     api_key = ApiKey(
@@ -1091,37 +1146,22 @@ async def api_stats(db: Session = Depends(get_db)):
 
 
 def get_authenticated_api_user(request: Request, db: Session = Depends(get_db)) -> dict:
-    token = request.cookies.get("access_token") or request.cookies.get("mailbox_token")
-    if not token:
+    access_token = request.cookies.get("access_token")
+    mailbox_token = request.cookies.get("mailbox_token")
+    if not access_token and not mailbox_token:
         logger.warning(f"get_authenticated_api_user: no cookie from {request.client.host if request.client else 'unknown'}")
         raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = decode_token(token)
-        if payload.get("role") == "mailbox":
-            mailbox = resolve_active_mailbox(
-                db,
-                payload.get("mailbox_id"),
-                payload.get("mailbox_email"),
-                missing_status_code=401,
-                missing_detail="Mailbox is disabled or inactive",
-                inactive_detail="Mailbox is disabled or inactive",
-            )
-            return {
-                "username": mailbox.email.lower(),
-                "role": "mailbox",
-                "mailbox_id": str(mailbox.id),
-                "mailbox_email": mailbox.email.lower(),
-            }
-        user = db.query(User).filter(User.username == payload.get("sub")).first()
-        if not user or not user.is_active:
-            logger.warning(f"get_authenticated_api_user: user {payload.get('sub')} not found or inactive")
-            raise HTTPException(status_code=401, detail="Account is disabled or inactive")
-        return {"username": user.username, "role": user.role}
-    except HTTPException:
-        raise
-    except Exception:
-        logger.warning(f"get_authenticated_api_user: token decode failed")
-        raise HTTPException(status_code=401, detail="Token is invalid or expired")
+    candidates = (
+        (mailbox_token, access_token)
+        if is_mailbox_request_context(request)
+        else (access_token, mailbox_token)
+    )
+    for candidate in candidates:
+        user_info = authenticated_user_from_token(db, candidate)
+        if user_info:
+            return user_info
+    logger.warning("get_authenticated_api_user: all session tokens invalid or expired")
+    raise HTTPException(status_code=401, detail="Token is invalid or expired")
 
 
 class FalsePositiveRequest(BaseModel):
@@ -1175,7 +1215,7 @@ def resolve_active_mailbox(
     missing_detail: str = "Mailbox not found",
     inactive_detail: str = "Mailbox is disabled or inactive",
 ) -> AdminMailbox:
-    mailbox_query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
+    mailbox_query = db.query(AdminMailbox).filter(AdminMailbox.is_active.is_(True))
     normalized_email = (mailbox_email or "").strip().lower()
     mailbox_identifier = str(mailbox_id).strip().lower() if mailbox_id not in (None, "") else ""
     lookup_email = normalized_email
@@ -1297,7 +1337,7 @@ def ensure_mailbox_access(db: Session, user_info: dict, mailbox: AdminMailbox):
 
 
 def mailbox_scope_query(db: Session, user_info: dict):
-    query = db.query(AdminMailbox).filter(AdminMailbox.is_active == True)
+    query = db.query(AdminMailbox).filter(AdminMailbox.is_active.is_(True))
     if is_superadmin(user_info):
         return query
     if is_admin(user_info) or is_user(user_info):
@@ -1345,7 +1385,7 @@ def resolve_sender_address(db: Session, user_info: dict, requested_from: str = "
             raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
         mailbox = db.query(AdminMailbox).filter(
             AdminMailbox.email == requested_sender,
-            AdminMailbox.is_active == True,
+            AdminMailbox.is_active.is_(True),
         ).first()
         if not mailbox:
             raise HTTPException(status_code=403, detail="Sender mailbox is not registered or inactive")
@@ -2255,29 +2295,106 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
 
     # Send email via SMTP first. Only mark as SENT after delivery is accepted.
     sent_id = f"sent_{uuid.uuid4().hex[:12]}"
-    smtp_host = os.getenv("FORWARDER_SMTP_HOST", "")
+    outbound_mode = os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower()
+    smtp_host = os.getenv("FORWARDER_SMTP_HOST", "").strip()
+    smtp_user = os.getenv("FORWARDER_SMTP_USER", "").strip()
+    smtp_pass = os.getenv("FORWARDER_SMTP_PASS", "")
+    if outbound_mode not in {"direct", "relay"}:
+        reason = f"OUTBOUND_SMTP_MODE tidak valid: {outbound_mode!r}. Gunakan 'direct' atau 'relay'."
+        logger.error("Failed to send email: %s", reason)
+        failure_id = save_delivery_failure(
+            db, sender_address, dest_recipients, final_subject, final_body,
+            reason, user_info["username"], request,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"message": "Konfigurasi pengiriman outbound tidak valid.", "reason": reason, "failure_email_id": failure_id},
+        )
+    if outbound_mode == "relay" and not smtp_host:
+        reason = (
+            "SMTP relay outbound belum dikonfigurasi. "
+            "Isi FORWARDER_SMTP_HOST, FORWARDER_SMTP_PORT, "
+            "FORWARDER_SMTP_USER, dan FORWARDER_SMTP_PASS."
+        )
+        logger.error("Failed to send email: %s", reason)
+        failure_id = save_delivery_failure(
+            db,
+            sender_address,
+            dest_recipients,
+            final_subject,
+            final_body,
+            reason,
+            user_info["username"],
+            request,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Email gagal terkirim karena SMTP relay belum dikonfigurasi.",
+                "reason": reason,
+                "failure_email_id": failure_id,
+            },
+        )
+    if outbound_mode == "relay" and bool(smtp_user) != bool(smtp_pass):
+        reason = "Konfigurasi SMTP relay tidak lengkap: username dan password harus diisi bersamaan."
+        logger.error("Failed to send email: %s", reason)
+        failure_id = save_delivery_failure(
+            db,
+            sender_address,
+            dest_recipients,
+            final_subject,
+            final_body,
+            reason,
+            user_info["username"],
+            request,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Email gagal terkirim karena konfigurasi SMTP relay tidak lengkap.",
+                "reason": reason,
+                "failure_email_id": failure_id,
+            },
+        )
     try:
         validate_recipient_domains(dest_recipients)
-        if smtp_host:
+        # Direct delivery is multi-mailbox: each mailbox uses its own address
+        # as the SMTP envelope sender. A relay may require one authorized
+        # fallback identity, configured through FORWARDER_FROM.
+        envelope_from = (
+            sender_address
+            if outbound_mode == "direct"
+            else os.getenv("FORWARDER_FROM", "").strip() or sender_address
+        )
+
+        msg = MIMEMultipart()
+        msg["From"] = sender_address
+        if envelope_from != sender_address:
+            msg["Reply-To"] = sender_address
+        msg["To"] = ", ".join(dest_recipients)
+        msg["Subject"] = final_subject
+        msg["Date"] = formatdate(localtime=False)
+        msg["Message-ID"] = make_msgid(domain=os.getenv("OUTBOUND_HELO_HOSTNAME", "").strip() or None)
+        msg.attach(MIMEText(final_body, "plain", "utf-8"))
+        for attachment in stored_attachments:
+            maintype, subtype = (attachment["content_type"].split("/", 1) + ["octet-stream"])[:2]
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(base64.b64decode(attachment["data"]))
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment", filename=attachment["filename"])
+            msg.attach(part)
+
+        if outbound_mode == "direct":
+            delivered = await deliver_direct_mx(
+                msg,
+                envelope_from,
+                dest_recipients,
+                helo_hostname=os.getenv("OUTBOUND_HELO_HOSTNAME", "").strip() or None,
+            )
+            logger.info("Sent email directly to MX successfully: %s", delivered)
+        else:
             smtp_port = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
-            smtp_user = os.getenv("FORWARDER_SMTP_USER", "")
-            smtp_pass = os.getenv("FORWARDER_SMTP_PASS", "")
-            smtp_from = sender_address or os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
             smtp_starttls = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
-
-            msg = MIMEMultipart()
-            msg["From"] = smtp_from
-            msg["To"] = ", ".join(dest_recipients)
-            msg["Subject"] = final_subject
-            msg.attach(MIMEText(final_body, "plain", "utf-8"))
-            for attachment in stored_attachments:
-                maintype, subtype = (attachment["content_type"].split("/", 1) + ["octet-stream"])[:2]
-                part = MIMEBase(maintype, subtype)
-                part.set_payload(base64.b64decode(attachment["data"]))
-                encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment", filename=attachment["filename"])
-                msg.attach(part)
-
             async with aiosmtplib.SMTP(
                 hostname=smtp_host,
                 port=smtp_port,
@@ -2287,8 +2404,12 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
                     await smtp.starttls()
                 if smtp_user and smtp_pass:
                     await smtp.login(smtp_user, smtp_pass)
-                await smtp.send_message(msg)
-            logger.info("Sent email via SMTP successfully")
+                await smtp.send_message(
+                    msg,
+                    sender=envelope_from,
+                    recipients=dest_recipients,
+                )
+            logger.info("Sent email via relay successfully to %s", ", ".join(dest_recipients))
     except Exception as e:
         reason = str(e)
         logger.error("Failed to send email: %s", reason)
@@ -2568,7 +2689,7 @@ async def api_test_imap(request: Request, db: Session = Depends(get_db)):
 
 
 
-@app.get("/api/emails/export-csv")
+@app.get("/api/export/emails.csv")
 async def api_export_emails_csv(
     request: Request,
     label: str = Query(None),
@@ -2924,7 +3045,7 @@ async def api_claim_mailbox(request: Request, payload: dict, db: Session = Depen
         raise HTTPException(status_code=400, detail="Password is required")
     mailbox = db.query(AdminMailbox).filter(
         func.lower(AdminMailbox.email) == email,
-        AdminMailbox.is_active == True,
+        AdminMailbox.is_active.is_(True),
     ).first()
     if not mailbox or not verify_password(password, mailbox.password_hash or ""):
         raise HTTPException(status_code=400, detail="Email or password is invalid")
@@ -2971,7 +3092,7 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
     user_info = get_authenticated_api_user(request, db)
     if not can_manage_mailboxes(user_info):
         raise HTTPException(status_code=403, detail="You do not have permission to manage mailboxes")
-    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
+    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active.is_(True)).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
     ensure_mailbox_access(db, user_info, mailbox)
@@ -3002,7 +3123,7 @@ async def api_update_admin_mailbox_password(mailbox_id: int, request: Request, p
     password = str(payload.get("password", ""))
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
-    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
+    mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active.is_(True)).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
     ensure_mailbox_access(db, user_info, mailbox)
@@ -3078,8 +3199,8 @@ async def api_get_audit_logs(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view audit logs")
     logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
     return [
-        {"user": l.user, "action": l.action, "email_id": l.email_id, "details": l.details, "created_at": str(l.created_at)}
-        for l in logs
+        {"user": log.user, "action": log.action, "email_id": log.email_id, "details": log.details, "created_at": str(log.created_at)}
+        for log in logs
     ]
 
 
@@ -3089,7 +3210,7 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     if user_info["role"] not in ("superadmin", "admin"):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view stats")
     total_users = db.query(User).count()
-    active_users = db.query(User).filter(User.is_active == True).count()
+    active_users = db.query(User).filter(User.is_active.is_(True)).count()
     total_emails = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash").count()
     clean_count = db.query(QuarantineEmail).filter(
         QuarantineEmail.label == "CLEAN",
@@ -3185,7 +3306,7 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
         raise HTTPException(status_code=403, detail="Access denied")
-    users = db.query(User).filter(User.is_active == True).all()
+    users = db.query(User).filter(User.is_active.is_(True)).all()
     result = []
     for u in users:
         identifiers = [u.username.lower()]

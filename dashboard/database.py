@@ -34,6 +34,25 @@ def _ensure_schema_compatibility():
         if "avatar_url" not in user_columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''"))
+    if "quarantine_emails" in table_names:
+        email_columns = {column["name"] for column in inspector.get_columns("quarantine_emails")}
+        email_statements = []
+        if "is_read" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN is_read BOOLEAN DEFAULT FALSE")
+        if "deleted_at" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN deleted_at TIMESTAMP")
+        if "attachments_json" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN attachments_json TEXT")
+        if "spf_result" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN spf_result VARCHAR(32) DEFAULT ''")
+        if "dkim_result" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''")
+        if "dmarc_result" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''")
+        if email_statements:
+            with engine.begin() as conn:
+                for statement in email_statements:
+                    conn.execute(text(statement))
     if "admin_mailboxes" not in inspector.get_table_names():
         return
     columns = {column["name"] for column in inspector.get_columns("admin_mailboxes")}

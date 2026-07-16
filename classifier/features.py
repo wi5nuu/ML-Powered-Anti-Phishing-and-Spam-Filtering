@@ -16,7 +16,6 @@ from urllib.parse import urlparse
 import numpy as np
 import tldextract
 from rapidfuzz.distance import Levenshtein
-import dns.resolver
 from langdetect import detect, DetectorFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
@@ -185,9 +184,9 @@ class EmailParser:
 
         # Recipients
         recipients = []
-        for field in ["To", "Cc", "Bcc"]:
-            if msg.get(field):
-                recipients.extend(msg.get(field, "").split(","))
+        for header_name in ["To", "Cc", "Bcc"]:
+            if msg.get(header_name):
+                recipients.extend(msg.get(header_name, "").split(","))
 
         # Body parsing
         body_text, body_html = self._extract_body(msg)

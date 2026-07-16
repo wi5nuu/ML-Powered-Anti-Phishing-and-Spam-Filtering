@@ -4,9 +4,9 @@ SQLAlchemy models untuk CogniMail — Enterprise Edition.
 
 import datetime
 import enum
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, Enum as SAEnum, JSON, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
 
 Base = declarative_base()

@@ -15,17 +15,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import joblib
-import numpy as np
 import shap
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from classifier.features import (
-    EmailParser, FeatureExtractor, EmailFeatures, STRUCTURED_FEATURES
+    EmailParser, FeatureExtractor, STRUCTURED_FEATURES
 )
 from classifier.inference_matrix import build_feature_matrix
-from classifier.unsupervised import AnomalyDetector, AnomalyResult
+from classifier.unsupervised import AnomalyDetector
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +189,6 @@ def _predict_supervised_internal(raw_email: str, email_id: str) -> PredictRespon
     else:
         shap_vals = None
 
-    tfidf_names = state.tfidf_feature_names
     all_names = state.all_feature_names
 
     if shap_vals is not None:

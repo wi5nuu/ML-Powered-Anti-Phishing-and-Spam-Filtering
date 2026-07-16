@@ -18,15 +18,15 @@ Konfigurasi via env vars:
   FORWARDER_DOMAIN_MAP    — JSON mapping domain tujuan ke akun SMTP
 """
 
-import asyncio, json, logging, os, re
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
+import logging
+import os
+import re
 from email import policy
-from email.parser import BytesParser
+from email.parser import Parser
 
 import aiosmtplib
 from email.utils import getaddresses
+from mail_delivery import deliver_direct_mx
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +34,11 @@ FORWARDER_SMTP_HOST = os.getenv("FORWARDER_SMTP_HOST", "")
 FORWARDER_SMTP_PORT = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
 FORWARDER_SMTP_USER = os.getenv("FORWARDER_SMTP_USER", "")
 FORWARDER_SMTP_PASS = os.getenv("FORWARDER_SMTP_PASS", "")
-FORWARDER_FROM      = os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
+FORWARDER_FROM = os.getenv("FORWARDER_FROM", "").strip().lower()
 FORWARDER_STARTTLS = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
 FORWARDER_DOMAIN_MAP = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
 FORWARDER_DESTINATION_OVERRIDE = os.getenv("FORWARDER_DESTINATION_OVERRIDE", "")
+OUTBOUND_SMTP_MODE = os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower()
 
 # Header X-Spam untuk email WARN
 SPAM_HEADER = "X-Spam-Reason"
@@ -77,16 +78,49 @@ def _parse_recipients(raw_email: str, payload_recipients: list) -> list:
     return _normalize_recipients(recipients)
 
 
-def _inject_header(raw_email: str, header_name: str, header_val: str) -> str:
-    """Inject custom header ke raw email sebelum forward."""
-    lines = raw_email.splitlines(keepends=True)
-    # Cari baris kosong pertama (pisah header dan body)
-    for i, line in enumerate(lines):
-        if line.strip() == "":
-            # Inject header sebelum baris kosong
-            lines.insert(i, f"{header_name}: {header_val}\r\n")
-            break
-    return "".join(lines)
+def _prepare_forward_message(
+    raw_email: str,
+    envelope_from: str,
+    recipients: list[str],
+    fusion_label: str,
+    fused_score: float,
+) -> bytes:
+    """Rewrite forwarding headers so SPF can align with RFC5322 From.
+
+    Keeping the original external From while using a CogniMail envelope sender
+    causes DMARC alignment failures. Reply-To and X-CogniMail-Original-From
+    preserve the actual author for replies and auditing.
+    """
+    message = Parser(policy=policy.SMTP).parsestr(raw_email)
+    original_from = str(message.get("From", "")).strip()
+
+    for header in (
+        "Return-Path",
+        "Delivered-To",
+        "Bcc",
+        "X-CogniMail-Original-From",
+        "X-CogniMail-Forwarded-By",
+        SPAM_HEADER,
+    ):
+        while header in message:
+            del message[header]
+    for header in ("To", "Cc"):
+        while header in message:
+            del message[header]
+
+    if "From" in message:
+        message.replace_header("From", envelope_from)
+    else:
+        message["From"] = envelope_from
+    message["To"] = ", ".join(recipients)
+    if original_from:
+        if "Reply-To" not in message:
+            message["Reply-To"] = original_from
+        message["X-CogniMail-Original-From"] = original_from
+    message["X-CogniMail-Forwarded-By"] = envelope_from
+    if fusion_label == "WARN":
+        message[SPAM_HEADER] = SPAM_HEADER_VAL.format(score=fused_score)
+    return message.as_bytes(policy=policy.SMTP)
 
 
 async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
@@ -108,7 +142,10 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
         return False
 
     # Cek konfigurasi forwarder
-    if not FORWARDER_SMTP_HOST:
+    if OUTBOUND_SMTP_MODE not in {"direct", "relay"}:
+        logger.error("Invalid OUTBOUND_SMTP_MODE=%r", OUTBOUND_SMTP_MODE)
+        return False
+    if OUTBOUND_SMTP_MODE == "relay" and not FORWARDER_SMTP_HOST:
         logger.warning("FORWARDER_SMTP_HOST not set — skipping forward")
         return False
 
@@ -125,16 +162,35 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
         logger.warning("No recipients found — cannot forward")
         return False
 
-    # Inject header untuk WARN
-    email_to_send = raw_email
-    if fusion_label == "WARN":
-        email_to_send = _inject_header(
-            raw_email, SPAM_HEADER,
-            SPAM_HEADER_VAL.format(score=fused_score)
-        )
-
-    # Forward via SMTP
+    # Forward via direct MX delivery or an authenticated relay.
     try:
+        envelope_from = (
+            str(payload.get("forward_from") or "").strip().lower()
+            or FORWARDER_FROM
+        )
+        if not envelope_from or "@" not in envelope_from:
+            logger.error("Forward sender mailbox is missing or invalid")
+            return False
+        email_to_send = _prepare_forward_message(
+            raw_email,
+            envelope_from,
+            recipients,
+            fusion_label,
+            fused_score,
+        )
+        if OUTBOUND_SMTP_MODE == "direct":
+            delivered = await deliver_direct_mx(
+                email_to_send,
+                envelope_from,
+                recipients,
+                helo_hostname=os.getenv("OUTBOUND_HELO_HOSTNAME", "").strip() or None,
+            )
+            logger.info(
+                "Forwarded %s directly to MX %s (label=%s, score=%.2f)",
+                payload.get("email_id", "?"), delivered, fusion_label, fused_score,
+            )
+            return True
+
         async with aiosmtplib.SMTP(
             hostname=FORWARDER_SMTP_HOST,
             port=FORWARDER_SMTP_PORT,
@@ -147,9 +203,9 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
 
             for recipient in recipients:
                 await smtp.sendmail(
-                    FORWARDER_FROM,
+                    envelope_from,
                     [recipient],
-                    email_to_send.encode("utf-8", errors="replace"),
+                    email_to_send,
                 )
                 logger.info("Forwarded %s to %s (label=%s, score=%.2f)",
                             payload.get("email_id", "?"), recipient,

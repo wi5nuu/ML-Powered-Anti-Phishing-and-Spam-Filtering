@@ -3,7 +3,6 @@ Email fetcher — mengambil email dari Mailpit via REST API dan push ke Redis qu
 Mailpit tidak mendukung IMAP, jadi kita pakai API HTTP-nya.
 """
 
-import asyncio
 import hashlib
 import logging
 import os

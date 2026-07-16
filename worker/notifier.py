@@ -6,11 +6,10 @@ Supports Slack, Telegram, and Email alerts with severity levels.
 import asyncio
 import logging
 import os
-import json
 import aiohttp
 import smtplib
 from email.mime.text import MIMEText
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

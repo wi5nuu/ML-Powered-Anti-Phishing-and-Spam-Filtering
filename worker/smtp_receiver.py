@@ -8,6 +8,10 @@ from datetime import datetime, timezone
 import redis.asyncio as aio_redis
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import SMTP
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from database.models import AdminMailbox
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("smtp_receiver")
@@ -17,9 +21,49 @@ QUEUE_NAME = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
 SMTP_HOST = os.getenv("SMTP_HOST", "0.0.0.0")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
 SMTP_DOMAIN = os.getenv("SMTP_DOMAIN", "mail.lodaya.id")
+DB_URL = os.getenv("WORKER_DB_URL", "sqlite+aiosqlite:///./cognimail.db")
+MAX_MESSAGE_BYTES = int(os.getenv("MAX_MESSAGE_BYTES", str(25 * 1024 * 1024)))
+ACCEPTED_MAIL_DOMAINS = {
+    domain.strip().lower()
+    for domain in os.getenv(
+        "ACCEPTED_MAIL_DOMAINS",
+        os.getenv("VITE_MAIL_DOMAIN", "zenime.my.id"),
+    ).split(",")
+    if domain.strip()
+}
+
+db_engine = create_async_engine(DB_URL, pool_pre_ping=True)
+DbSession = async_sessionmaker(db_engine, expire_on_commit=False)
+
+
+async def mailbox_exists(address: str) -> bool:
+    async with DbSession() as db:
+        result = await db.execute(
+            select(AdminMailbox.id).where(
+                func.lower(AdminMailbox.email) == address.lower(),
+                AdminMailbox.is_active.is_(True),
+            )
+        )
+        return result.scalar_one_or_none() is not None
 
 
 class EmailReceiverHandler:
+    async def handle_RCPT(self, server: SMTP, session, envelope, address, rcpt_options):
+        normalized = str(address or "").strip().lower()
+        domain = normalized.rsplit("@", 1)[-1] if "@" in normalized else ""
+        if not normalized or domain not in ACCEPTED_MAIL_DOMAINS:
+            logger.warning("Rejected non-local SMTP recipient=%s peer=%s", normalized, session.peer)
+            return "550 5.7.1 Relay access denied"
+        try:
+            if not await mailbox_exists(normalized):
+                logger.info("Rejected unknown SMTP mailbox=%s peer=%s", normalized, session.peer)
+                return "550 5.1.1 Mailbox does not exist"
+        except Exception as exc:
+            logger.error("Mailbox lookup failed for %s: %s", normalized, exc)
+            return "451 4.3.0 Temporary database failure"
+        envelope.rcpt_tos.append(normalized)
+        return "250 2.1.5 Recipient OK"
+
     async def handle_DATA(self, server: SMTP, session, envelope):
         raw_email = envelope.content.decode("utf-8", errors="replace")
         email_id = hashlib.sha256(raw_email.encode()).hexdigest()[:16]
@@ -59,6 +103,7 @@ async def run_smtp_receiver():
         hostname=SMTP_HOST,
         port=SMTP_PORT,
         server_hostname=SMTP_DOMAIN,
+        data_size_limit=MAX_MESSAGE_BYTES,
     )
     controller.start()
     logger.info("SMTP Receiver listening on %s:%d (%s)", SMTP_HOST, SMTP_PORT, SMTP_DOMAIN)
@@ -69,6 +114,8 @@ async def run_smtp_receiver():
     except KeyboardInterrupt:
         controller.stop()
         logger.info("SMTP Receiver stopped")
+    finally:
+        await db_engine.dispose()
 
 
 if __name__ == "__main__":
