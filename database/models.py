@@ -205,6 +205,63 @@ class AuditTrail(Base):
     description = Column(Text, nullable=True)
 
 
+
+
+class TrainingData(Base):
+    """Labeled training data collected from user feedback for continuous learning.
+
+    Each row represents one email with its structured features and a confirmed label.
+    Used by the auto-retrain pipeline to incrementally improve models.
+    """
+    __tablename__ = "training_data"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email_id = Column(String(64), unique=True, nullable=False, index=True)
+    raw_email = Column(Text, default="")
+    subject = Column(String(512), default="")
+    sender = Column(String(256), default="")
+    label = Column(String(32), nullable=False, index=True)       # "spam", "phishing", "clean", "malware"
+    source = Column(String(32), nullable=False, default="user")  # "user", "auto", "admin"
+    # Structured features (JSON) — extracted features used for model training
+    features_json = Column(JSON, default=dict)
+    # Raw feature vector for unsupervised training (comma-separated floats or JSON list)
+    feature_vector = Column(Text, default="")
+    # ML scores at time of prediction
+    ml_probability = Column(Float, default=0.0)
+    anomaly_score = Column(Float, default=0.0)
+    fused_score = Column(Float, default=0.0)
+    user_feedback = Column(String(32), default="")               # "confirmed_spam", "false_positive", "confirmed_clean"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    used_in_retrain = Column(Boolean, default=False, index=True)  # Flag for incremental training
+
+
+class RetrainHistory(Base):
+    """History of automated retraining runs with before/after metrics comparison."""
+    __tablename__ = "retrain_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(String(64), unique=True, nullable=False, index=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+    status = Column(String(16), nullable=False, default="running")  # "running", "completed", "failed"
+    trigger = Column(String(32), default="scheduler")             # "scheduler", "manual", "api"
+    models_retrained = Column(JSON, default=list)                 # ["xgboost", "isolation_forest", "one_class_svm"]
+    # Metrics before retraining
+    metrics_before = Column(JSON, default=dict)
+    # Metrics after retraining
+    metrics_after = Column(JSON, default=dict)
+    # Number of training samples used
+    n_samples_supervised = Column(Integer, default=0)
+    n_samples_unsupervised = Column(Integer, default=0)
+    # Active model versions after retrain
+    xgb_version = Column(String(32), default="")
+    if_version = Column(String(32), default="")
+    ocsvm_version = Column(String(32), default="")
+    error_log = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+
 def init_db(db_url: str = "sqlite:///./cognimail.db"):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)

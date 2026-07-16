@@ -17,6 +17,28 @@ if not hasattr(bcrypt, "__about__"):
         __version__ = getattr(bcrypt, "__version__", "4.0.0")
     bcrypt.__about__ = About()
 
+_original_hashpw = bcrypt.hashpw
+def _patched_hashpw(password, salt):
+    if isinstance(password, str):
+        password_bytes = password.encode('utf-8')
+    else:
+        password_bytes = password
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    return _original_hashpw(password_bytes, salt)
+bcrypt.hashpw = _patched_hashpw
+
+_original_checkpw = bcrypt.checkpw
+def _patched_checkpw(password, hashed):
+    if isinstance(password, str):
+        password_bytes = password.encode('utf-8')
+    else:
+        password_bytes = password
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    return _original_checkpw(password_bytes, hashed)
+bcrypt.checkpw = _patched_checkpw
+
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status

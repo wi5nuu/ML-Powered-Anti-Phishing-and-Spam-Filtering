@@ -1,8 +1,25 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# CogniMail — Production Docker Compose
+# ═══════════════════════════════════════════════════════════════════════════
+# Usage:
+#   docker compose up -d                         # Start all services
+#   docker compose --profile production up -d    # + Caddy, node_exporter
+#   docker compose --profile local up -d         # + Mailpit (dev SMTP)
+# ═══════════════════════════════════════════════════════════════════════════
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
+
+  # ── Redis (Message Queue & Pub/Sub) ─────────────────────────────────────
   redis:
     image: redis:7.2-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "127.0.0.1:${REDIS_PORT:-6380}:6379"
     volumes:
@@ -12,7 +29,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── SpamAssassin (Rule-based Spam Detection) ────────────────────────────
   spamassassin:
     image: instantlinux/spamassassin:latest
     restart: unless-stopped
@@ -21,11 +43,16 @@ services:
     volumes:
       - sa_rules:/var/lib/spamassassin
     healthcheck:
-      test: ["CMD-SHELL", "perl -MIO::Socket::INET -e '$$s=IO::Socket::INET->new(PeerAddr=>\"127.0.0.1\",PeerPort=>783,Proto=>\"tcp\"); exit($$s?0:1)'"]
+      test: ["CMD-SHELL", "perl -MIO::Socket::INET -e '$s=IO::Socket::INET->new(PeerAddr=>\"127.0.0.1\",PeerPort=>783,Proto=>\"tcp\"); exit($s?0:1)'"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 20s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── PostgreSQL (Production Database) ────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -33,7 +60,8 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cognimail}
       POSTGRES_USER: ${DB_USER:-cogniuser}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?ERROR: DB_PASSWORD is required}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -43,19 +71,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
 
+  # ── ML Classifier Service ───────────────────────────────────────────────
   classifier:
     build:
       context: .
       dockerfile: docker/Dockerfile.classifier
+    image: cognimail/classifier:${VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     environment:
       ENV: ${ENV:-production}
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "127.0.0.1:${CLASSIFIER_PORT:-8001}:8001"
     volumes:
-      - ./classifier/models:/app/classifier/models:ro
+      - model_data:/app/classifier/models:ro
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -67,16 +108,31 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
+  # ── Background Worker ───────────────────────────────────────────────────
   worker:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
+    image: cognimail/worker:${VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     environment:
       ENV: ${ENV:-production}
       REDIS_URL: redis://redis:6379/0
+      DB_URL: postgresql+asyncpg://${DB_USER:-cogniuser}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-cognimail}
+      CLASSIFIER_URL: http://classifier:8001
+      SPAMASSASSIN_HOST: spamassassin
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -89,11 +145,28 @@ services:
         condition: service_started
       spamassassin:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis; r=redis.Redis.from_url('redis://redis:6379/0'); r.ping(); print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
+  # ── SMTP Receiver ───────────────────────────────────────────────────────
   smtp_receiver:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
+    image: cognimail/worker:${VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -108,18 +181,28 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── Dashboard (FastAPI + React SPA) ─────────────────────────────────────
   dashboard:
     build:
       context: .
       dockerfile: docker/Dockerfile.dashboard
       args:
         VITE_MAIL_DOMAIN: ${VITE_MAIL_DOMAIN:-zenime.my.id}
+    image: cognimail/dashboard:${VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     environment:
       ENV: ${ENV:-production}
       REDIS_URL: redis://redis:6379/0
+      DB_URL: postgresql://${DB_USER:-cogniuser}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-cognimail}
+      DB_SYNC_URL: postgresql://${DB_USER:-cogniuser}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-cognimail}
+      DASHBOARD_DB_URL: postgresql://${DB_USER:-cogniuser}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-cognimail}
+      SPAMASSASSIN_HOST: spamassassin
+      CLASSIFIER_URL: http://classifier:8001
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
     dns:
@@ -135,7 +218,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - cognimail_internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
+  # ── Prometheus (Metrics Collection) ─────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
@@ -148,7 +242,12 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── Redis Exporter ──────────────────────────────────────────────────────
   redis_exporter:
     image: oliver006/redis_exporter:latest
     restart: unless-stopped
@@ -157,7 +256,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── PostgreSQL Exporter ─────────────────────────────────────────────────
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
     restart: unless-stopped
@@ -169,7 +272,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── Grafana (Visualization & Dashboards) ────────────────────────────────
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
@@ -178,6 +285,7 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SECURITY_ADMIN_USER: ${ADMIN_USERNAME:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      GF_INSTALL_PLUGINS: "grafana-piechart-panel"
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
     volumes:
@@ -186,8 +294,13 @@ services:
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── Caddy (Reverse Proxy / TLS Termination) ─────────────────────────────
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -207,7 +320,12 @@ services:
       - dashboard
       - grafana
       - prometheus
+    logging: *default-logging
+    networks:
+      - cognimail_internal
+      - cognimail_public
 
+  # ── Node Exporter (Host Metrics) ────────────────────────────────────────
   node_exporter:
     image: prom/node-exporter:latest
     restart: unless-stopped
@@ -220,7 +338,11 @@ services:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+  # ── Mailpit (Development SMTP Server) ───────────────────────────────────
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
@@ -228,12 +350,43 @@ services:
     ports:
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    logging: *default-logging
+    networks:
+      - cognimail_internal
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Named Volumes
+# ═══════════════════════════════════════════════════════════════════════════
 volumes:
   redis_data:
+    driver: local
   pgdata:
+    driver: local
   sa_rules:
+    driver: local
+  model_data:
+    driver: local
   prometheus_data:
+    driver: local
   grafana_data:
+    driver: local
   caddy_data:
+    driver: local
   caddy_config:
+    driver: local
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════════════
+networks:
+  cognimail_internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  cognimail_public:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16

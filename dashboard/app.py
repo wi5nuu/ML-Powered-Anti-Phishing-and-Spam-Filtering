@@ -45,6 +45,7 @@ from email.utils import getaddresses
 from pydantic import BaseModel
 import csv
 import io
+import random
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile
 from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -215,18 +216,25 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")):
 
 REDIS_URL_WS = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-async def redis_pubsub_bridge():
+async def redis_pubsub_bridge(stop_event: asyncio.Event = None):
     """Listen for Redis pub/sub messages and broadcast to WebSocket clients."""
+    redis_url = os.getenv("REDIS_URL", "").strip()
+    if not redis_url:
+        logger.info("REDIS_URL not set. Pub/sub bridge disabled.")
+        return
     while True:
         r = None
         try:
-            r = aio_redis.from_url(REDIS_URL_WS, socket_timeout=15, socket_connect_timeout=10)
+            r = aio_redis.from_url(redis_url, socket_timeout=5, socket_connect_timeout=3)
+            await r.ping()
             async with r.pubsub() as pubsub:
                 await pubsub.subscribe(PUBSUB_CHANNEL)
                 logger.info("Redis pub/sub bridge started on channel: %s", PUBSUB_CHANNEL)
                 while True:
                     message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                     if not message:
+                        if stop_event and stop_event.is_set():
+                            return
                         continue
                     if message.get("type") == "message":
                         try:
@@ -237,8 +245,8 @@ async def redis_pubsub_bridge():
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            logger.error("pubsub_bridge_error: %s, reconnecting in 5s...", e)
-            await asyncio.sleep(5)
+            logger.warning("Redis pub/sub unavailable: %s. Skipping.", e)
+            return
         finally:
             if r is not None:
                 with contextlib.suppress(Exception):
@@ -247,12 +255,16 @@ async def redis_pubsub_bridge():
 
 @app.on_event("startup")
 async def start_pubsub_bridge():
-    app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge())
+    app.state.pubsub_stop = asyncio.Event()
+    app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge(app.state.pubsub_stop))
 
 
 @app.on_event("shutdown")
 async def stop_pubsub_bridge():
     task = getattr(app.state, "pubsub_task", None)
+    stop = getattr(app.state, "pubsub_stop", None)
+    if stop:
+        stop.set()
     if task:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -286,6 +298,7 @@ def _upsert_seed_user(db, username: str, password: str, role: str, email: str = 
 
 
 def seed_admin():
+    import random
     db = SessionLocal()
     dialect = db.bind.dialect.name
     if dialect == "postgresql":
@@ -323,24 +336,288 @@ def seed_admin():
         os.getenv("SUPERADMIN_EMAIL") or None,
         legacy_usernames=["superadmin"],
     )
-    _upsert_seed_user(
-        db,
-        os.getenv("ADMIN_USERNAME", "admin"),
-        os.getenv("ADMIN_PASSWORD", "admin"),
-        "admin",
-    )
-    _upsert_seed_user(
-        db,
-        os.getenv("USER_USERNAME", "user"),
-        os.getenv("USER_PASSWORD", "user"),
-        "user",
-    )
 
+    companies = [
+        {"name": "PT Maju Jaya", "domain": "majujaya.com", "admin": "admin_maju", "admin_password": "admin123", "emails_per_mailbox": 10000, "mailboxes": ["info@majujaya.com", "sales@majujaya.com", "support@majujaya.com"]},
+        {"name": "CV Sukses Abadi", "domain": "suksesabadi.co.id", "admin": "admin_sukses", "admin_password": "admin123", "emails_per_mailbox": 10000, "mailboxes": ["info@suksesabadi.co.id", "order@suksesabadi.co.id", "cs@suksesabadi.co.id"]},
+        {"name": "PT Teknologi Digital", "domain": "teknodigital.id", "admin": "admin_teknologi", "admin_password": "admin123", "emails_per_mailbox": 10000, "mailboxes": ["info@teknodigital.id", "hello@teknodigital.id", "care@teknodigital.id"]},
+    ]
+    sample_ips = [
+        "192.168.1.100", "10.0.0.45", "172.16.0.88", "203.0.113.42", "198.51.100.7",
+        "185.220.101.1", "45.33.32.156", "104.28.7.1", "91.121.87.34", "51.75.144.1",
+        "103.235.46.1", "159.89.192.1", "128.199.0.1", "165.227.0.1", "178.62.0.1",
+    ]
+    spam_subjects = [
+        "You won $10,000,000!!!", "Act Now! Limited Time Offer", "Buy Cheap Medications Online",
+        "Work From Home - Earn $5000/week", "Congratulations! You are our Lucky Winner",
+        "Your Account Has Been Compromised", "Secret Investment Opportunity",
+        "Meet Singles in Your Area Tonight", "Get Rich Quick with Crypto",
+        "Re: Your outstanding invoice", "FWD: FWD: FWD: Funny Cat Video",
+        "You have been selected for a free iPhone", "Low interest loans approved",
+        "Your Tax Refund is Ready", "Nigerian Prince Needs Your Help",
+    ]
+    phishing_subjects = [
+        "Urgent: Verify Your Account Now", "Security Alert: Suspicious Login",
+        "Password Reset Request", "Your Invoice #INV-2024-8932",
+        "Update Your Payment Information", "Microsoft 365 Account Alert",
+        "Netflix - Your Subscription Has Been Paused",
+        "DHL - Your Package Could Not Be Delivered",
+        "IRS - Tax Filing Notification", "LinkedIn - New Connection Request",
+        "PayPal - Unusual Login Detected", "Amazon - Order Confirmation #ORD-99821",
+        "Google Account Suspension Notice", "Dropbox - Shared Document",
+        "Bank of America - Security Verification",
+    ]
+    malware_subjects = [
+        "SWIFT Notification: Incoming Transfer", "Quarterly Report Q4 2024",
+        "Meeting Minutes - Project Alpha", "Resume - Job Application",
+        "Purchase Order #PO-78432", "Invoice Overdue Notice",
+        "Legal Document for Review", "Employee Benefits Update",
+        "System Update Required Immediately", "Conference Registration Confirmation",
+        "Partnership Agreement Draft", "NDA - Please Sign Electronically",
+        "Audit Report - Confidential", "Server Maintenance Schedule",
+        "Zip file - Document Archive",
+    ]
+    clean_subjects = [
+        "Weekly Team Standup Notes", "Lunch Order for Friday", "Office Holiday Schedule",
+        "New Employee Onboarding", "IT Support Ticket #4582 Resolved",
+        "Project Status Update - Q3", "Customer Feedback Summary",
+        "Meeting Invitation: Strategy Session", "Expense Report Approved",
+        "Welcome to the Team!", "Payroll Notification June 2024",
+        "Company All-Hands Meeting Agenda", "Updated Privacy Policy",
+        "Training Session Confirmation", "Office Supply Order Form",
+    ]
+    senders = {
+        "spam": ["noreply@spammyads.com", "winner@lottery-intl.net", "offer@getrichquick.biz", "promo@discount-store.online", "alert@secure-bank-verify.com"],
+        "phishing": ["security@paypaI-secure.com", "no-reply@amaz0n-update.net", "support@microsoft-verify.org", "billing@netfliix-account.com", "admin@bankofamerica-login.xyz"],
+        "malware": ["hr@company.com", "finance@company.com", "ceo@company.com", "admin@company-update.net", "support@system-patch.com"],
+        "clean": ["hr@company.com", "notifications@company.com", "support@company.com", "no-reply@internal.company", "team@workspace.com"],
+    }
+    clean_domains = ["majujaya.com", "suksesabadi.co.id", "teknodigital.id", "company.org"]
+
+    existing_count = db.query(func.count(QuarantineEmail.id)).scalar() or 0
+
+    all_mailboxes = []
+    for comp in companies:
+        c_org = db.query(Organization).filter(Organization.name == comp["name"]).first()
+        if not c_org:
+            c_org = Organization(name=comp["name"], config={"domain": comp["domain"]})
+            db.add(c_org)
+            db.flush()
+
+        a_user = _upsert_seed_user(db, comp["admin"], comp["admin_password"], "admin", f"{comp['admin']}@{comp['domain']}")
+        a_user.organization_id = c_org.id
+
+        for mb_email in comp["mailboxes"]:
+            mb_count = db.query(func.count(AdminMailbox.id)).filter(AdminMailbox.email == mb_email).scalar() or 0
+            if mb_count == 0:
+                mb = AdminMailbox(
+                    email=mb_email, domain=comp["domain"],
+                    password_hash=hash_password("mail123"),
+                    sender_name=mb_email.split("@")[0].title(),
+                    assigned_to=comp["admin"], created_by=comp["admin"],
+                    is_active=True, storage_bytes=random.randint(100000, 5000000),
+                )
+                db.add(mb)
+            all_mailboxes.append(mb_email)
+
+        em = comp["emails_per_mailbox"]
+        if existing_count < 2000:
+            batch_size = 500
+            now = datetime.utcnow()
+            for mb_email in comp["mailboxes"]:
+                for batch_start in range(0, em, batch_size):
+                    batch_end = min(batch_start + batch_size, em)
+                    emails_batch = []
+                    for i in range(batch_start, batch_end):
+                        r = random.random()
+                        if r < 0.50:
+                            label, cat = "CLEAN", "clean"
+                            subject = random.choice(clean_subjects)
+                            score = random.uniform(0.01, 0.25)
+                            sender = random.choice(senders["clean"])
+                            spf = random.choice(["pass", "pass", "pass", "neutral"])
+                            dkim = random.choice(["pass", "pass", "pass", "fail"])
+                            dmarc = random.choice(["pass", "pass", "pass", "fail"])
+                        elif r < 0.70:
+                            label, cat = "WARN", "spam"
+                            subject = random.choice(spam_subjects)
+                            score = random.uniform(0.30, 0.65)
+                            sender = random.choice(senders["spam"])
+                            spf, dkim, dmarc = "fail", "fail", "fail"
+                        elif r < 0.90:
+                            label, cat = "QUARANTINE", "phishing"
+                            subject = random.choice(phishing_subjects)
+                            score = random.uniform(0.70, 0.98)
+                            sender = random.choice(senders["phishing"])
+                            spf, dkim, dmarc = "fail", "none", "fail"
+                        else:
+                            label, cat = "QUARANTINE", "malware"
+                            subject = random.choice(malware_subjects)
+                            score = random.uniform(0.75, 0.99)
+                            sender = random.choice(senders["malware"])
+                            spf, dkim, dmarc = "pass", "fail", "none"
+
+                        rid = f"seed-{comp['name'][:8]}-{mb_email.split('@')[0]}-{i}"
+                        ts = (now - timedelta(hours=random.randint(0, 720), minutes=random.randint(0, 59))).isoformat()
+                        fused = round(score, 4)
+                        emails_batch.append({
+                            "email_id": rid, "received_at": ts,
+                            "label": label, "fused_score": fused,
+                            "sa_score": round(min(score * 0.8 + random.uniform(-0.1, 0.1), 1.0), 4),
+                            "ml_probability": round(min(score * 0.7 + random.uniform(-0.05, 0.05), 1.0), 4),
+                            "anomaly_score": round(min(score * 0.3 + random.uniform(-0.1, 0.1), 1.0), 4),
+                            "category": cat, "subject": subject[:200],
+                            "sender": sender, "recipient_list": mb_email,
+                            "model_version": "xgb_v3.2.0",
+                            "organization_id": c_org.id,
+                            "spf_result": spf, "dkim_result": dkim, "dmarc_result": dmarc,
+                            "routing_reason": f"Fusion score {fused} - {cat.upper()} detection" if cat != "clean" else "Clean email - delivered",
+                            "xai_summary": f"{'Threat' if cat != 'clean' else 'Safe'} - {cat.replace('_', ' ').title()} detected with {fused:.0%} confidence",
+                            "created_at": now - timedelta(hours=random.randint(0, 720)),
+                        })
+
+                    db.execute(
+                        QuarantineEmail.__table__.insert(),
+                        emails_batch,
+                    )
+                    db.commit()
+
+        existing_admin_logs = db.query(func.count(AuditLog.id)).filter(AuditLog.user == comp["admin"]).scalar() or 0
+        if existing_admin_logs < 3:
+            for i in range(10):
+                log_entry = AuditLog(
+                    user=comp["admin"], action=random.choice([
+                        "login", "manage_users", "manage_mailboxes", "view_reports",
+                        "update_settings", "login", "review_quarantine",
+                    ]),
+                    ip_address=random.choice(sample_ips),
+                    details=f"Admin activity from {comp['admin']} - {random.choice(['web', 'api'])} client",
+                    created_at=datetime.utcnow() - timedelta(hours=random.randint(0, 168)),
+                )
+                db.add(log_entry)
+
+    seed_realistic_emails(db, all_mailboxes)
     db.commit()
     db.close()
 
-seed_admin()
 
+def seed_realistic_emails(db, all_mailboxes=None):
+    """Seed realistic emails from spam_emails/ folder - assigned to admin mailboxes."""
+    existing_raw = db.query(func.count(QuarantineEmail.id)).filter(
+        QuarantineEmail.raw_content != "",
+        QuarantineEmail.raw_content.isnot(None),
+    ).scalar() or 0
+    if existing_raw > 0:
+        return
+
+    if not all_mailboxes:
+        all_mailboxes = [r[0] for r in db.query(AdminMailbox.email).filter(AdminMailbox.is_active == True).all()]
+    if not all_mailboxes:
+        return
+
+    import random
+    now = datetime.utcnow()
+    all_orgs = {o.id: o for o in db.query(Organization).all()}
+    mb_org_map = {}
+    for mb_email in all_mailboxes:
+        domain = mb_email.split("@")[1] if "@" in mb_email else ""
+        for oid, o in all_orgs.items():
+            if (o.config or {}).get("domain") == domain or domain in str(o.name).lower():
+                mb_org_map[mb_email] = oid
+                break
+        if mb_email not in mb_org_map:
+            mb_org_map[mb_email] = list(all_orgs.keys())[0] if all_orgs else None
+
+    import random
+    email_data = []
+    base_id = 0
+
+    category_templates = {
+        "clean": {"subjects": [
+            "Weekly Team Standup Notes", "Lunch Order for Friday", "Office Holiday Schedule",
+            "New Employee Onboarding", "IT Support Ticket Resolved",
+            "Project Status Update", "Customer Feedback Summary",
+            "Meeting Invitation: Strategy Session", "Expense Report Approved",
+            "Welcome to the Team!", "Payroll Notification",
+            "Company All-Hands Meeting Agenda", "Updated Privacy Policy",
+            "Training Session Confirmation", "Office Supply Order Form",
+        ], "senders": ["hr@company.com", "notifications@company.com", "support@company.com", "no-reply@internal.company", "team@workspace.com"],
+           "label": "CLEAN", "score_range": (0.01, 0.25),
+           "spf": ["pass", "pass", "pass", "neutral"],
+           "dkim": ["pass", "pass", "pass", "fail"],
+           "dmarc": ["pass", "pass", "pass", "fail"]},
+        "spam": {"subjects": [
+            "You won $10,000,000!!!", "Act Now! Limited Time Offer", "Work From Home - Earn $5000/week",
+            "Congratulations! You are our Lucky Winner", "Your Account Has Been Compromised",
+            "Secret Investment Opportunity", "Meet Singles in Your Area Tonight",
+            "Get Rich Quick with Crypto", "Re: Your outstanding invoice",
+            "You have been selected for a free iPhone", "Low interest loans approved",
+            "Your Tax Refund is Ready",
+        ], "senders": ["noreply@spammyads.com", "winner@lottery-intl.net", "offer@getrichquick.biz", "promo@discount-store.online", "alert@secure-bank-verify.com"],
+           "label": "WARN", "score_range": (0.30, 0.65),
+           "spf": ["fail"], "dkim": ["fail"], "dmarc": ["fail"]},
+        "phishing": {"subjects": [
+            "Urgent: Verify Your Account Now", "Security Alert: Suspicious Login",
+            "Password Reset Request", "Your Invoice Overdue",
+            "Update Your Payment Information", "Microsoft 365 Account Alert",
+            "Netflix - Your Subscription Has Been Paused",
+            "IRS - Tax Filing Notification", "LinkedIn - New Connection Request",
+            "PayPal - Unusual Login Detected", "Google Account Suspension Notice",
+            "Bank of America - Security Verification",
+        ], "senders": ["security@paypaI-secure.com", "no-reply@amaz0n-update.net", "support@microsoft-verify.org", "billing@netfliix-account.com", "admin@bankofamerica-login.xyz"],
+           "label": "QUARANTINE", "score_range": (0.70, 0.98),
+           "spf": ["fail"], "dkim": ["none"], "dmarc": ["fail"]},
+        "malware": {"subjects": [
+            "SWIFT Notification: Incoming Transfer", "Quarterly Report Q4 2024",
+            "Meeting Minutes - Project Alpha", "Purchase Order - Sign Required",
+            "Invoice Overdue Notice", "Legal Document for Review",
+            "System Update Required Immediately", "Audit Report - Confidential",
+            "Server Maintenance Schedule", "Zip file - Document Archive",
+        ], "senders": ["hr@company.com", "finance@company.com", "ceo@company.com", "admin@company-update.net", "support@system-patch.com"],
+           "label": "QUARANTINE", "score_range": (0.75, 0.99),
+           "spf": ["pass"], "dkim": ["fail"], "dmarc": ["none"]},
+    }
+
+    categories_order = ["clean", "spam", "phishing", "malware"]
+    weights = [0.50, 0.20, 0.20, 0.10]  # 50% clean, 20% spam, 20% phish, 10% malware
+    emails_per_mailbox = 10000
+
+    for mb_email in all_mailboxes:
+        org_id = mb_org_map.get(mb_email)
+        for i in range(emails_per_mailbox):
+            cat = random.choices(categories_order, weights=weights, k=1)[0]
+            tmpl = category_templates[cat]
+            subject = random.choice(tmpl["subjects"])
+            sender = random.choice(tmpl["senders"])
+            score = random.uniform(*tmpl["score_range"])
+            fused = round(score, 4)
+            spf = random.choice(tmpl["spf"])
+            dkim = random.choice(tmpl["dkim"])
+            dmarc = random.choice(tmpl["dmarc"])
+            rid = f"seed-{mb_email.replace('@', '-').replace('.', '-')}-{i}"
+            ts = (now - timedelta(hours=random.randint(0, 720), minutes=random.randint(0, 59))).isoformat()
+            email_data.append({
+                "email_id": rid, "received_at": ts,
+                "label": tmpl["label"], "fused_score": fused,
+                "sa_score": round(min(score * 0.8 + random.uniform(-0.1, 0.1), 1.0), 4),
+                "ml_probability": round(min(score * 0.7 + random.uniform(-0.05, 0.05), 1.0), 4),
+                "anomaly_score": round(min(score * 0.3 + random.uniform(-0.1, 0.1), 1.0), 4),
+                "category": cat, "subject": subject[:200],
+                "sender": sender, "recipient_list": mb_email,
+                "model_version": "xgb_v3.2.0",
+                "organization_id": org_id,
+                "spf_result": spf, "dkim_result": dkim, "dmarc_result": dmarc,
+                "routing_reason": f"Fusion score {fused} - {cat.upper()} detection" if cat != "clean" else "Clean email - delivered",
+                "xai_summary": f"{'Threat' if cat != 'clean' else 'Safe'} - {cat.title()} detected with {fused:.0%} confidence",
+                "created_at": now - timedelta(hours=random.randint(0, 720)),
+                "status": "released" if cat == "clean" else "pending",
+            })
+
+    db.execute(QuarantineEmail.__table__.insert(), email_data)
+    db.commit()
+
+
+seed_admin()
 
 # ─── Auth Endpoints ─────────────────────────────────────────────────────────────
 
@@ -2316,11 +2593,35 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
         raise HTTPException(status_code=400, detail="Username and password are required")
     
     # Enforce role restrictions
+    org_id = None
     if user_info["role"] == "admin":
-        role = "user"  # Admin can only create 'user' role
+        role = "user"
+        caller = db.query(User).filter(User.username == user_info["username"]).first()
+        if caller:
+            org_id = caller.organization_id
     elif user_info["role"] == "superadmin":
         if role not in ("admin", "user"):
             raise HTTPException(status_code=403, detail="Superadmin can only create admin or user role")
+        # If creating a 'user', an admin_username must be provided to link the user
+        if role == "user":
+            admin_username = payload.get("admin_username", "").strip()
+            if not admin_username:
+                raise HTTPException(status_code=400, detail="Untuk membuat user, harus pilih admin sebagai penanggung jawab")
+            admin_user = db.query(User).filter(
+                User.username == admin_username,
+                User.role == "admin",
+                User.is_active == True
+            ).first()
+            if not admin_user:
+                raise HTTPException(status_code=400, detail=f"Admin '{admin_username}' tidak ditemukan atau tidak aktif")
+            org_id = admin_user.organization_id
+            if not org_id:
+                # Auto-create org for admin if not exists
+                new_org = Organization(name=f"Org-{admin_username}", config={"admin": admin_username})
+                db.add(new_org)
+                db.flush()
+                org_id = new_org.id
+                admin_user.organization_id = org_id
             
     existing = db.query(User).filter(User.username == username).first()
     if existing:
@@ -2334,10 +2635,11 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
         email=email or None,
         hashed_password=hash_password(password),
         role=role,
+        organization_id=org_id,
     )
     db.add(new_user)
     db.commit()
-    return {"ok": True, "message": f"User {username} created"}
+    return {"ok": True, "message": f"User {username} created", "organization_id": org_id}
 
 
 @app.post("/api/admin/settings")
@@ -2396,13 +2698,27 @@ async def api_create_admin_mailbox(request: Request, payload: dict, db: Session 
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Mailbox password must be at least 8 characters")
 
+    # Email harus di-assign ke user/admin yang valid
+    if not assigned_to:
+        raise HTTPException(status_code=400, detail="Email harus di-assign ke admin atau user")
+    target_user = db.query(User).filter(User.username == assigned_to, User.is_active == True).first()
+    if not target_user:
+        raise HTTPException(status_code=400, detail=f"User/admin '{assigned_to}' tidak ditemukan atau tidak aktif")
+
+    # Validasi count: 1 admin max 3 email
+    existing_count = db.query(func.count(AdminMailbox.id)).filter(
+        AdminMailbox.assigned_to == assigned_to,
+        AdminMailbox.is_active == True
+    ).scalar() or 0
+    if existing_count >= 3:
+        raise HTTPException(status_code=400, detail=f"User '{assigned_to}' sudah memiliki {existing_count} email (maksimal 3)")
+
     # Admin can only assign to users in their organization
-    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES) and assigned_to:
-        target_user = db.query(User).filter(User.username == assigned_to).first()
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         current_user_obj = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user_obj or not current_user_obj.organization_id:
             raise HTTPException(status_code=403, detail="Admin must belong to an organization")
-        if not target_user or target_user.organization_id != current_user_obj.organization_id:
+        if target_user.organization_id != current_user_obj.organization_id:
             raise HTTPException(status_code=403, detail="Can only assign mailboxes to users in your organization")
 
     actual_domain = email.split("@", 1)[1]
@@ -2648,20 +2964,54 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view stats")
-    total_users = db.query(User).count()
-    active_users = db.query(User).filter(User.is_active == True).count()
-    total_emails = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash").count()
-    clean_count = db.query(QuarantineEmail).filter(
+    role = user_info.get("user", {}).get("role", "")
+    is_super = role == "superadmin"
+    if is_super:
+        total_users = db.query(User).count()
+        active_users = db.query(User).filter(User.is_active == True).count()
+        base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+    else:
+        org_id = user_info.get("user", {}).get("organization_id")
+        admin_username = user_info.get("user", {}).get("username", "")
+        scope_emails = set()
+        if org_id:
+            org_mboxes = db.query(AdminMailbox).filter(
+                AdminMailbox.assigned_to == admin_username,
+                AdminMailbox.is_active == True
+            ).all()
+            for mb in org_mboxes:
+                scope_emails.add(mb.email.lower())
+            if user_info.get("user", {}).get("email"):
+                scope_emails.add(user_info["user"]["email"].lower())
+        else:
+            mboxes = db.query(AdminMailbox).filter(
+                AdminMailbox.assigned_to == admin_username,
+                AdminMailbox.is_active == True
+            ).all()
+            for mb in mboxes:
+                scope_emails.add(mb.email.lower())
+            if user_info.get("user", {}).get("email"):
+                scope_emails.add(user_info["user"]["email"].lower())
+        total_users = db.query(User).filter(
+            User.organization_id == org_id, User.is_active == True
+        ).count() if org_id else 0
+        active_users = total_users
+        base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+        if scope_emails:
+            from sqlalchemy import or_
+            filters = [QuarantineEmail.recipient_list.contains(e, autoescape=True) for e in scope_emails]
+            base = base.filter(or_(*filters))
+        else:
+            base = base.filter(QuarantineEmail.organization_id == org_id) if org_id else base.filter(QuarantineEmail.id < 0)
+    total_emails = base.count()
+    clean_count = base.filter(
         QuarantineEmail.label == "CLEAN",
-        QuarantineEmail.status != "trash",
     ).count()
-    warn_count = db.query(QuarantineEmail).filter(
+    warn_count = base.filter(
         QuarantineEmail.label == "WARN",
-        QuarantineEmail.status != "trash",
     ).count()
-    quarantine_count = db.query(QuarantineEmail).filter(
+    quarantine_count = base.filter(
         QuarantineEmail.label == "QUARANTINE",
-        QuarantineEmail.status != "trash",
     ).count()
     audit_count = db.query(AuditLog).count()
     return {
@@ -2672,6 +3022,59 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
         "warn": warn_count,
         "quarantine": quarantine_count,
         "audit_logs": audit_count,
+    }
+
+
+@app.get("/api/admin/my-emails")
+async def api_admin_my_emails(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
+        raise HTTPException(status_code=403, detail="Only admin can view their emails")
+    username = user_info.get("user", {}).get("username", "")
+    org_id = user_info.get("user", {}).get("organization_id")
+    mboxes = db.query(AdminMailbox).filter(
+        AdminMailbox.assigned_to == username,
+        AdminMailbox.is_active == True
+    ).all()
+    scope_emails = set()
+    admin_email = user_info.get("user", {}).get("email", "")
+    if admin_email:
+        scope_emails.add(admin_email.lower())
+    for mb in mboxes:
+        scope_emails.add(mb.email.lower())
+    if org_id:
+        user_rows = db.query(User).filter(
+            User.organization_id == org_id,
+            User.role == "user",
+            User.is_active == True
+        ).all()
+        for u in user_rows:
+            if u.email:
+                scope_emails.add(u.email.lower())
+    emails_data = []
+    for email_addr in sorted(scope_emails):
+        cat_base = db.query(QuarantineEmail).filter(
+            QuarantineEmail.recipient_list.contains(email_addr, autoescape=True),
+            QuarantineEmail.status != "trash",
+        )
+        total = cat_base.count() or 0
+        spam = cat_base.filter(QuarantineEmail.category == "spam").count() or 0
+        phishing = cat_base.filter(QuarantineEmail.category == "phishing").count() or 0
+        malware = cat_base.filter(QuarantineEmail.category == "malware").count() or 0
+        clean = cat_base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+        owner = "admin" if email_addr == admin_email.lower() or any(mb.email.lower() == email_addr for mb in mboxes) else "user"
+        emails_data.append({
+            "email": email_addr,
+            "total": total,
+            "spam": spam,
+            "phishing": phishing,
+            "malware": malware,
+            "clean": clean,
+            "owner": owner,
+        })
+    return {
+        "username": username,
+        "emails": emails_data,
     }
 
 
@@ -2986,6 +3389,280 @@ async def api_user_mailbox(request: Request, db: Session = Depends(get_db)):
     return {"mailbox": None}
 
 
+# ─── User Preferences (role=user) ──────────────────────────────────────
+
+_USER_PREFERENCES = {}
+
+class UserSettingsPayload(BaseModel):
+    notification_email: bool = None
+    daily_summary: bool = None
+    theme: str = None
+    language: str = None
+
+@app.get("/api/user/settings")
+async def api_get_user_settings(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    prefs = _USER_PREFERENCES.get(user_info["username"], {})
+    return {
+        "username": user_info["username"],
+        "email": user.email if user else None,
+        "role": user_info["role"],
+        "mailbox_email": user.email if user and user.email else user_info["username"],
+        "notification_email": prefs.get("notification_email", True),
+        "daily_summary": prefs.get("daily_summary", False),
+        "theme": prefs.get("theme", "system"),
+        "language": prefs.get("language", "id"),
+    }
+
+@app.put("/api/user/settings")
+async def api_update_user_settings(
+    payload: UserSettingsPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    user_prefs = _USER_PREFERENCES.setdefault(user_info["username"], {})
+    update_data = payload.model_dump(exclude_none=True)
+    user_prefs.update(update_data)
+    return {"ok": True, "updated": list(update_data.keys()), "settings": user_prefs}
+
+
+# ─── Superadmin Company (Organization) CRUD ──────────────────────────
+
+@app.get("/api/admin/organizations")
+async def api_list_organizations(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage organizations")
+    orgs = db.query(Organization).order_by(Organization.name).all()
+    result = []
+    for org in orgs:
+        admin_count = db.query(func.count(User.id)).filter(
+            User.organization_id == org.id, User.role == "admin", User.is_active == True
+        ).scalar() or 0
+        user_count = db.query(func.count(User.id)).filter(
+            User.organization_id == org.id, User.role == "user", User.is_active == True
+        ).scalar() or 0
+        mbox_count = db.query(func.count(AdminMailbox.id)).filter(
+            AdminMailbox.assigned_to == User.username,
+            User.organization_id == org.id
+        ).filter(User.is_active == True).scalar() or 0
+        mbox_count = db.query(func.count(AdminMailbox.id)).filter(
+            AdminMailbox.assigned_to.in_(
+                db.query(User.username).filter(User.organization_id == org.id, User.is_active == True).subquery()
+            )
+        ).scalar() or 0
+        email_count = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.organization_id == org.id
+        ).scalar() or 0
+        admins = db.query(User).filter(
+            User.organization_id == org.id, User.role == "admin", User.is_active == True
+        ).all()
+        admins_data = [{"username": a.username, "email": a.email} for a in admins]
+        result.append({
+            "id": org.id,
+            "name": org.name,
+            "config": org.config or {},
+            "admin_count": admin_count,
+            "user_count": user_count,
+            "mailbox_count": mbox_count,
+            "email_count": email_count,
+            "admins": admins_data,
+            "created_at": str(org.created_at) if org.created_at else "",
+        })
+    return {"organizations": result}
+
+class OrgCreatePayload(BaseModel):
+    name: str
+    domain: str = ""
+
+@app.post("/api/admin/organizations")
+async def api_create_organization(
+    payload: OrgCreatePayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage organizations")
+    existing = db.query(Organization).filter(Organization.name == payload.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Organization '{payload.name}' already exists")
+    org = Organization(
+        name=payload.name,
+        config={"domain": payload.domain} if payload.domain else {},
+    )
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return {"ok": True, "organization": {"id": org.id, "name": org.name}}
+
+class OrgUpdatePayload(BaseModel):
+    name: str = None
+    domain: str = None
+
+@app.put("/api/admin/organizations/{org_id}")
+async def api_update_organization(
+    org_id: int,
+    payload: OrgUpdatePayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage organizations")
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    if payload.name is not None:
+        dup = db.query(Organization).filter(Organization.name == payload.name, Organization.id != org_id).first()
+        if dup:
+            raise HTTPException(status_code=400, detail=f"Organization '{payload.name}' already exists")
+        org.name = payload.name
+    if payload.domain is not None:
+        config = dict(org.config or {})
+        config["domain"] = payload.domain
+        org.config = config
+    db.commit()
+    db.refresh(org)
+    return {"ok": True, "organization": {"id": org.id, "name": org.name}}
+
+@app.delete("/api/admin/organizations/{org_id}")
+async def api_delete_organization(
+    org_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage organizations")
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    users_in_org = db.query(func.count(User.id)).filter(User.organization_id == org_id).scalar() or 0
+    if users_in_org > 0:
+        raise HTTPException(status_code=400, detail=f"Cannot delete organization with {users_in_org} active users. Remove users first.")
+    emails_in_org = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org_id).scalar() or 0
+    if emails_in_org > 0:
+        QuarantineEmail.__table__.update().where(QuarantineEmail.organization_id == org_id).values(organization_id=None).execute()
+    db.delete(org)
+    db.commit()
+    return {"ok": True, "message": f"Organization '{org.name}' deleted"}
+
+# ─── Admin Organization Settings (role=admin) ──────────────────────────
+
+class AdminSettingsPayload(BaseModel):
+    org_name: str = None
+    max_quarantine_days: int = None
+    quarantine_action: str = None
+    notify_on_threat: bool = None
+    allow_sender_override: bool = None
+    default_mailbox_limit: int = None
+    retention_days: int = None
+
+@app.get("/api/admin/settings")
+async def api_get_admin_settings(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    org = None
+    if user and user.organization_id:
+        org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    if not org:
+        return {
+            "org_name": "Default",
+            "max_quarantine_days": _SYSTEM_SETTINGS.get("max_quarantine_days", 30),
+            "quarantine_action": "quarantine",
+            "notify_on_threat": True,
+            "allow_sender_override": False,
+            "default_mailbox_limit": 50,
+            "retention_days": 90,
+        }
+    config = org.config or {}
+    return {
+        "org_name": org.name,
+        "max_quarantine_days": config.get("max_quarantine_days", _SYSTEM_SETTINGS.get("max_quarantine_days", 30)),
+        "quarantine_action": config.get("quarantine_action", "quarantine"),
+        "notify_on_threat": config.get("notify_on_threat", True),
+        "allow_sender_override": config.get("allow_sender_override", False),
+        "default_mailbox_limit": config.get("default_mailbox_limit", 50),
+        "retention_days": config.get("retention_days", 90),
+    }
+
+@app.put("/api/admin/settings")
+async def api_update_admin_settings(
+    payload: AdminSettingsPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = db.query(User).filter(User.username == user_info["username"]).first()
+    if not user or not user.organization_id:
+        raise HTTPException(status_code=400, detail="No organization assigned")
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    config = dict(org.config or {})
+    update_data = payload.model_dump(exclude_none=True)
+    config.update(update_data)
+    org.config = config
+    db.commit()
+    return {"ok": True, "updated": list(update_data.keys()), "settings": config}
+
+
+# ─── Superadmin Role Settings ──────────────────────────────────────────
+
+class RoleSettingsPayload(BaseModel):
+    allow_admin_user_management: bool = None
+    allow_admin_mailbox_management: bool = None
+    allow_admin_quarantine_review: bool = None
+    self_registration: bool = None
+    default_user_role: str = None
+    session_timeout_minutes: int = None
+
+@app.get("/api/superadmin/settings/roles")
+async def api_get_role_settings(request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin required")
+    return {
+        "allow_admin_user_management": True,
+        "allow_admin_mailbox_management": True,
+        "allow_admin_quarantine_review": True,
+        "self_registration": False,
+        "default_user_role": "user",
+        "session_timeout_minutes": 60,
+        "available_roles": ["user", "admin", "superadmin"],
+    }
+
+@app.put("/api/superadmin/settings/roles")
+async def api_update_role_settings(
+    payload: RoleSettingsPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db)
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin required")
+    update_data = payload.model_dump(exclude_none=True)
+    # Store in system settings for now (in-memory)
+    for k, v in update_data.items():
+        _SYSTEM_SETTINGS[f"role_{k}"] = v
+    log_audit(db, user_info["username"], "update_role_settings", None,
+              request.client.host if request.client else None,
+              f"Updated role settings: {list(update_data.keys())}")
+    db.commit()
+    return {"ok": True, "updated": list(update_data.keys())}
+
+
 # ─── User Reports / Tickets ───────────────────────────────────────────
 
 @app.post("/api/reports")
@@ -3049,6 +3726,38 @@ async def update_report(report_id: int, request: Request, payload: dict, db: Ses
             report.status = "in_progress"
     db.commit()
     return {"ok": True}
+
+
+# ─── IP Reputation Helpers ────────────────────────────────────────────
+
+KNOWN_BAD_IPS = {
+    "185.220.101.0", "23.129.64.0", "45.33.32.0", "5.255.88.0",
+    "192.168.1.1",
+}
+
+PRIVATE_IP_PREFIXES = ("10.", "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+    "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+    "192.168.", "127.", "0.")
+
+SUSPICIOUS_IP_RANGES = [
+    ("185.", "Known threat range"),
+    ("23.", "VPN/datacenter range"),
+]
+
+
+def check_ip_reputation(ip: str) -> dict:
+    """Check IP safety. Returns {safe, reason, source}."""
+    if not ip:
+        return {"safe": True, "reason": "No IP", "source": "internal"}
+    if ip in KNOWN_BAD_IPS:
+        return {"safe": False, "reason": "Known malicious IP", "source": "blacklist"}
+    if ip.startswith(PRIVATE_IP_PREFIXES):
+        return {"safe": True, "reason": "Internal/private network", "source": "heuristic"}
+    for prefix, label in SUSPICIOUS_IP_RANGES:
+        if ip.startswith(prefix):
+            return {"safe": False, "reason": label, "source": "heuristic"}
+    return {"safe": True, "reason": "Clean IP", "source": "heuristic"}
 
 
 # ─── Admin: Per-User Monitoring ────────────────────────────────────────
@@ -3121,16 +3830,39 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
         .limit(200)
         .all()
     )
+
+    def extract_ip(content: str) -> str:
+        """Extract plausible IP from raw content."""
+        if not content:
+            return ""
+        for token in content.split():
+            t = token.strip("[]<>()")
+            parts = t.split(".")
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                return t
+        return ""
+
     return [
         {
             "email_id": e.email_id,
             "subject": e.subject,
             "sender": e.sender,
+            "recipient": e.recipient_list,
             "label": e.label,
             "status": e.status,
             "fused_score": e.fused_score,
+            "sa_score": e.sa_score,
+            "ml_probability": e.ml_probability,
+            "anomaly_score": e.anomaly_score,
             "category": e.category,
             "received_at": e.received_at,
+            "created_at": str(e.created_at) if e.created_at else "",
+            "spf_result": e.spf_result or "",
+            "dkim_result": e.dkim_result or "",
+            "dmarc_result": e.dmarc_result or "",
+            "sender_ip": extract_ip(e.raw_content or ""),
+            "receiver_ip": "127.0.0.1",
+            "sender_ip_safe": check_ip_reputation(extract_ip(e.raw_content or "")),
         }
         for e in emails
     ]
@@ -3147,10 +3879,25 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
     total_warn = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.label == "WARN").scalar() or 0
     total_quarantine = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.label == "QUARANTINE").scalar() or 0
 
+    threat_ratio = (total_warn + total_quarantine) / max(total_emails, 1)
+    if threat_ratio > 0.4:
+        health_status = "critical"
+        health_message = "High threat ratio detected. System may be compromised."
+    elif threat_ratio > 0.2:
+        health_status = "warning"
+        health_message = "Elevated threat levels. Review recent emails and user activity."
+    else:
+        health_status = "healthy"
+        health_message = "System is operating normally with low threat levels."
+
     organizations = []
     org_rows = db.query(Organization).order_by(Organization.name).all()
     for org in org_rows:
         org_total = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id).scalar() or 0
+        org_threat = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.organization_id == org.id,
+            QuarantineEmail.label.in_(["WARN", "QUARANTINE"])
+        ).scalar() or 0
         organizations.append({
             "organization_id": org.id,
             "organization_name": org.name,
@@ -3159,6 +3906,42 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
             "clean": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "CLEAN").scalar() or 0,
             "warn": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "WARN").scalar() or 0,
             "quarantine": db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id, QuarantineEmail.label == "QUARANTINE").scalar() or 0,
+            "threat_ratio": round(org_threat / max(org_total, 1), 3),
+        })
+
+    # --- Per-user stats with email counts ---
+    all_users = db.query(User).filter(User.is_active == True).all()
+    users_list = []
+    for u in all_users:
+        identifiers = [u.username.lower()]
+        if u.email:
+            identifiers.append(u.email.lower())
+        email_filters = [
+            or_(
+                QuarantineEmail.recipient_list.ilike(f"%{identifier}%"),
+                QuarantineEmail.sender.ilike(f"%{identifier}%"),
+            )
+            for identifier in identifiers
+        ]
+        user_emails = db.query(QuarantineEmail).filter(
+            QuarantineEmail.status != "trash",
+            or_(*email_filters),
+        ).all()
+        u_clean = sum(1 for e in user_emails if e.label == "CLEAN")
+        u_warn = sum(1 for e in user_emails if e.label == "WARN")
+        u_quar = sum(1 for e in user_emails if e.label == "QUARANTINE")
+        u_total = len(user_emails)
+        users_list.append({
+            "username": u.username,
+            "email": u.email or "",
+            "role": u.role,
+            "organization_id": u.organization_id,
+            "organization_name": db.query(Organization.name).filter(Organization.id == u.organization_id).scalar() if u.organization_id else None,
+            "total_emails": u_total,
+            "clean": u_clean,
+            "warn": u_warn,
+            "quarantine": u_quar,
+            "is_active": u.is_active,
         })
 
     admins = []
@@ -3202,6 +3985,7 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
             "details": a.details,
             "ip_address": a.ip_address,
             "created_at": str(a.created_at),
+            "ip_safe": check_ip_reputation(a.ip_address),
         }
         for a in db.query(AuditLog).filter(AuditLog.ip_address != None).order_by(AuditLog.created_at.desc()).limit(40).all()
     ]
@@ -3211,10 +3995,139 @@ async def api_admin_track(request: Request, db: Session = Depends(get_db)):
         "total_clean": total_clean,
         "total_warn": total_warn,
         "total_quarantine": total_quarantine,
+        "health_status": health_status,
+        "health_message": health_message,
+        "health_threat_ratio": round(threat_ratio, 3),
         "organizations": organizations,
+        "users": users_list,
         "admins": admins,
         "suspicious_activities": suspicious_activities,
     }
+
+
+# ─── Superadmin Email CRUD (from Tracking page) ──────────────────────────
+
+@app.put("/api/admin/emails/{email_id}/release")
+async def api_admin_release_email(email_id: str, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage emails")
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    email_record.status = "released"
+    email_record.label = "CLEAN"
+    email_record.category = "clean"
+    log_audit(db, user_info["username"], "admin_release", email_id,
+              request.client.host if request.client else None)
+    db.commit()
+    return {"ok": True, "status": "released"}
+
+
+@app.put("/api/admin/emails/{email_id}/confirm-spam")
+async def api_admin_confirm_spam(email_id: str, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage emails")
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    email_record.status = "confirmed_spam"
+    email_record.label = "QUARANTINE"
+    email_record.category = "spam"
+    log_audit(db, user_info["username"], "admin_confirm_spam", email_id,
+              request.client.host if request.client else None)
+    db.commit()
+    return {"ok": True, "status": "confirmed_spam", "label": "QUARANTINE", "category": "spam"}
+
+
+@app.put("/api/admin/emails/{email_id}/update")
+async def api_admin_update_email(email_id: str, request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage emails")
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+
+    allowed_fields = {"label", "category", "status", "subject", "sender", "fused_score"}
+    updated = []
+    for field in allowed_fields:
+        if field in payload:
+            setattr(email_record, field, payload[field])
+            updated.append(field)
+
+    log_audit(db, user_info["username"], "admin_update_email", email_id,
+              request.client.host if request.client else None,
+              f"Updated fields: {', '.join(updated)}")
+    db.commit()
+    return {"ok": True, "updated": updated}
+
+
+@app.delete("/api/admin/emails/{email_id}")
+async def api_admin_delete_email(email_id: str, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage emails")
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    db.delete(email_record)
+    log_audit(db, user_info["username"], "admin_delete_email", email_id,
+              request.client.host if request.client else None)
+    db.commit()
+    return {"ok": True, "status": "deleted"}
+
+
+@app.post("/api/admin/emails/batch")
+async def api_admin_batch_emails(request: Request, payload: dict, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can manage emails")
+
+    email_ids = payload.get("email_ids", [])
+    action = payload.get("action", "")  # delete, release, confirm_spam, update
+    update_data = payload.get("update_data", {})
+
+    if not email_ids or not action:
+        raise HTTPException(status_code=400, detail="email_ids and action are required")
+
+    results = {"success": 0, "failed": 0, "errors": []}
+    for email_id in email_ids:
+        email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+        if not email_record:
+            results["failed"] += 1
+            results["errors"].append(f"{email_id}: not found")
+            continue
+        try:
+            if action == "delete":
+                db.delete(email_record)
+            elif action == "release":
+                email_record.status = "released"
+                email_record.label = "CLEAN"
+                email_record.category = "clean"
+            elif action == "confirm_spam":
+                email_record.status = "confirmed_spam"
+                email_record.label = "QUARANTINE"
+                email_record.category = "spam"
+            elif action == "update":
+                for field, value in update_data.items():
+                    if field in {"label", "category", "status", "subject", "sender", "fused_score"}:
+                        setattr(email_record, field, value)
+            else:
+                results["failed"] += 1
+                results["errors"].append(f"{email_id}: unknown action '{action}'")
+                continue
+            results["success"] += 1
+        except Exception as e:
+            results["failed"] += 1
+            results["errors"].append(f"{email_id}: {str(e)}")
+
+    log_audit(db, user_info["username"], f"admin_batch_{action}", None,
+              request.client.host if request.client else None,
+              f"Batch {action}: {results['success']} success, {results['failed']} failed")
+    db.commit()
+    return {"ok": True, "results": results}
 
 
 @app.get("/api/admin/system-health")
@@ -3350,6 +4263,1000 @@ async def api_system_health(request: Request, db: Session = Depends(get_db)):
     }
 
 
+# ─── Report Generation Endpoints ─────────────────────────────────────────────
+
+def _get_scope_emails(db: Session, scope: str) -> set:
+    emails = set()
+    if scope == "admin":
+        admin_users = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+        for adm in admin_users:
+            if adm.email:
+                emails.add(adm.email.lower())
+            mboxes = db.query(AdminMailbox).filter(
+                AdminMailbox.assigned_to == adm.username,
+                AdminMailbox.is_active == True
+            ).all()
+            for mb in mboxes:
+                emails.add(mb.email.lower())
+        sa_users = db.query(User).filter(User.role == "superadmin", User.is_active == True).all()
+        for sa in sa_users:
+            if sa.email:
+                emails.add(sa.email.lower())
+    elif scope == "user":
+        user_rows = db.query(User).filter(User.role == "user", User.is_active == True).all()
+        for u in user_rows:
+            if u.email:
+                emails.add(u.email.lower())
+        unassigned_mboxes = db.query(AdminMailbox).filter(
+            AdminMailbox.is_active == True,
+            AdminMailbox.assigned_to == ""
+        ).all()
+        for mb in unassigned_mboxes:
+            emails.add(mb.email.lower())
+    return emails
+
+
+def _fmt_email_datetime(val):
+    if hasattr(val, "strftime"):
+        return val.strftime("%Y-%m-%d %H:%M")
+    if val:
+        try:
+            return str(val)[:16]
+        except Exception:
+            return str(val)
+    return "-"
+
+
+def _build_html_row(cells, tag="td"):
+    return "<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>"
+
+
+@app.get("/api/admin/export-report/pdf")
+async def api_export_report_pdf(request: Request, scope: str = "all", db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can generate reports")
+
+    now = datetime.now(APP_TIMEZONE)
+    today_str = now.strftime("%Y-%m-%d")
+    month_name = now.strftime("%B")
+
+    base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+    if scope in ("admin", "user"):
+        target_emails = _get_scope_emails(db, scope)
+        if target_emails:
+            from sqlalchemy import or_
+            filters = [QuarantineEmail.recipient_list.contains(e, autoescape=True) for e in target_emails]
+            base = base.filter(or_(*filters))
+        else:
+            base = base.filter(QuarantineEmail.id < 0)
+    total_emails = base.count() or 0
+    total_clean = base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+    total_spam = base.filter(QuarantineEmail.category == "spam").count() or 0
+    total_phishing = base.filter(QuarantineEmail.category == "phishing").count() or 0
+    total_malware = base.filter(QuarantineEmail.category == "malware").count() or 0
+    total_quarantine = base.filter(QuarantineEmail.label == "QUARANTINE").count() or 0
+    total_warn = base.filter(QuarantineEmail.label == "WARN").count() or 0
+    total_released = base.filter(QuarantineEmail.status == "released").count() or 0
+    total_threats = total_quarantine + total_warn
+    threat_pct = round(total_threats / max(total_emails, 1) * 100, 1)
+    safe_pct = round(total_clean / max(total_emails, 1) * 100, 1)
+
+    org_rows = db.query(Organization).order_by(Organization.name).all()
+    org_stats = []
+    for org in org_rows:
+        oe = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.organization_id == org.id).scalar() or 0
+        ou = db.query(func.count(User.id)).filter(User.organization_id == org.id, User.is_active == True).scalar() or 0
+        o_threat = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.organization_id == org.id, QuarantineEmail.label.in_(["WARN", "QUARANTINE"])
+        ).scalar() or 0
+        org_stats.append({"name": org.name, "emails": oe, "users": ou, "threats": o_threat})
+
+    all_users = db.query(User).filter(User.is_active == True).order_by(User.role, User.username).all()
+    admins = [u for u in all_users if u.role in ("superadmin", "admin")]
+    reg_users = [u for u in all_users if u.role == "user"]
+    total_users_count = len(all_users)
+    total_mailboxes = db.query(func.count(AdminMailbox.id)).filter(AdminMailbox.is_active == True).scalar() or 0
+
+    all_emails = base.order_by(QuarantineEmail.created_at.desc()).limit(500).all()
+
+    auth_emails = base.filter(QuarantineEmail.label.in_(["WARN", "QUARANTINE"])).limit(200).all()
+    spf_pass = sum(1 for e in auth_emails if (e.spf_result or "").upper() == "PASS")
+    dkim_pass = sum(1 for e in auth_emails if (e.dkim_result or "").upper() == "PASS")
+    dmarc_pass = sum(1 for e in auth_emails if (e.dmarc_result or "").upper() == "PASS")
+    spf_fail = sum(1 for e in auth_emails if (e.spf_result or "").upper() in ("FAIL", "SOFTFAIL"))
+    dkim_fail = sum(1 for e in auth_emails if (e.dkim_result or "").upper() in ("FAIL", "SOFTFAIL"))
+    dmarc_fail = sum(1 for e in auth_emails if (e.dmarc_result or "").upper() in ("FAIL", "SOFTFAIL"))
+    auth_total = len(auth_emails) or 1
+
+    top_senders = base.with_entities(
+        QuarantineEmail.sender, func.count(QuarantineEmail.id).label("cnt")
+    ).filter(QuarantineEmail.sender != "").group_by(QuarantineEmail.sender).order_by(func.count(QuarantineEmail.id).desc()).limit(20).all()
+
+    recent_detections = base.filter(
+        QuarantineEmail.label.in_(["QUARANTINE", "WARN"]),
+        ~QuarantineEmail.status.in_(["trash", "released"]),
+    ).order_by(QuarantineEmail.created_at.desc()).limit(50).all()
+
+    reports = db.query(Report).order_by(Report.created_at.desc()).limit(30).all()
+
+    from fpdf import FPDF
+
+    class ReportPDF(FPDF):
+        def header(self):
+            if self.page_no() <= 2:
+                return
+            self.set_font("Helvetica", "I", 6)
+            self.set_text_color(148, 163, 184)
+            self.cell(0, 4, "CogniMail Security Report", align="L")
+            self.cell(0, 4, f"Halaman {self.page_no() - 2}", align="R", new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(148, 163, 184)
+            self.line(10, 12, 200, 12)
+            self.ln(3)
+
+        def footer(self):
+            if self.page_no() <= 2:
+                return
+            self.set_y(-12)
+            self.set_font("Helvetica", "I", 6)
+            self.set_text_color(148, 163, 184)
+            self.set_draw_color(148, 163, 184)
+            self.line(10, 285, 200, 285)
+            self.cell(0, 4, f"CONFIDENTIAL  |  Generated {now.strftime('%d %B %Y %H:%M')}", align="C")
+
+        def section_title(self, num, title):
+            self.ln(4)
+            self.set_font("Helvetica", "B", 13)
+            self.set_text_color(26, 115, 232)
+            self.cell(0, 7, f"{num}. {title}", new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(26, 115, 232)
+            self.line(10, self.get_y(), 200, self.get_y())
+            self.ln(3)
+
+        def sub_title(self, text):
+            self.set_font("Helvetica", "B", 10)
+            self.set_text_color(55, 65, 81)
+            self.cell(0, 6, text, new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
+
+        def body_text(self, text):
+            self.set_font("Helvetica", "", 7.5)
+            self.set_text_color(107, 114, 128)
+            self.multi_cell(0, 4, text)
+            self.ln(2)
+
+        def stat_card(self, value, label, sub, color_r, color_g, color_b):
+            x = self.get_x()
+            y = self.get_y()
+            w = 44
+            h = 22
+            self.set_fill_color(248, 250, 252)
+            self.set_draw_color(226, 232, 240)
+            self.rect(x, y, w, h, style="DF")
+            self.set_xy(x + 2, y + 3)
+            self.set_font("Helvetica", "B", 16)
+            self.set_text_color(color_r, color_g, color_b)
+            self.cell(w - 4, 7, str(value), align="C", new_x="LMARGIN", new_y="NEXT")
+            self.set_x(x + 2)
+            self.set_font("Helvetica", "B", 5.5)
+            self.set_text_color(100, 116, 139)
+            self.cell(w - 4, 3.5, label, align="C", new_x="LMARGIN", new_y="NEXT")
+            self.set_x(x + 2)
+            self.set_font("Helvetica", "", 5)
+            self.set_text_color(148, 163, 184)
+            self.cell(w - 4, 3.5, sub, align="C", new_x="LMARGIN", new_y="NEXT")
+            self.set_xy(x + w + 2, y)
+
+        def bar_chart(self, label, pct, r, g, b):
+            bar_w = 120
+            self.set_font("Helvetica", "B", 7)
+            self.set_text_color(r, g, b)
+            self.cell(50, 5, label, new_x="LMARGIN", new_y="NEXT")
+            self.set_fill_color(241, 245, 249)
+            self.rect(60, self.get_y() + 0.5, bar_w, 4, style="F")
+            fill_w = max(bar_w * pct / 100, 2)
+            self.set_fill_color(r, g, b)
+            self.rect(60, self.get_y() + 0.5, fill_w, 4, style="F")
+            self.set_xy(60 + bar_w + 3, self.get_y())
+            self.set_font("Helvetica", "B", 7)
+            self.cell(20, 5, f"{pct}%")
+            self.ln(7)
+
+        def table_header(self, cols, widths=None):
+            if widths is None:
+                widths = [190 / len(cols)] * len(cols)
+            self.set_fill_color(26, 115, 232)
+            self.set_text_color(255, 255, 255)
+            self.set_font("Helvetica", "B", 6)
+            for i, col in enumerate(cols):
+                self.cell(widths[i], 6, col, border=1, fill=True, align="C")
+            self.ln()
+            self.set_text_color(31, 41, 55)
+            self.set_font("Helvetica", "", 6.5)
+
+        def table_row(self, cells, widths=None, aligns=None, fill=False):
+            if widths is None:
+                widths = [190 / len(cells)] * len(cells)
+            if aligns is None:
+                aligns = ["L"] * len(cells)
+            if fill:
+                self.set_fill_color(248, 250, 252)
+            else:
+                self.set_fill_color(255, 255, 255)
+            for i, cell in enumerate(cells):
+                self.cell(widths[i], 4.5, str(cell), border=1, fill=True, align=aligns[i])
+            self.ln()
+
+        def check_page_break(self, h=20):
+            if self.get_y() + h > 270:
+                self.add_page()
+
+    pdf = ReportPDF("P", "mm", "A4")
+    pdf.set_auto_page_break(auto=True, margin=18)
+
+    # ── COVER PAGE ──
+    pdf.add_page()
+    pdf.ln(70)
+    pdf.set_font("Helvetica", "", 40)
+    pdf.set_text_color(26, 115, 232)
+    pdf.cell(0, 15, "CogniMail Security Report", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+    pdf.set_draw_color(26, 115, 232)
+    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.set_text_color(107, 114, 128)
+    pdf.cell(0, 7, "Laporan Keamanan Email", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(20)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(55, 65, 81)
+    for line in [
+        f"Tanggal Laporan: {now.strftime('%d %B %Y')}",
+        f"Waktu Generate: {now.strftime('%H:%M %Z')}",
+        f"Periode: {today_str}",
+        f"Total Email Diproses: {total_emails:,}",
+        f"Total Pengguna Aktif: {total_users_count}",
+    ]:
+        pdf.cell(0, 6, line, align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(20)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(26, 115, 232)
+    pdf.set_draw_color(26, 115, 232)
+    pdf.rect(65, pdf.get_y(), 80, 8, style="D")
+    pdf.cell(0, 8, "RAHASIA - INTERNAL", align="C", new_x="LMARGIN", new_y="NEXT")
+
+    # ── TOC ──
+    pdf.add_page()
+    pdf.section_title("", "Daftar Isi")
+    toc_items = [
+        "Executive Summary", "Threat Breakdown", "Organizations Overview",
+        "Per-User Email Analysis", "Authentication Metrics (SPF/DKIM/DMARC)",
+        "Top Senders", "Recent Security Detections", "User Reports & Feedback",
+        "Complete Email Log"
+    ]
+    for i, item in enumerate(toc_items, 1):
+        pdf.set_draw_color(229, 231, 235)
+        y = pdf.get_y()
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(26, 115, 232)
+        pdf.cell(8, 6, str(i))
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(31, 41, 55)
+        pdf.cell(0, 6, item, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_draw_color(229, 231, 235)
+        pdf.line(18, pdf.get_y() - 0.5, 200, pdf.get_y() - 0.5)
+
+    # ── 1. EXECUTIVE SUMMARY ──
+    pdf.add_page()
+    pdf.section_title(1, "Executive Summary")
+    pdf.body_text("Ringkasan keseluruhan status keamanan email pada platform CogniMail.")
+    pdf.check_page_break(50)
+    pos = pdf.get_y()
+    pdf.stat_card(f"{total_emails:,}", "TOTAL EMAIL", "Semua organisasi", 26, 115, 232)
+    pdf.stat_card(f"{total_clean:,}", "AMAN / CLEAN", f"{safe_pct}% dari total", 5, 150, 105)
+    pdf.ln(24)
+    pdf.set_x(10)
+    pdf.stat_card(f"{total_warn:,}", "SPAM / WARN", "Mencurigakan", 217, 119, 6)
+    pdf.stat_card(f"{total_threats:,}", "ANCAMAN", f"{threat_pct}% threat ratio", 220, 38, 38)
+    pdf.ln(24)
+    pdf.set_x(10)
+    pdf.stat_card(f"{total_phishing:,}", "PHISHING", "Percobaan pencurian data", 124, 58, 237)
+    pdf.stat_card(f"{total_malware:,}", "MALWARE", "Lampiran berbahaya", 197, 34, 31)
+    pdf.ln(24)
+    pdf.set_x(10)
+    pdf.stat_card(f"{total_users_count}", "PENGGUNA AKTIF", f"{total_mailboxes} mailbox", 26, 115, 232)
+    pdf.stat_card(f"{total_released:,}", "DIRILIS", "False positive", 5, 150, 105)
+    pdf.ln(14)
+
+    pdf.set_x(10)
+    pdf.sub_title("Distribusi Keamanan")
+    spam_warn_pct = round(total_warn / max(total_emails, 1) * 100, 1)
+    phish_mal_pct = round((total_phishing + total_malware) / max(total_emails, 1) * 100, 1)
+    pdf.bar_chart("Aman / Clean", safe_pct, 5, 150, 105)
+    pdf.bar_chart("Spam / Warn", spam_warn_pct, 217, 119, 6)
+    pdf.bar_chart("Phishing + Malware", phish_mal_pct, 220, 38, 38)
+
+    # ── 2. THREAT BREAKDOWN ──
+    pdf.check_page_break()
+    pdf.section_title(2, "Threat Breakdown")
+    pdf.body_text("Rincian email berdasarkan kategori ancaman.")
+    cols = ["Kategori", "Jumlah", "Persentase", "Status"]
+    widths = [60, 40, 45, 45]
+    pdf.table_header(cols, widths)
+    rows_data = [
+        ("Clean - Email aman", f"{total_clean:,}", f"{round(total_clean/max(total_emails,1)*100,1)}%", "Aman"),
+        ("Spam - Email spam/promosi", f"{total_spam:,}", f"{round(total_spam/max(total_emails,1)*100,1)}%", "Spam"),
+        ("Phishing - Percobaan phishing", f"{total_phishing:,}", f"{round(total_phishing/max(total_emails,1)*100,1)}%", "Critical"),
+        ("Malware - Lampiran berbahaya", f"{total_malware:,}", f"{round(total_malware/max(total_emails,1)*100,1)}%", "Critical"),
+        ("Warn - Mencurigakan", f"{total_warn:,}", f"{round(total_warn/max(total_emails,1)*100,1)}%", "Warning"),
+    ]
+    for i, row in enumerate(rows_data):
+        pdf.table_row(row, widths, fill=i % 2 == 1)
+
+    # ── 3. ORGANIZATIONS ──
+    pdf.check_page_break()
+    pdf.section_title(3, "Organizations Overview")
+    pdf.body_text("Statistik per organisasi yang terdaftar dalam platform.")
+    widths3 = [60, 40, 40, 25, 25]
+    pdf.table_header(["Organisasi", "Pengguna Aktif", "Email Diproses", "Ancaman", "Threat Ratio"], widths3)
+    for i, org_s in enumerate(org_stats):
+        o_tr = round(org_s["threats"] / max(org_s["emails"], 1) * 100, 1) if org_s["emails"] else 0
+        pdf.table_row([org_s["name"], str(org_s["users"]), f"{org_s['emails']:,}", str(org_s["threats"]), f"{o_tr}%"], widths3, fill=i % 2 == 1)
+
+    # ── 4. PER-USER EMAIL ANALYSIS ──
+    pdf.check_page_break()
+    pdf.section_title(4, "Per-User Email Analysis")
+    pdf.body_text("Rincian email per pengguna termasuk admin dan user biasa.")
+    pdf.sub_title("4.1 Admin & Superadmin")
+    w4 = [30, 22, 40, 20, 20, 20, 38]
+    pdf.table_header(["Username", "Role", "Email", "Total", "Clean", "Warn", "Quarantine"], w4)
+    for i, u in enumerate(admins):
+        identifiers = [u.username.lower()]
+        if u.email:
+            identifiers.append(u.email.lower())
+        filters = [QuarantineEmail.recipient_list.ilike(f"%{idn}%") for idn in identifiers]
+        filters += [QuarantineEmail.sender.ilike(f"%{idn}%") for idn in identifiers]
+        u_base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash", or_(*filters))
+        u_tot = u_base.count() or 0
+        u_clean = u_base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+        u_warn = u_base.filter(QuarantineEmail.label == "WARN").count() or 0
+        u_quar = u_base.filter(QuarantineEmail.label == "QUARANTINE").count() or 0
+        pdf.table_row([u.username, u.role, (u.email or "-")[:20], str(u_tot), str(u_clean), str(u_warn), str(u_quar)], w4, fill=i % 2 == 1)
+
+    pdf.check_page_break()
+    pdf.sub_title("4.2 Regular Users")
+    w4b = [26, 40, 20, 20, 20, 20, 20, 24]
+    pdf.table_header(["Username", "Email", "Total", "Clean", "Spam", "Phish", "Malware", "Org"], w4b)
+    org_cache = {}
+    for i, u in enumerate(reg_users):
+        identifiers = [u.username.lower()]
+        if u.email:
+            identifiers.append(u.email.lower())
+        filters = [QuarantineEmail.recipient_list.ilike(f"%{idn}%") for idn in identifiers]
+        filters += [QuarantineEmail.sender.ilike(f"%{idn}%") for idn in identifiers]
+        u_base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash", or_(*filters))
+        u_tot = u_base.count() or 0
+        u_clean = u_base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+        u_spam = u_base.filter(QuarantineEmail.category == "spam").count() or 0
+        u_phish = u_base.filter(QuarantineEmail.category == "phishing").count() or 0
+        u_mal = u_base.filter(QuarantineEmail.category == "malware").count() or 0
+        org_name = ""
+        if u.organization_id:
+            if u.organization_id not in org_cache:
+                o = db.query(Organization).filter(Organization.id == u.organization_id).first()
+                org_cache[u.organization_id] = o.name if o else ""
+            org_name = org_cache[u.organization_id]
+        pdf.table_row([u.username, (u.email or "-")[:22], str(u_tot), str(u_clean), str(u_spam), str(u_phish), str(u_mal), org_name[:12]], w4b, fill=i % 2 == 1)
+
+    # ── 4.3 PER-EMAIL BREAKDOWN (ADMIN SCOPE) ──
+    if scope == "admin":
+        pdf.check_page_break()
+        pdf.sub_title("4.3 Per-Email Breakdown (Admin Scope)")
+        pdf.body_text("Breakdown email per alamat email dalam scope admin.")
+        w43 = [50, 28, 28, 28, 28, 28]
+        pdf.table_header(["Email Address", "Total", "Spam", "Phishing", "Malware", "Clean"], w43)
+        target_emails_43 = _get_scope_emails(db, scope)
+        email_rows_43 = []
+        for eaddr in sorted(target_emails_43):
+            eb = db.query(QuarantineEmail).filter(
+                QuarantineEmail.recipient_list.contains(eaddr, autoescape=True),
+                QuarantineEmail.status != "trash",
+            )
+            etot = eb.count() or 0
+            espm = eb.filter(QuarantineEmail.category == "spam").count() or 0
+            ephish = eb.filter(QuarantineEmail.category == "phishing").count() or 0
+            emal = eb.filter(QuarantineEmail.category == "malware").count() or 0
+            eclean = eb.filter(QuarantineEmail.label == "CLEAN").count() or 0
+            email_rows_43.append((eaddr, etot, espm, ephish, emal, eclean))
+        email_rows_43.sort(key=lambda x: -x[1])
+        for i, (eaddr, etot, espm, ephish, emal, eclean) in enumerate(email_rows_43):
+            pdf.table_row([eaddr[:30], str(etot), str(espm), str(ephish), str(emal), str(eclean)], w43, fill=i % 2 == 1)
+        pdf.ln(4)
+
+        # ── 4.4 DETAILED EMAIL RECORDS (ADMIN SCOPE) ──
+        pdf.check_page_break()
+        pdf.sub_title("4.4 Detailed Email Records")
+        pdf.body_text("Daftar lengkap email dengan detail IP, sender, subject, score, tanggal.")
+        w44 = [28, 36, 40, 14, 14, 14, 18, 16, 10]
+        pdf.table_header(["ID", "Sender", "Subject", "Spam", "Phish", "Mal.", "Score", "Received", "SPF"], w44)
+        detailed_records = base.order_by(QuarantineEmail.created_at.desc()).limit(200).all()
+        for i, rec in enumerate(detailed_records):
+            pdf.check_page_break(h=10)
+            is_spam = "Y" if rec.category == "spam" else ""
+            is_phish = "Y" if rec.category == "phishing" else ""
+            is_mal = "Y" if rec.category == "malware" else ""
+            pdf.table_row([
+                (rec.email_id or "")[:12],
+                (rec.sender or "")[:20],
+                (rec.subject or "")[:26],
+                is_spam, is_phish, is_mal,
+                f"{rec.fused_score:.3f}" if rec.fused_score is not None else "",
+                _fmt_email_datetime(rec.received_at),
+                (rec.spf_result or "-")[:4],
+            ], w44, fill=i % 2 == 1)
+        pdf.ln(4)
+
+    # ── 5. AUTH METRICS ──
+    pdf.check_page_break()
+    pdf.section_title(5, "Authentication Metrics (SPF / DKIM / DMARC)")
+    pdf.body_text("Analisis hasil autentikasi email untuk email dalam kategori WARN dan QUARANTINE.")
+    widths5 = [70, 40, 40, 40]
+    pdf.table_header(["Metrik", "Pass", "Fail", "Pass Rate"], widths5)
+    pdf.table_row(["SPF - Sender Policy Framework", str(spf_pass), str(spf_fail), f"{round(spf_pass/auth_total*100,1)}%"], widths5, fill=False)
+    pdf.table_row(["DKIM - DomainKeys Identified Mail", str(dkim_pass), str(dkim_fail), f"{round(dkim_pass/auth_total*100,1)}%"], widths5, fill=True)
+    pdf.table_row(["DMARC - Domain-based Message Auth.", str(dmarc_pass), str(dmarc_fail), f"{round(dmarc_pass/auth_total*100,1)}%"], widths5, fill=False)
+
+    # ── 6. TOP SENDERS ──
+    pdf.check_page_break()
+    pdf.section_title(6, "Top Senders")
+    pdf.body_text("20 pengirim email terbanyak dalam sistem.")
+    widths6 = [15, 130, 45]
+    pdf.table_header(["#", "Pengirim", "Jumlah Email"], widths6)
+    for i, (sender, cnt) in enumerate(top_senders, 1):
+        pdf.table_row([str(i), (sender or "-")[:45], str(cnt)], widths6, fill=i % 2 == 1)
+
+    # ── 7. RECENT SECURITY DETECTIONS ──
+    pdf.check_page_break()
+    pdf.section_title(7, "Recent Security Detections")
+    pdf.body_text("50 deteksi keamanan terbaru yang diblokir oleh sistem.")
+    widths7 = [32, 42, 50, 24, 20, 22]
+    pdf.table_header(["Email ID", "Sender", "Subject", "Label", "Score", "Received"], widths7)
+    for i, e in enumerate(recent_detections):
+        pdf.table_row([
+            (e.email_id or "")[:16],
+            (e.sender or "")[:20],
+            (e.subject or "")[:28],
+            e.label or "",
+            f"{e.fused_score:.3f}" if e.fused_score is not None else "",
+            _fmt_email_datetime(e.received_at),
+        ], widths7, fill=i % 2 == 1)
+
+    # ── 8. USER REPORTS ──
+    if reports:
+        pdf.check_page_break()
+        pdf.section_title(8, "User Reports & Feedback")
+        pdf.body_text("Laporan dan masukan yang dikirim oleh pengguna.")
+        widths8 = [22, 40, 22, 22, 22, 32, 30]
+        pdf.table_header(["User", "Subject", "Category", "Priority", "Status", "Date", "Email"], widths8)
+        for i, r in enumerate(reports):
+            pdf.table_row([
+                r.username or "",
+                (r.subject or "")[:24],
+                r.category or "",
+                r.priority or "",
+                r.status or "",
+                _fmt_email_datetime(r.created_at),
+                (r.email or "")[:16],
+            ], widths8, fill=i % 2 == 1)
+
+    # ── 9. COMPLETE EMAIL LOG ──
+    pdf.check_page_break()
+    pdf.section_title(9, "Complete Email Log")
+    pdf.body_text("Log lengkap seluruh email yang diproses oleh sistem (maksimal 500 baris).")
+    widths9 = [28, 28, 28, 16, 16, 16, 14, 14, 14, 16]
+    pdf.table_header(["ID", "Sender", "Subject", "Label", "Cat.", "Fused", "SPF", "DKIM", "DMARC", "Status"], widths9)
+    for i, e in enumerate(all_emails[:500]):
+        pdf.check_page_break(h=12)
+        pdf.table_row([
+            (e.email_id or "")[:12],
+            (e.sender or "")[:16],
+            (e.subject or "")[:18],
+            e.label or "",
+            (e.category or "-")[:6],
+            f"{e.fused_score:.3f}" if e.fused_score is not None else "",
+            (e.spf_result or "-")[:6],
+            (e.dkim_result or "-")[:6],
+            (e.dmarc_result or "-")[:6],
+            e.status or "",
+        ], widths9, fill=i % 2 == 1)
+
+    pdf_bytes = pdf.output()
+    filename = f"cognimail_report_{now.strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/admin/export-report/excel")
+async def api_export_report_excel(request: Request, scope: str = "all", db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can generate reports")
+
+    now = datetime.now(APP_TIMEZONE)
+    base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+    if scope in ("admin", "user"):
+        target_emails = _get_scope_emails(db, scope)
+        if target_emails:
+            from sqlalchemy import or_
+            filters = [QuarantineEmail.recipient_list.contains(e, autoescape=True) for e in target_emails]
+            base = base.filter(or_(*filters))
+        else:
+            base = base.filter(QuarantineEmail.id < 0)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(["=== COGNIMAIL SECURITY REPORT ==="])
+    writer.writerow([f"Generated: {now.strftime('%Y-%m-%d %H:%M %Z')}"])
+    writer.writerow([])
+
+    total_emails = base.count() or 0
+    total_clean = base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+    total_spam = base.filter(QuarantineEmail.category == "spam").count() or 0
+    total_phishing = base.filter(QuarantineEmail.category == "phishing").count() or 0
+    total_malware = base.filter(QuarantineEmail.category == "malware").count() or 0
+    total_quarantine = base.filter(QuarantineEmail.label == "QUARANTINE").count() or 0
+    total_warn = base.filter(QuarantineEmail.label == "WARN").count() or 0
+    total_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+    total_mailboxes = db.query(func.count(AdminMailbox.id)).filter(AdminMailbox.is_active == True).scalar() or 0
+
+    writer.writerow(["=== SUMMARY ==="])
+    writer.writerow(["Metric", "Value"])
+    writer.writerow(["Total Users", total_users])
+    writer.writerow(["Active Mailboxes", total_mailboxes])
+    writer.writerow(["Total Emails Processed", total_emails])
+    writer.writerow(["Clean Emails", total_clean])
+    writer.writerow(["Spam Detected", total_spam])
+    writer.writerow(["Phishing Detected", total_phishing])
+    writer.writerow(["Malware Detected", total_malware])
+    writer.writerow(["Warn Flagged", total_warn])
+    writer.writerow(["Quarantined", total_quarantine])
+    writer.writerow([])
+
+    writer.writerow(["=== PER-USER EMAIL BREAKDOWN ==="])
+    writer.writerow(["Username", "Role", "Organization", "Total Emails", "Clean", "Warn", "Quarantine", "Spam", "Phishing", "Malware"])
+    all_users = db.query(User).filter(User.is_active == True).order_by(User.role).all()
+    for u in all_users:
+        org_name = ""
+        if u.organization_id:
+            org = db.query(Organization).filter(Organization.id == u.organization_id).first()
+            org_name = org.name if org else ""
+        total_u = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.recipient_list.contains(u.email if u.email else u.username)).scalar() or 0
+        clean_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.label == "CLEAN"
+        ).scalar() or 0
+        warn_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.label == "WARN"
+        ).scalar() or 0
+        quar_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.label == "QUARANTINE"
+        ).scalar() or 0
+        spam_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.category == "spam"
+        ).scalar() or 0
+        phish_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.category == "phishing"
+        ).scalar() or 0
+        mal_u = db.query(func.count(QuarantineEmail.id)).filter(
+            QuarantineEmail.recipient_list.contains(u.email if u.email else u.username),
+            QuarantineEmail.category == "malware"
+        ).scalar() or 0
+        writer.writerow([u.username, u.role, org_name, total_u, clean_u, warn_u, quar_u, spam_u, phish_u, mal_u])
+    writer.writerow([])
+
+    if scope == "admin":
+        writer.writerow(["=== PER-EMAIL BREAKDOWN (ADMIN SCOPE) ==="])
+        writer.writerow(["Email Address", "Total", "Spam", "Phishing", "Malware", "Clean"])
+        target_emails_43 = _get_scope_emails(db, scope)
+        for eaddr in sorted(target_emails_43):
+            eb = db.query(QuarantineEmail).filter(
+                QuarantineEmail.recipient_list.contains(eaddr, autoescape=True),
+                QuarantineEmail.status != "trash",
+            )
+            etot = eb.count() or 0
+            espm = eb.filter(QuarantineEmail.category == "spam").count() or 0
+            ephish = eb.filter(QuarantineEmail.category == "phishing").count() or 0
+            emal = eb.filter(QuarantineEmail.category == "malware").count() or 0
+            eclean = eb.filter(QuarantineEmail.label == "CLEAN").count() or 0
+            writer.writerow([eaddr, etot, espm, ephish, emal, eclean])
+        writer.writerow([])
+
+        writer.writerow(["=== DETAILED EMAIL RECORDS (ADMIN SCOPE) ==="])
+        writer.writerow([
+            "Email ID", "Sender", "Subject", "Recipient(s)",
+            "Label", "Category", "Spam", "Phishing", "Malware",
+            "Fused Score", "ML Prob", "Anomaly Score",
+            "SPF", "DKIM", "DMARC",
+            "Received At", "Created At"
+        ])
+        detailed_records = base.order_by(QuarantineEmail.created_at.desc()).limit(1000).all()
+        for rec in detailed_records:
+            writer.writerow([
+                rec.email_id or "",
+                rec.sender or "",
+                rec.subject or "",
+                rec.recipient_list or "",
+                rec.label or "",
+                rec.category or "",
+                "Y" if rec.category == "spam" else "",
+                "Y" if rec.category == "phishing" else "",
+                "Y" if rec.category == "malware" else "",
+                f"{rec.fused_score:.4f}" if rec.fused_score is not None else "",
+                f"{rec.ml_probability:.4f}" if rec.ml_probability is not None else "",
+                f"{rec.anomaly_score:.4f}" if rec.anomaly_score is not None else "",
+                rec.spf_result or "",
+                rec.dkim_result or "",
+                rec.dmarc_result or "",
+                _fmt_email_datetime(rec.received_at),
+                _fmt_email_datetime(rec.created_at),
+            ])
+        writer.writerow([])
+
+    writer.writerow(["=== COMPLETE EMAIL DATA DUMP ==="])
+    writer.writerow([
+        "Email ID", "Sender", "Recipient(s)", "Subject", "Body Preview",
+        "Label", "Category", "Status",
+        "Fused Score", "ML Probability", "SA Score", "Anomaly Score",
+        "SPF Result", "DKIM Result", "DMARC Result",
+        "Organization ID", "Organization Name",
+        "Received At", "Created At"
+    ])
+    all_emails_dump = base.order_by(QuarantineEmail.received_at.desc()).limit(5000).all()
+    org_cache = {}
+    for e in all_emails_dump:
+        org_name = ""
+        if e.organization_id:
+            if e.organization_id not in org_cache:
+                o = db.query(Organization).filter(Organization.id == e.organization_id).first()
+                org_cache[e.organization_id] = o.name if o else ""
+            org_name = org_cache[e.organization_id]
+        body_preview = ""
+        if e.raw_content:
+            try:
+                body_preview = e.raw_content[:200].replace("\n", " ").replace("\r", "")
+            except Exception:
+                body_preview = e.raw_content[:200]
+        writer.writerow([
+            e.email_id or "",
+            e.sender or "",
+            e.recipient_list or "",
+            e.subject or "",
+            body_preview,
+            e.label or "",
+            e.category or "",
+            e.status or "",
+            f"{e.fused_score:.4f}" if e.fused_score is not None else "",
+            f"{e.ml_probability:.4f}" if e.ml_probability is not None else "",
+            f"{e.sa_score:.4f}" if e.sa_score is not None else "",
+            f"{e.anomaly_score:.4f}" if e.anomaly_score is not None else "",
+            e.spf_result or "",
+            e.dkim_result or "",
+            e.dmarc_result or "",
+            e.organization_id or "",
+            org_name,
+            _fmt_email_datetime(e.received_at),
+            _fmt_email_datetime(e.created_at),
+        ])
+
+    output.seek(0)
+    filename = f"cognimail_report_{now.strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/superadmin/spam-stats")
+async def api_superadmin_spam_stats(
+    request: Request,
+    scope: str = "all",
+    category: str = "all",
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access this endpoint")
+
+    categories = {"spam", "phishing", "malware", "clean"}
+    filter_cat = None if category == "all" or category not in categories else category
+
+    base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+    if filter_cat:
+        base = base.filter(QuarantineEmail.category == filter_cat)
+
+    all_user_emails = set()
+    all_admin_emails = set()
+    admin_email_map = {}
+
+    admin_users = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+    for adm in admin_users:
+        if adm.email:
+            all_admin_emails.add(adm.email.lower())
+        admin_mboxes = db.query(AdminMailbox).filter(
+            AdminMailbox.assigned_to == adm.username,
+            AdminMailbox.is_active == True
+        ).all()
+        mbox_emails = []
+        for mb in admin_mboxes:
+            e = mb.email.lower()
+            all_admin_emails.add(e)
+            mbox_emails.append(e)
+        admin_email_map[adm.username] = {
+            "username": adm.username,
+            "email": adm.email,
+            "organization_id": adm.organization_id,
+            "mailboxes": mbox_emails,
+            "total_users": db.query(func.count(User.id)).filter(
+                User.organization_id == adm.organization_id, User.role == "user", User.is_active == True
+            ).scalar() or 0,
+        }
+
+    regular_users = db.query(User).filter(User.role == "user", User.is_active == True).all()
+    user_email_map = {}
+    for u in regular_users:
+        if u.email:
+            e = u.email.lower()
+            all_user_emails.add(e)
+            user_email_map[u.username] = {"username": u.username, "email": e, "organization_id": u.organization_id}
+
+    mailbox_rows = db.query(AdminMailbox).filter(AdminMailbox.is_active == True).all()
+    for mb in mailbox_rows:
+        e = mb.email.lower()
+        if not mb.assigned_to:
+            all_user_emails.add(e)
+
+    global_all = all_admin_emails | all_user_emails
+
+    from sqlalchemy import func as sql_func, or_
+    from sqlalchemy.types import String
+
+    all_recipients_emails = db.query(QuarantineEmail.recipient_list).filter(
+        QuarantineEmail.recipient_list != "",
+        QuarantineEmail.status != "trash",
+    ).all()
+
+    recipient_counts = {}
+    for (rlist,) in all_recipients_emails:
+        parts = [p.strip().lower() for p in rlist.replace(";", ",").split(",") if p.strip()]
+        for addr in parts:
+            if scope == "admin" and addr not in all_admin_emails:
+                continue
+            if scope == "user" and addr not in all_user_emails:
+                continue
+            if scope == "all" and addr not in global_all:
+                continue
+            recipient_counts[addr] = recipient_counts.get(addr, 0) + 1
+
+    sorted_recipients = sorted(recipient_counts.items(), key=lambda x: -x[1])[:limit]
+
+    result_rows = []
+    for addr, total_count in sorted_recipients:
+        cat_base = db.query(QuarantineEmail).filter(
+            QuarantineEmail.recipient_list.contains(addr, autoescape=True),
+            QuarantineEmail.status != "trash",
+        )
+        spam_count = cat_base.filter(QuarantineEmail.category == "spam").count() or 0
+        phish_count = cat_base.filter(QuarantineEmail.category == "phishing").count() or 0
+        mal_count = cat_base.filter(QuarantineEmail.category == "malware").count() or 0
+        clean_count = cat_base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+
+        owner_type = "admin" if addr in all_admin_emails else "user"
+        owner_username = ""
+        if owner_type == "admin":
+            for uname, info in admin_email_map.items():
+                if addr == info["email"] or addr in info["mailboxes"]:
+                    owner_username = uname
+                    break
+        else:
+            for uname, info in user_email_map.items():
+                if addr == info["email"]:
+                    owner_username = uname
+                    break
+
+        result_rows.append({
+            "recipient": addr,
+            "total": total_count,
+            "spam": spam_count,
+            "phishing": phish_count,
+            "malware": mal_count,
+            "clean": clean_count,
+            "owner_type": owner_type,
+            "owner_username": owner_username,
+        })
+
+    return {
+        "scope": scope,
+        "category": category,
+        "total_recipients": len(result_rows),
+        "admin_emails": list(all_admin_emails),
+        "user_emails": list(all_user_emails),
+        "admins": [
+            {"username": k, "email": v["email"], "mailboxes": v["mailboxes"], "total_users": v["total_users"]}
+            for k, v in admin_email_map.items()
+        ],
+        "results": result_rows,
+    }
+
+
+@app.get("/api/superadmin/admin-emails/{admin_username}")
+async def api_superadmin_admin_emails(
+    request: Request,
+    admin_username: str,
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access this endpoint")
+
+    admin_user = db.query(User).filter(
+        User.username == admin_username,
+        User.role == "admin",
+        User.is_active == True
+    ).first()
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    org_id = admin_user.organization_id
+
+    mboxes = db.query(AdminMailbox).filter(
+        AdminMailbox.assigned_to == admin_username,
+        AdminMailbox.is_active == True
+    ).all()
+
+    user_rows = db.query(User).filter(
+        User.organization_id == org_id,
+        User.role == "user",
+        User.is_active == True
+    ).all() if org_id else []
+
+    emails_data = []
+
+    admin_emails = set()
+    if admin_user.email:
+        admin_emails.add(admin_user.email.lower())
+    for mb in mboxes:
+        admin_emails.add(mb.email.lower())
+
+    user_emails_set = set()
+    for u in user_rows:
+        if u.email:
+            user_emails_set.add(u.email.lower())
+
+    all_scope_emails = admin_emails | user_emails_set
+
+    for email_addr in sorted(all_scope_emails):
+        cat_base = db.query(QuarantineEmail).filter(
+            QuarantineEmail.recipient_list.contains(email_addr, autoescape=True),
+            QuarantineEmail.status != "trash",
+        )
+        total = cat_base.count() or 0
+        spam = cat_base.filter(QuarantineEmail.category == "spam").count() or 0
+        phishing = cat_base.filter(QuarantineEmail.category == "phishing").count() or 0
+        malware = cat_base.filter(QuarantineEmail.category == "malware").count() or 0
+        clean = cat_base.filter(QuarantineEmail.label == "CLEAN").count() or 0
+        owner = "admin" if email_addr in admin_emails else "user"
+        emails_data.append({
+            "email": email_addr,
+            "total": total,
+            "spam": spam,
+            "phishing": phishing,
+            "malware": malware,
+            "clean": clean,
+            "owner": owner,
+        })
+
+    return {
+        "admin_username": admin_username,
+        "admin_email": admin_user.email,
+        "organization_id": org_id,
+        "emails": emails_data,
+    }
+
+
+@app.get("/api/superadmin/admin-emails/{admin_username}/details")
+async def api_superadmin_admin_email_details(
+    request: Request,
+    admin_username: str,
+    email: str = "",
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    user_info = get_authenticated_api_user(request, db)
+    if not has_permission_dict(user_info, Permission.ACCESS_SYSTEM_HEALTH):
+        raise HTTPException(status_code=403, detail="Only superadmin can access this endpoint")
+
+    admin_user = db.query(User).filter(
+        User.username == admin_username,
+        User.role == "admin",
+        User.is_active == True
+    ).first()
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    org_id = admin_user.organization_id
+
+    mboxes = db.query(AdminMailbox).filter(
+        AdminMailbox.assigned_to == admin_username,
+        AdminMailbox.is_active == True
+    ).all()
+
+    scope_emails = set()
+    if admin_user.email:
+        scope_emails.add(admin_user.email.lower())
+    for mb in mboxes:
+        scope_emails.add(mb.email.lower())
+
+    user_rows = db.query(User).filter(
+        User.organization_id == org_id,
+        User.role == "user",
+        User.is_active == True
+    ).all() if org_id else []
+    for u in user_rows:
+        if u.email:
+            scope_emails.add(u.email.lower())
+
+    base = db.query(QuarantineEmail).filter(
+        QuarantineEmail.status != "trash",
+    )
+    if email:
+        base = base.filter(QuarantineEmail.recipient_list.contains(email, autoescape=True))
+    else:
+        from sqlalchemy import or_
+        filters = [QuarantineEmail.recipient_list.contains(e, autoescape=True) for e in scope_emails]
+        base = base.filter(or_(*filters))
+
+    records = base.order_by(QuarantineEmail.created_at.desc()).limit(limit).all()
+
+    results = []
+    for r in records:
+        results.append({
+            "id": r.id,
+            "email_id": r.email_id,
+            "received_at": r.received_at,
+            "sender": r.sender,
+            "subject": r.subject,
+            "recipient_list": r.recipient_list,
+            "label": r.label,
+            "category": r.category,
+            "fused_score": r.fused_score,
+            "sa_score": r.sa_score,
+            "ml_probability": r.ml_probability,
+            "anomaly_score": r.anomaly_score,
+            "spf_result": r.spf_result,
+            "dkim_result": r.dkim_result,
+            "dmarc_result": r.dmarc_result,
+            "routing_reason": r.routing_reason,
+            "created_at": str(r.created_at) if r.created_at else "",
+        })
+
+    return {
+        "admin_username": admin_username,
+        "email_filter": email,
+        "total": len(results),
+        "records": results,
+    }
+
+
 @app.get("/api/admin/superadmin-dashboard")
 async def api_superadmin_dashboard(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
@@ -3359,11 +5266,13 @@ async def api_superadmin_dashboard(request: Request, db: Session = Depends(get_d
     total_users = db.query(func.count(User.id)).scalar() or 0
     active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
     total_mailboxes = db.query(func.count(AdminMailbox.id)).filter(AdminMailbox.is_active == True).scalar() or 0
+    total_admins = db.query(func.count(User.id)).filter(User.role == "admin", User.is_active == True).scalar() or 0
 
     base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
     total_emails = base.count() or 0
     total_spam = base.filter(QuarantineEmail.category == "spam").count() or 0
     total_phishing = base.filter(QuarantineEmail.category == "phishing").count() or 0
+    total_malware = base.filter(QuarantineEmail.category == "malware").count() or 0
     total_quarantined = base.filter(
         QuarantineEmail.label == "QUARANTINE",
         QuarantineEmail.status != "released",
@@ -3382,17 +5291,65 @@ async def api_superadmin_dashboard(request: Request, db: Session = Depends(get_d
         ~QuarantineEmail.status.in_(["trash", "released"]),
     ).order_by(QuarantineEmail.created_at.desc()).limit(10).all()
 
+    admin_rows = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+    admins_data = []
+    for adm in admin_rows:
+        org_id = adm.organization_id
+        org_name = ""
+        if org_id:
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org_name = org.name if org else ""
+        sub_users = db.query(User).filter(
+            User.organization_id == org_id, User.role == "user", User.is_active == True
+        ).all() if org_id else []
+        users_data = []
+        for u in sub_users:
+            u_email = u.email or f"{u.username}@unknown.com"
+            u_total = db.query(func.count(QuarantineEmail.id)).filter(
+                QuarantineEmail.recipient_list.contains(u_email)
+            ).scalar() or 0
+            u_clean = db.query(func.count(QuarantineEmail.id)).filter(
+                QuarantineEmail.recipient_list.contains(u_email),
+                QuarantineEmail.label == "CLEAN"
+            ).scalar() or 0
+            u_spam = db.query(func.count(QuarantineEmail.id)).filter(
+                QuarantineEmail.recipient_list.contains(u_email),
+                QuarantineEmail.category == "spam"
+            ).scalar() or 0
+            u_phish = db.query(func.count(QuarantineEmail.id)).filter(
+                QuarantineEmail.recipient_list.contains(u_email),
+                QuarantineEmail.category == "phishing"
+            ).scalar() or 0
+            u_mal = db.query(func.count(QuarantineEmail.id)).filter(
+                QuarantineEmail.recipient_list.contains(u_email),
+                QuarantineEmail.category == "malware"
+            ).scalar() or 0
+            users_data.append({
+                "username": u.username, "email": u_email,
+                "total_emails": u_total, "clean": u_clean,
+                "spam": u_spam, "phishing": u_phish, "malware": u_mal,
+                "is_active": u.is_active,
+            })
+        admins_data.append({
+            "username": adm.username, "email": adm.email,
+            "organization_name": org_name, "organization_id": org_id,
+            "users": users_data, "total_users": len(sub_users),
+        })
+
     return {
         "total_users": total_users,
         "active_users": active_users,
+        "total_admins": total_admins,
         "total_mailboxes": total_mailboxes,
         "total_emails_processed": total_emails,
         "total_clean": total_clean,
         "total_spam": total_spam,
         "total_phishing": total_phishing,
+        "total_malware": total_malware,
         "total_quarantined": total_quarantined,
         "total_warn": total_warn,
         "system_health": system_health,
+        "admins": admins_data,
         "recent_activities": [
             {"user": a.user, "action": a.action, "details": a.details, "ip_address": a.ip_address, "created_at": str(a.created_at)}
             for a in recent_activities
