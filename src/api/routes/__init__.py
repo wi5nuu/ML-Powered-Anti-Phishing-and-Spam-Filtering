@@ -1,0 +1,9 @@
+from .auth import router as auth_router
+from .emails import router as email_router
+from .admin import router as admin_router
+from .superadmin import router as superadmin_router
+from .user import router as user_router
+from .metrics import router as metrics_router
+from .mailbox import router as mailbox_router
+from .settings import router as settings_router
+from .websocket import router as websocket_router
