@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell from '../components/layout/AdminShell'
@@ -1070,3 +1071,1641 @@ export default function AdminPage() {
     </AdminShell>
   )
 }
+=======
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import AdminShell from '../components/layout/AdminShell'
+import api from '../api/client'
+import { useMe } from '../api/auth'
+import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, Pencil, Trash2 } from 'lucide-react'
+import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
+import styles from './AdminPage.module.css'
+
+const CATEGORY_LABELS = { bug: 'Bug / Error', question: 'Pertanyaan', access: 'Akses', false_positive: 'False Positive', other: 'Lainnya' }
+const CATEGORY_COLORS = { bug: '#ea4335', question: '#1a73e8', access: '#f29900', false_positive: '#34a853', other: '#5f6368' }
+const PRIORITY_COLORS = { low: '#5f6368', normal: '#1a73e8', high: '#f29900', urgent: '#ea4335' }
+const ROLES = ['superadmin', 'admin', 'user']
+const ROLE_LABELS = {
+  superadmin: 'Superadmin',
+  admin: 'Admin',
+  user: 'User',
+}
+
+function mailboxAvatarLabel(row) {
+  return avatarText(row?.email || '?', 1)
+}
+
+export default function AdminPage() {
+  const { data: me } = useMe()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'overview'
+  const isSuper = me?.user?.role === 'superadmin'
+  const isAdmin = me?.user?.role === 'admin'
+  useEffect(() => {
+    if (tab === 'users' && !isSuper && !isAdmin && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if (tab === 'email' && !isSuper && !isAdmin && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if ((tab === 'health') && !isSuper && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+    if ((tab === 'quarantine' || tab === 'logs') && !isAdmin && me) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+  }, [tab, isSuper, isAdmin, me])
+
+  useEffect(() => {
+    if (isSuper) {
+      setNewRole('admin')
+    } else {
+      setNewRole('user')
+    }
+  }, [isSuper])
+  const [users, setUsers] = useState([])
+  const [logs, setLogs] = useState([])
+  const [stats, setStats] = useState(null)
+  const [reports, setReports] = useState([])
+  const [search, setSearch] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newRole, setNewRole] = useState('user')
+  const [msg, setMsg] = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [userEmails, setUserEmails] = useState([])
+  const [expandedReport, setExpandedReport] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [filterCategory, setFilterCategory] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [editUser, setEditUser] = useState(null)
+  const [editRole, setEditRole] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [deleteUserTarget, setDeleteUserTarget] = useState(null)
+  const [mailDomain, setMailDomainState] = useState(() => getMailDomain())
+  const [mailboxRows, setMailboxRows] = useState([])
+  const [mailboxes, setMailboxState] = useState(() => getMailboxes())
+  const [mailboxInput, setMailboxInput] = useState('')
+  const [mailboxPassword, setMailboxPassword] = useState('')
+  const [mailboxSenderName, setMailboxSenderName] = useState('')
+  const [showMailboxPassword, setShowMailboxPassword] = useState(false)
+  const [createMailboxOpen, setCreateMailboxOpen] = useState(false)
+  const [addEmailOpen, setAddEmailOpen] = useState(false)
+  const [addEmailAddress, setAddEmailAddress] = useState('')
+  const [addEmailPassword, setAddEmailPassword] = useState('')
+  const [showAddEmailPassword, setShowAddEmailPassword] = useState(false)
+  const [mailboxError, setMailboxError] = useState('')
+  const [domainDraft, setDomainDraft] = useState(() => getMailDomain())
+  const [domainError, setDomainError] = useState('')
+  const [mailboxMenuId, setMailboxMenuId] = useState(null)
+  const [passwordMailbox, setPasswordMailbox] = useState(null)
+  const [passwordDraft, setPasswordDraft] = useState('')
+  const [showPasswordDraft, setShowPasswordDraft] = useState(false)
+  const [forwarderMailbox, setForwarderMailbox] = useState(null)
+  const [forwarderTarget, setForwarderTarget] = useState('')
+  const [forwarderKeepCopy, setForwarderKeepCopy] = useState(true)
+  const [deleteMailboxTarget, setDeleteMailboxTarget] = useState(null)
+  const [deleteForwarderTarget, setDeleteForwarderTarget] = useState(null)
+
+  const fetchData = () => {
+    api.get('/admin/users').then((r) => setUsers(r.data)).catch(() => {})
+    api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
+    api.get('/admin/audit-logs').then((r) => setLogs(r.data)).catch(() => {})
+    api.get('/admin/reports').then((r) => setReports(r.data)).catch(() => {})
+  }
+
+  const fetchMailboxes = async () => {
+    try {
+      const r = await api.get('/admin/mailboxes')
+      const rows = Array.isArray(r.data) ? r.data : []
+      setMailboxRows(rows)
+      setMailboxDirectory(rows)
+      const emails = rows.map((row) => row.email)
+      setMailboxState(emails)
+      setMailboxes(emails)
+    } catch {
+      const fallback = getMailboxes()
+      setMailboxRows(fallback.map((email, index) => ({ id: `local-${index}`, email, domain: email.split('@')[1] || mailDomain })))
+      setMailboxState(fallback)
+    }
+  }
+
+  useEffect(() => { fetchData(); fetchMailboxes() }, [])
+
+  const roleBadge = (role) => {
+    const colors = { superadmin: '#c5221f', admin: '#f29900', user: '#137333' }
+    return <span className={styles.roleBadge} style={{ background: colors[role] || '#5f6368' }}>{ROLE_LABELS[role] || role}</span>
+  }
+
+  const handleAddUser = async () => {
+    const username = newUsername.trim().toLowerCase()
+    if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
+      setMsg('Gagal: username hanya boleh huruf, angka, titik, underscore, atau strip; minimal 3 karakter')
+      setTimeout(() => setMsg(''), 5000)
+      return
+    }
+    if (!newPassword || newPassword.length < 8) {
+      setMsg('Gagal: password minimal 8 karakter')
+      setTimeout(() => setMsg(''), 5000)
+      return
+    }
+    try {
+      const response = await api.post('/admin/users', { username, password: newPassword, role: newRole })
+      setMsg(`Akun ${response.data?.username || username} berhasil ditambahkan.`)
+      setNewUsername(''); setNewPassword(''); setShowAdd(false); fetchData()
+    } catch (e) {
+      setMsg('Gagal: ' + (e.response?.data?.detail || 'unknown error'))
+    }
+    setTimeout(() => setMsg(''), 5000)
+  }
+
+  const handleToggleUser = async (username, isActive) => {
+    try {
+      await api.put(`/admin/users/${username}`, { is_active: !isActive })
+      fetchData()
+    } catch (e) { setMsg('Gagal update user') }
+  }
+
+  const handleEditUser = async () => {
+    if (!editUser) return
+    const payload = {}
+    if (editRole !== editUser.role) payload.role = editRole
+    if (editPassword) payload.password = editPassword
+    if (Object.keys(payload).length === 0) { setEditUser(null); return }
+    try {
+      await api.put(`/admin/users/${editUser.username}`, payload)
+      setMsg(`User ${editUser.username} berhasil diperbarui.`)
+      setEditUser(null); setEditRole(''); setEditPassword('')
+      fetchData()
+    } catch (e) { setMsg('Gagal update: ' + (e.response?.data?.detail || 'error')) }
+    setTimeout(() => setMsg(''), 5000)
+  }
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget?.username) return
+    const username = deleteUserTarget.username
+    setDeleteUserTarget(null)
+    try {
+      await api.delete(`/admin/users/${username}`)
+      setMsg(`Akun ${username} berhasil dihapus.`)
+      fetchData()
+    } catch (e) { setMsg('Gagal menghapus akun: ' + (e.response?.data?.detail || 'error')) }
+    setTimeout(() => setMsg(''), 5000)
+  }
+
+  const handleResolveReport = async (id) => {
+    try {
+      await api.put(`/admin/reports/${id}`, { status: 'resolved' })
+      fetchData()
+    } catch (e) { setMsg('Gagal update laporan') }
+  }
+
+  const handleReplyReport = async (id) => {
+    if (!replyText.trim()) return
+    try {
+      await api.put(`/admin/reports/${id}`, { admin_reply: replyText.trim() })
+      setReplyText('')
+      setExpandedReport(null)
+      fetchData()
+    } catch (e) { setMsg('Gagal membalas laporan') }
+  }
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await api.put(`/admin/reports/${id}`, { status })
+      fetchData()
+    } catch (e) { setMsg('Gagal update status') }
+  }
+
+  const viewUserEmails = async (username) => {
+    try {
+      const r = await api.get(`/admin/user-emails/${username}`)
+      setUserEmails(r.data)
+      setSelectedUser(username)
+    } catch (e) { setMsg('Gagal memuat email user') }
+  }
+
+  const persistMailboxes = (next) => {
+    setMailboxState(next)
+    setMailboxes(next)
+  }
+
+  const passwordChecks = {
+    length: mailboxPassword.length >= 8,
+    lower: /[a-z]/.test(mailboxPassword),
+    upper: /[A-Z]/.test(mailboxPassword),
+    number: /\d/.test(mailboxPassword),
+    symbol: /[^A-Za-z0-9]/.test(mailboxPassword),
+    latin: mailboxPassword.length > 0 && /^[\x20-\x7E]+$/.test(mailboxPassword),
+  }
+  const passwordValid = Object.values(passwordChecks).every(Boolean)
+  const actionPasswordChecks = {
+    length: passwordDraft.length >= 8,
+    lower: /[a-z]/.test(passwordDraft),
+    upper: /[A-Z]/.test(passwordDraft),
+    number: /\d/.test(passwordDraft),
+    symbol: /[^A-Za-z0-9]/.test(passwordDraft),
+    latin: passwordDraft.length > 0 && /^[\x20-\x7E]+$/.test(passwordDraft),
+  }
+  const actionPasswordValid = Object.values(actionPasswordChecks).every(Boolean)
+
+  const handleAddMailbox = async () => {
+    const localPart = mailboxInput.trim().toLowerCase().replace(/@.*$/, '')
+    const senderName = mailboxSenderName.trim()
+    const email = `${localPart}@${mailDomain}`
+    setMailboxError('')
+
+    if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
+      setMailboxError('Masukkan nama email yang valid.')
+      return
+    }
+    const usedLocalParts = new Set(
+      mailboxes
+        .map((item) => String(item || '').split('@')[0].trim().toLowerCase())
+        .filter(Boolean)
+    )
+    if (usedLocalParts.has(localPart)) {
+      setMailboxError('Nama email ini sudah dipakai.')
+      return
+    }
+    if (!senderName) {
+      setMailboxError('Nama sender wajib diisi.')
+      return
+    }
+    if (!passwordValid) {
+      setMailboxError('Password belum memenuhi semua persyaratan.')
+      return
+    }
+    if (mailboxes.includes(email)) {
+      setMailboxError('Email ini sudah ada.')
+      return
+    }
+
+    try {
+      await api.post('/admin/mailboxes', {
+        email,
+        domain: mailDomain,
+        password: mailboxPassword,
+        sender_name: senderName,
+      })
+      await fetchMailboxes()
+      setMailboxInput('')
+      setMailboxPassword('')
+      setMailboxSenderName('')
+      setShowMailboxPassword(false)
+      setCreateMailboxOpen(false)
+      setMsg(`Email ${email} berhasil ditambahkan.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menambahkan email.')
+    }
+  }
+
+  const removeMailbox = async (row) => {
+    try {
+      if (typeof row.id === 'number') {
+        await api.delete(`/admin/mailboxes/${row.id}`)
+        await fetchMailboxes()
+      } else {
+        persistMailboxes(mailboxes.filter((item) => item !== row.email))
+        setMailboxRows(mailboxRows.filter((item) => item.email !== row.email))
+      }
+      setMsg(`Email ${row.email} dihapus dari daftar.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMsg(e.response?.data?.detail || 'Gagal menghapus mailbox.')
+      setTimeout(() => setMsg(''), 4000)
+    }
+  }
+
+  const openPasswordModal = (row) => {
+    setMailboxMenuId(null)
+    setPasswordMailbox(row)
+    setPasswordDraft('')
+    setShowPasswordDraft(false)
+    setMailboxError('')
+  }
+
+  const updateMailboxPassword = async () => {
+    if (!passwordMailbox || !actionPasswordValid) return
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${passwordMailbox.id}/password`, { password: passwordDraft })
+      setMsg(`Password ${passwordMailbox.email} berhasil diubah.`)
+      setPasswordMailbox(null)
+      setPasswordDraft('')
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal mengubah password mailbox.')
+    }
+  }
+
+  const openForwarderModal = (row) => {
+    setMailboxMenuId(null)
+    setForwarderMailbox(row)
+    setForwarderTarget(row.forward_to || '')
+    setForwarderKeepCopy(row.forward_keep_copy ?? true)
+    setMailboxError('')
+  }
+
+  const saveForwarder = async () => {
+    if (!forwarderMailbox || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forwarderTarget.trim())) {
+      setMailboxError('Masukkan alamat email tujuan yang valid.')
+      return
+    }
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${forwarderMailbox.id}/forwarder`, {
+        target: forwarderTarget.trim().toLowerCase(),
+        enabled: true,
+        keep_copy: forwarderKeepCopy,
+      })
+      await fetchMailboxes()
+      setMsg(`Forwarder ${forwarderMailbox.email} berhasil dibuat.`)
+      setForwarderMailbox(null)
+      setForwarderTarget('')
+      setMailboxError('')
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menyimpan forwarder.')
+    }
+  }
+
+  const handleAddExistingEmail = async () => {
+    const localPart = addEmailAddress.trim().toLowerCase().replace(/@.*$/, '')
+    const email = `${localPart}@${mailDomain}`
+    if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
+      setMailboxError('Masukkan nama email yang valid.')
+      return
+    }
+    if (!addEmailPassword) {
+      setMailboxError('Masukkan password email.')
+      return
+    }
+    setMailboxError('')
+    try {
+      await api.post('/mailboxes/claim', {
+        email,
+        password: addEmailPassword,
+      })
+      await fetchMailboxes()
+      setAddEmailAddress('')
+      setAddEmailPassword('')
+      setShowAddEmailPassword(false)
+      setAddEmailOpen(false)
+      setMsg(`Email ${email} berhasil ditambahkan.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menambahkan email.')
+    }
+  }
+
+  const deleteForwarder = async () => {
+    if (!deleteForwarderTarget?.id) return
+    const target = deleteForwarderTarget
+    setDeleteForwarderTarget(null)
+    setMailboxError('')
+    try {
+      await api.put(`/admin/mailboxes/${target.id}/forwarder`, {
+        target: '',
+        enabled: false,
+        keep_copy: true,
+      })
+      await fetchMailboxes()
+      setMsg(`Forwarder ${target.email} berhasil dihapus.`)
+      setTimeout(() => setMsg(''), 4000)
+    } catch (e) {
+      setMailboxError(e.response?.data?.detail || 'Gagal menghapus forwarder.')
+    }
+  }
+
+  const handleSaveDomain = () => {
+    const clean = domainDraft.trim().toLowerCase().replace(/^@+/, '')
+    setDomainError('')
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(clean)) {
+      setDomainError('Masukkan domain yang valid, contoh: zenime.my.id')
+      return
+    }
+    const existingOutsideDomain = mailboxes.filter((email) => !email.endsWith(`@${clean}`))
+    if (existingOutsideDomain.length > 0) {
+      setDomainError(`Hapus atau sesuaikan mailbox lama terlebih dahulu: ${existingOutsideDomain.join(', ')}`)
+      return
+    }
+    const saved = setMailDomain(clean)
+    setMailDomainState(saved)
+    setDomainDraft(saved)
+    setMsg(`Domain email default diubah menjadi @${saved}.`)
+    setTimeout(() => setMsg(''), 4000)
+  }
+
+  const openMailbox = (email, newWindow = false) => {
+    const row = mailboxRows.find((item) => item.email === email)
+    const mailboxId = String(row?.id || email)
+    const hasSession = getMailboxSession(mailboxId, email)
+    const target = hasSession
+      ? `/mail/${encodeURIComponent(mailboxId)}/inbox`
+      : `/mail/${encodeURIComponent(mailboxId)}/login`
+    if (newWindow) {
+      window.open(target, '_blank', 'noopener,noreferrer')
+      return
+    }
+    navigate(target)
+  }
+
+  const getMailboxAccessLabel = (row) => {
+    const accounts = Array.isArray(row.access_accounts) && row.access_accounts.length > 0
+      ? row.access_accounts
+      : [{ username: row.owner_username || row.created_by, role: row.owner_role }]
+    return accounts
+      .filter((account) => account?.username)
+      .map((account) => {
+        const role = ROLE_LABELS[account.role] || account.role || 'Akun'
+        return `${account.username} (${role})`
+      })
+      .join(', ') || 'Tidak diketahui'
+  }
+
+  const filteredUsers = users.filter((u) => {
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false
+    return u.username.includes(search) || (u.email || '').includes(search)
+  })
+  const openReports = reports.filter((r) => r.status === 'open')
+  const filteredReports = filterCategory === 'all' ? reports : reports.filter((r) => r.category === filterCategory)
+
+  if (selectedUser) {
+    return (
+      <AdminShell>
+        <div className={styles.page}>
+          <button className={styles.backBtn} onClick={() => { setSelectedUser(null); setUserEmails([]) }}>
+            ← Kembali ke Users
+          </button>
+          <h2 className={styles.userDetailTitle}>Email milik: {selectedUser}</h2>
+          <div className={styles.section}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Email ID</th>
+                  <th>Subject</th>
+                  <th>Sender</th>
+                  <th>Label</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userEmails.map((e) => (
+                  <tr key={e.email_id}>
+                    <td className={styles.mono}>{e.email_id?.slice(0, 16)}...</td>
+                    <td className={styles.detailCell}>{e.subject || '-'}</td>
+                    <td className={styles.detailCell}>{e.sender || '-'}</td>
+                    <td>{e.label}</td>
+                    <td>{e.fused_score?.toFixed(3)}</td>
+                    <td>{e.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </AdminShell>
+    )
+  }
+
+  // System health mock data (no backend endpoint yet)
+  const systemServices = [
+    { name: 'Classifier API', icon: <Cpu size={15} />, status: 'healthy' },
+    { name: 'SMTP Receiver', icon: <Mail size={15} />, status: 'healthy' },
+    { name: 'Worker', icon: <Zap size={15} />, status: 'healthy' },
+    { name: 'Redis', icon: <Database size={15} />, status: 'healthy' },
+    { name: 'PostgreSQL', icon: <Database size={15} />, status: 'healthy' },
+    { name: 'SpamAssassin', icon: <Shield size={15} />, status: 'warning' },
+  ]
+
+  const statusMeta = {
+    healthy: { label: 'Healthy', color: '#059669', bg: '#ECFDF5', icon: <CheckCircle2 size={13} /> },
+    warning: { label: 'Warning', color: '#D97706', bg: '#FFFBEB', icon: <AlertTriangle size={13} /> },
+    down:    { label: 'Down',    color: '#DC2626', bg: '#FEF2F2', icon: <XCircle size={13} /> },
+  }
+
+  const recentActivityIcons = {
+    login: { icon: <Users size={14} />, color: '#2563EB', bg: '#EFF6FF' },
+    mailbox_created: { icon: <Mail size={14} />, color: '#059669', bg: '#ECFDF5' },
+    phishing: { icon: <ShieldAlert size={14} />, color: '#DC2626', bg: '#FEF2F2' },
+    report: { icon: <FileText size={14} />, color: '#D97706', bg: '#FFFBEB' },
+    default: { icon: <Activity size={14} />, color: '#6B7280', bg: '#F9FAFB' },
+  }
+
+  const getActivityMeta = (action = '') => {
+    if (action.includes('login')) return recentActivityIcons.login
+    if (action.includes('mailbox')) return recentActivityIcons.mailbox_created
+    if (action.includes('phishing') || action.includes('quarantine')) return recentActivityIcons.phishing
+    if (action.includes('report')) return recentActivityIcons.report
+    return recentActivityIcons.default
+  }
+
+  const totalThreats = stats ? (stats.warn || 0) + (stats.quarantine || 0) : 0
+  const totalEmails = stats ? Math.max(stats.total_emails || 1, 1) : 1
+  const safePct = stats ? Math.round(((stats.clean || 0) / totalEmails) * 100) : 0
+  const spamPct = stats ? Math.round(((stats.warn || 0) / totalEmails) * 100) : 0
+  const quarantinePct = stats ? Math.round(((stats.quarantine || 0) / totalEmails) * 100) : 0
+
+  return (
+    <AdminShell>
+      <div className={styles.page}>
+        {msg && <div className={styles.msg}>{msg}</div>}
+
+        {tab === 'overview' && (
+          <div className={styles.dashWrap}>
+            <div className={styles.dashHero}>
+              <div className={styles.dashHeroLeft}>
+                <div className={styles.dashGreetRow}>
+                  <h1 className={styles.dashTitle}>
+                    {isSuper ? 'Superadmin Dashboard' : 'Admin Dashboard'}
+                  </h1>
+                  <span className={styles.roleBadgePill} style={isSuper
+                    ? { background: '#F3E8FF', color: '#7C3AED', border: '1px solid #DDD6FE' }
+                    : { background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' }
+                  }>
+                    {isSuper ? '👑 Superadmin' : '🛡️ Admin'}
+                  </span>
+                </div>
+                <p className={styles.dashSubtitle}>
+                  {isSuper
+                    ? 'Monitor platform security, users, mailboxes, and system health.'
+                    : 'Review email security, quarantine, and detection activity.'}
+                </p>
+              </div>
+              <div className={styles.dashHeroRight}>
+                <div className={styles.dashHeroTime}>
+                  <Clock size={13} />
+                  <span>Last updated: {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            </div>
+
+            {stats && (
+              <div className={styles.statsGrid6}>
+                <div className={`${styles.statCard2} ${styles.scBlue}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                    <Users size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value}>{stats.total_users ?? '—'}</span>
+                    <span className={styles.sc2Label}>Total Users</span>
+                    <span className={styles.sc2Sub}>{stats.active_users ?? 0} active</span>
+                  </div>
+                  <ArrowUpRight size={14} className={styles.sc2Arrow} />
+                </div>
+
+                <div className={`${styles.statCard2} ${styles.scIndigo}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#EEF2FF', color: '#4F46E5' }}>
+                    <Mail size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value}>{mailboxRows.length}</span>
+                    <span className={styles.sc2Label}>{isSuper ? 'Active Mailboxes' : 'Inbox Emails'}</span>
+                    <span className={styles.sc2Sub}>domain @{mailDomain}</span>
+                  </div>
+                  <ArrowUpRight size={14} className={styles.sc2Arrow} />
+                </div>
+
+                <div className={`${styles.statCard2} ${styles.scGray}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#F9FAFB', color: '#374151' }}>
+                    <Inbox size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value}>{stats.total_emails ?? '—'}</span>
+                    <span className={styles.sc2Label}>Emails Processed</span>
+                    <span className={styles.sc2Sub}>{stats.clean ?? 0} safe emails</span>
+                  </div>
+                  <ArrowUpRight size={14} className={styles.sc2Arrow} />
+                </div>
+
+                <div className={`${styles.statCard2} ${styles.scRed}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#FEF2F2', color: '#DC2626' }}>
+                    <ShieldAlert size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value}>{totalThreats}</span>
+                    <span className={styles.sc2Label}>Threats Detected</span>
+                    <span className={styles.sc2Sub}>{((totalThreats / totalEmails) * 100).toFixed(1)}% of total</span>
+                  </div>
+                  <TrendingDown size={14} className={styles.sc2Arrow} style={{ color: '#DC2626' }} />
+                </div>
+
+                <div className={`${styles.statCard2} ${styles.scOrange}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#FFFBEB', color: '#D97706' }}>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value}>{stats.quarantine ?? '—'}</span>
+                    <span className={styles.sc2Label}>Quarantined</span>
+                    <span className={styles.sc2Sub}>{quarantinePct}% quarantine rate</span>
+                  </div>
+                  <ArrowUpRight size={14} className={styles.sc2Arrow} />
+                </div>
+
+                <div className={`${styles.statCard2} ${styles.scGreen}`}>
+                  <div className={styles.sc2Icon} style={{ background: '#ECFDF5', color: '#059669' }}>
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div className={styles.sc2Body}>
+                    <span className={styles.sc2Value} style={{ color: '#059669' }}>
+                      {isSuper ? 'Healthy' : openReports.length}
+                    </span>
+                    <span className={styles.sc2Label}>{isSuper ? 'System Health' : 'Pending Review'}</span>
+                    <span className={styles.sc2Sub}>{isSuper ? 'All services online' : `${reports.length} total reports`}</span>
+                  </div>
+                  <CheckCircle2 size={14} className={styles.sc2Arrow} style={{ color: '#059669' }} />
+                </div>
+              </div>
+            )}
+
+            <div className={styles.dashGrid}>
+              <div className={styles.dashCol}>
+
+                {stats && (
+                  <div className={styles.sectionCard}>
+                    <div className={styles.sectionCardHeader}>
+                      <Shield size={16} className={styles.sectionCardIcon} />
+                      <span>Security Overview</span>
+                    </div>
+                    <div className={styles.securityBars}>
+                      <div className={styles.secBar}>
+                        <div className={styles.secBarMeta}>
+                          <span className={styles.secBarLabel}>
+                            <span className={styles.secDot} style={{ background: '#059669' }} />
+                            Ham / Safe
+                          </span>
+                          <span className={styles.secBarCount}>{stats.clean ?? 0}</span>
+                        </div>
+                        <div className={styles.secBarTrack}>
+                          <div className={styles.secBarFill} style={{ width: `${safePct}%`, background: '#059669' }} />
+                        </div>
+                        <span className={styles.secBarPct}>{safePct}%</span>
+                      </div>
+
+                      <div className={styles.secBar}>
+                        <div className={styles.secBarMeta}>
+                          <span className={styles.secBarLabel}>
+                            <span className={styles.secDot} style={{ background: '#D97706' }} />
+                            Spam
+                          </span>
+                          <span className={styles.secBarCount}>{stats.warn ?? 0}</span>
+                        </div>
+                        <div className={styles.secBarTrack}>
+                          <div className={styles.secBarFill} style={{ width: `${spamPct}%`, background: '#D97706' }} />
+                        </div>
+                        <span className={styles.secBarPct}>{spamPct}%</span>
+                      </div>
+
+                      <div className={styles.secBar}>
+                        <div className={styles.secBarMeta}>
+                          <span className={styles.secBarLabel}>
+                            <span className={styles.secDot} style={{ background: '#DC2626' }} />
+                            Phishing / Malware
+                          </span>
+                          <span className={styles.secBarCount}>{Math.round((stats.quarantine ?? 0) * 0.6)}</span>
+                        </div>
+                        <div className={styles.secBarTrack}>
+                          <div className={styles.secBarFill} style={{ width: `${Math.round(quarantinePct * 0.6)}%`, background: '#DC2626' }} />
+                        </div>
+                        <span className={styles.secBarPct}>{Math.round(quarantinePct * 0.6)}%</span>
+                      </div>
+
+                      <div className={styles.secBar}>
+                        <div className={styles.secBarMeta}>
+                          <span className={styles.secBarLabel}>
+                            <span className={styles.secDot} style={{ background: '#7C3AED' }} />
+                            Quarantined
+                          </span>
+                          <span className={styles.secBarCount}>{stats.quarantine ?? 0}</span>
+                        </div>
+                        <div className={styles.secBarTrack}>
+                          <div className={styles.secBarFill} style={{ width: `${quarantinePct}%`, background: '#7C3AED' }} />
+                        </div>
+                        <span className={styles.secBarPct}>{quarantinePct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isSuper ? (
+                  <div className={styles.sectionCard}>
+                    <div className={styles.sectionCardHeader}>
+                      <Mail size={16} className={styles.sectionCardIcon} />
+                      <span>Mailbox Overview</span>
+                    </div>
+                    <div className={styles.mailboxOverview}>
+                      <div className={styles.mboDomainRow}>
+                        <div className={styles.mboDomainIcon}>
+                          <AtSign size={18} />
+                        </div>
+                        <div>
+                          <div className={styles.mboDomain}>{mailDomain}</div>
+                          <div className={styles.mboSub}>Primary domain</div>
+                        </div>
+                      </div>
+                      <div className={styles.mboStats}>
+                        <div className={styles.mboStatItem}>
+                          <span className={styles.mboStatValue}>{mailboxRows.length}</span>
+                          <span className={styles.mboStatLabel}>Active Mailboxes</span>
+                        </div>
+                        <div className={styles.mboStatItem}>
+                          <span className={styles.mboStatValue}>0 KB</span>
+                          <span className={styles.mboStatLabel}>Storage Used</span>
+                        </div>
+                        <div className={styles.mboStatItem}>
+                          <span className={styles.mboStatValue} style={{ color: '#059669' }}>100%</span>
+                          <span className={styles.mboStatLabel}>Available</span>
+                        </div>
+                      </div>
+                      <button className={styles.mboBtn} onClick={() => setSearchParams({ tab: 'email' })}>
+                        <Mail size={14} />
+                        Manage Mailboxes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.sectionCard}>
+                    <div className={styles.sectionCardHeader}>
+                      <TrendingDown size={16} className={styles.sectionCardIcon} style={{ color: '#DC2626' }} />
+                      <span>Threat Breakdown</span>
+                    </div>
+                    <div className={styles.threatGrid}>
+                      <div className={styles.threatItem} style={{ '--tc': '#D97706', '--tb': '#FFFBEB' }}>
+                        <span className={styles.threatValue}>{stats?.warn ?? 0}</span>
+                        <span className={styles.threatLabel}>Spam</span>
+                      </div>
+                      <div className={styles.threatItem} style={{ '--tc': '#DC2626', '--tb': '#FEF2F2' }}>
+                        <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.6)}</span>
+                        <span className={styles.threatLabel}>Phishing</span>
+                      </div>
+                      <div className={styles.threatItem} style={{ '--tc': '#7C3AED', '--tb': '#F3E8FF' }}>
+                        <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.4)}</span>
+                        <span className={styles.threatLabel}>Malware</span>
+                      </div>
+                      <div className={styles.threatItem} style={{ '--tc': '#059669', '--tb': '#ECFDF5' }}>
+                        <span className={styles.threatValue}>{stats?.clean ?? 0}</span>
+                        <span className={styles.threatLabel}>Safe / Ham</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.dashCol}>
+
+                {isSuper ? (
+                  <div className={styles.sectionCard}>
+                    <div className={styles.sectionCardHeader}>
+                      <Server size={16} className={styles.sectionCardIcon} />
+                      <span>System Health</span>
+                      <span className={styles.sectionCardBadge} style={{ background: '#ECFDF5', color: '#059669' }}>All Systems Online</span>
+                    </div>
+                    <div className={styles.healthList}>
+                      {systemServices.map((svc) => {
+                        const meta = statusMeta[svc.status]
+                        return (
+                          <div key={svc.name} className={styles.healthRow}>
+                            <span className={styles.healthIcon} style={{ background: '#F9FAFB', color: '#374151' }}>{svc.icon}</span>
+                            <span className={styles.healthName}>{svc.name}</span>
+                            <span className={styles.healthBadge} style={{ background: meta.bg, color: meta.color }}>
+                              {meta.icon} {meta.label}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.sectionCard}>
+                    <div className={styles.sectionCardHeader}>
+                      <ListFilter size={16} className={styles.sectionCardIcon} />
+                      <span>Security Queue</span>
+                      <button className={styles.sectionCardLink} onClick={() => setSearchParams({ tab: 'activity' })}>
+                        View All
+                      </button>
+                    </div>
+                    <div className={styles.queueList}>
+                      {logs.slice(0, 5).length > 0 ? logs.slice(0, 5).map((l, i) => (
+                        <div key={i} className={styles.queueRow}>
+                          <div className={styles.queueSender}>
+                            <div className={styles.queueAvatar}>{(l.user || 'U')[0].toUpperCase()}</div>
+                            <div>
+                              <div className={styles.queueUser}>{l.user}</div>
+                              <div className={styles.queueTime}>{l.created_at?.split('.')[0]}</div>
+                            </div>
+                          </div>
+                          <code className={styles.queueAction}>{l.action}</code>
+                        </div>
+                      )) : (
+                        <div className={styles.emptySmall}>No recent queue items.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionCardHeader}>
+                    <Activity size={16} className={styles.sectionCardIcon} />
+                    <span>Recent Activity</span>
+                    <button className={styles.sectionCardLink} onClick={() => setSearchParams({ tab: 'activity' })}>
+                      View All
+                    </button>
+                  </div>
+                  <div className={styles.activityFeed}>
+                    {logs.slice(0, 6).length > 0 ? logs.slice(0, 6).map((l, i) => {
+                      const meta = getActivityMeta(l.action)
+                      return (
+                        <div key={i} className={styles.activityItem}>
+                          <div className={styles.activityIconWrap} style={{ background: meta.bg, color: meta.color }}>
+                            {meta.icon}
+                          </div>
+                          <div className={styles.activityBody}>
+                            <span className={styles.activityAction}>{l.action}</span>
+                            <span className={styles.activityUser}>by {l.user}</span>
+                          </div>
+                          <span className={styles.activityTime}>
+                            {l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </span>
+                        </div>
+                      )
+                    }) : (
+                      <div className={styles.emptySmall}>No recent activity.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionCardHeader}>
+                    <Zap size={16} className={styles.sectionCardIcon} />
+                    <span>Quick Actions</span>
+                  </div>
+                  <div className={styles.quickActions}>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'email' })}>
+                      <Mail size={16} />
+                      <span>{isSuper ? 'Manage Mailboxes' : 'Manage Mailboxes'}</span>
+                    </button>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: isSuper ? 'users' : 'quarantine' })}>
+                      <Users size={16} />
+                      <span>{isSuper ? 'Manage Users' : 'Review Quarantine'}</span>
+                    </button>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'reports' })}>
+                      <FileText size={16} />
+                      <span>{isSuper ? 'View Reports' : 'Export Report'}</span>
+                    </button>
+                    <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'settings' })}>
+                      <Settings size={16} />
+                      <span>{isSuper ? 'Settings' : 'Manage Rules'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'users' && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <input className={styles.searchInput} placeholder="Cari username atau email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              {isSuper && (
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {['all', ...ROLES].map((r) => (
+                    <button
+                      key={r}
+                      className={styles.filterChip}
+                      style={{ background: roleFilter === r ? '#1a73e8' : 'transparent', color: roleFilter === r ? '#fff' : 'var(--text-muted)' }}
+                      onClick={() => setRoleFilter(r)}
+                    >
+                      {r === 'all' ? 'Semua' : ROLE_LABELS[r]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button className={styles.addBtn} onClick={() => setShowAdd(true)}><Plus size={16} /> Tambah User</button>
+            </div>
+
+            {showAdd && (
+              <div className={styles.addForm}>
+                <input placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                {isSuper && (
+                  <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                  </select>
+                )}
+                <button className={styles.saveBtn} onClick={handleAddUser}><Check size={16} /> Simpan</button>
+                <button className={styles.cancelBtn} onClick={() => setShowAdd(false)}><X size={16} /></button>
+              </div>
+            )}
+
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  {isSuper && <th>Role</th>}
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((u) => (
+                  <tr key={u.username}>
+                    <td className={styles.usernameCell}>{u.username}</td>
+                    <td className={styles.mono}>{u.email || '-'}</td>
+                    {isSuper && <td>{roleBadge(u.role)}</td>}
+                    <td>
+                      <span className={`${styles.statusDot} ${u.is_active ? styles.active : styles.inactive}`} />
+                      {u.is_active ? 'Aktif' : 'Nonaktif'}
+                    </td>
+                    <td>
+                      <div className={styles.actionGroup}>
+                        <button className={styles.actionBtn} onClick={() => viewUserEmails(u.username)} title="Lihat email user">Email</button>
+                        <button className={styles.actionBtn} onClick={() => { setEditUser(u); setEditRole(u.role); setEditPassword('') }} title="Edit user">Edit</button>
+                        <button className={styles.actionBtn} onClick={() => handleToggleUser(u.username, u.is_active)}>
+                          {u.is_active ? 'Nonaktif' : 'Aktif'}
+                        </button>
+                        {u.username !== me?.user?.username && u.role !== 'superadmin' && (
+                          <button className={`${styles.actionBtn} ${styles.dangerActionBtn}`} onClick={() => setDeleteUserTarget(u)}>
+                            Hapus
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {editUser && (
+              <div className={styles.overlay} onClick={() => setEditUser(null)}>
+                <div className={styles.editModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.editModalHeader}>
+                    <h3><Users size={18} /> Edit User: {editUser.username}</h3>
+                    <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}><X size={16} /></button>
+                  </div>
+                  <div className={styles.editModalBody}>
+                    {isSuper && (
+                      <div className={styles.fieldRow}>
+                        <div className={styles.fieldLeft}>
+                          <label className={styles.fieldLabel}>Role</label>
+                          <span className={styles.fieldHint}>Saat ini: {editUser.role}</span>
+                        </div>
+                        <div className={styles.fieldRight}>
+                          <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className={styles.editSelect}>
+                            <option value="admin">Admin</option>
+                            <option value="user">User</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                    <div className={styles.fieldRow}>
+                      <div className={styles.fieldLeft}>
+                        <label className={styles.fieldLabel}>Reset Password</label>
+                        <span className={styles.fieldHint}>Kosongi jika tidak ingin mengubah</span>
+                      </div>
+                      <div className={styles.fieldRight}>
+                        <input type="password" className={styles.input} placeholder="Password baru" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className={styles.fieldRow}>
+                      <div className={styles.fieldLeft}>
+                        <label className={styles.fieldLabel}>Status</label>
+                        <span className={styles.fieldHint}>{editUser.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                      </div>
+                      <div className={styles.fieldRight}>
+                        <button className={styles.actionBtn} onClick={() => handleToggleUser(editUser.username, editUser.is_active)}>
+                          {editUser.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.editModalFooter}>
+                    <button className={styles.cancelBtn} onClick={() => { setEditUser(null); setEditRole(''); setEditPassword('') }}>Batal</button>
+                    <button className={styles.saveBtn} onClick={handleEditUser} disabled={editRole === editUser.role && !editPassword}>
+                      <Check size={16} /> Simpan Perubahan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {deleteUserTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteUserTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Hapus akun?</h2>
+                  <p>
+                    Akun <strong>{deleteUserTarget.username}</strong> akan dihapus dari sistem.
+                    Mailbox yang sebelumnya dimiliki akun ini akan dikembalikan ke akun Anda.
+                  </p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteUserTarget(null)}>Batal</button>
+                    <button className={styles.dangerBtn} onClick={handleDeleteUser}>
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'reports' && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <AlertCircle size={16} /> Laporan & Bantuan User
+              <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                {['all', 'question', 'bug', 'false_positive', 'access', 'other'].map((cat) => (
+                  <button
+                    key={cat}
+                    className={styles.filterChip}
+                    style={{ background: filterCategory === cat ? CATEGORY_COLORS[cat] || '#1a73e8' : 'transparent', color: filterCategory === cat ? '#fff' : 'var(--text-muted)' }}
+                    onClick={() => setFilterCategory(cat)}
+                  >
+                    {cat === 'all' ? 'Semua' : CATEGORY_LABELS[cat]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {filteredReports.length === 0 ? (
+              <div className={styles.emptyState}>Belum ada laporan dari user.</div>
+            ) : (
+              <div className={styles.reportList}>
+                {filteredReports.map((r) => (
+                  <div key={r.id} className={styles.reportCard}>
+                    <div className={styles.reportCardHeader}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <strong>{r.username}</strong>
+                        <span className={styles.reportCategory} style={{ background: CATEGORY_COLORS[r.category] || '#5f6368' }}>
+                          {CATEGORY_LABELS[r.category] || r.category}
+                        </span>
+                        <span className={styles.reportPriority} style={{ color: PRIORITY_COLORS[r.priority] || '#5f6368' }}>
+                          <Flag size={12} /> {r.priority}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className={r.status === 'open' ? styles.reportOpen : r.status === 'in_progress' ? styles.reportProgress : styles.reportDone}>
+                          {r.status === 'open' ? 'Terbuka' : r.status === 'in_progress' ? 'Diproses' : 'Selesai'}
+                        </span>
+                        <button className={styles.expandBtn} onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
+                          {expandedReport === r.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                    <p className={styles.reportSubject}>{r.subject}</p>
+                    <p className={styles.reportMessage}>{r.message}</p>
+                    <div className={styles.reportFooter}>
+                      <span className={styles.reportDate}>{r.created_at?.split('.')[0]}</span>
+                      {r.status === 'open' && (
+                        <button className={styles.resolveBtn} onClick={() => handleResolveReport(r.id)}>
+                          <Check size={14} /> Selesai
+                        </button>
+                      )}
+                    </div>
+
+                    {expandedReport === r.id && (
+                      <div className={styles.reportDetail}>
+                        {r.admin_reply && (
+                          <div className={styles.replyBubble}>
+                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Balasan Admin:</strong>
+                            <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text)' }}>{r.admin_reply}</p>
+                          </div>
+                        )}
+                        <div className={styles.replyArea}>
+                          <textarea
+                            className={styles.replyInput}
+                            placeholder="Tulis balasan untuk user ini..."
+                            value={expandedReport === r.id ? replyText : ''}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            rows={3}
+                          />
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <button className={styles.replySendBtn} onClick={() => handleReplyReport(r.id)} disabled={!replyText.trim()}>
+                              <Reply size={14} /> Kirim Balasan
+                            </button>
+                            {r.status !== 'resolved' && (
+                              <>
+                                <button className={styles.resolveBtn} onClick={() => handleStatusChange(r.id, 'in_progress')}>
+                                  <Activity size={14} /> Proses
+                                </button>
+                                <button className={styles.resolveBtn} onClick={() => handleResolveReport(r.id)}>
+                                  <Check size={14} /> Selesai
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {(tab === 'activity' || tab === 'logs') && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Activity size={18} />
+                <div>
+                  <strong>{tab === 'logs' ? 'Detection Logs' : isSuper ? 'Audit Logs' : 'Security Activity'}</strong>
+                  <span>{tab === 'logs' ? 'Riwayat klasifikasi dan aksi keamanan email.' : 'Aktivitas penting pada dashboard dan mailbox.'}</span>
+                </div>
+              </div>
+            </div>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Aksi</th>
+                  <th>Email ID</th>
+                  <th>Detail</th>
+                  <th>Waktu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l, i) => (
+                  <tr key={i}>
+                    <td>{l.user}</td>
+                    <td><code className={styles.actionCode}>{l.action}</code></td>
+                    <td className={styles.mono}>{l.email_id || '-'}</td>
+                    <td className={styles.detailCell}>{l.details || '-'}</td>
+                    <td className={styles.mono}>{l.created_at?.split('.')[0]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === 'quarantine' && isAdmin && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>Quarantine Review</strong>
+                  <span>Ringkasan email berisiko yang perlu ditinjau admin.</span>
+                </div>
+              </div>
+              <button className={styles.addBtn} onClick={() => navigate('/metrics')}>
+                Buka Metrics
+              </button>
+            </div>
+            <div className={styles.statsGrid} style={{ padding: 16, marginBottom: 0 }}>
+              <div className={styles.statCard}>
+                <ShieldAlert size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.quarantine ?? 0}</span>
+                  <span className={styles.statLabel}>Quarantined Emails</span>
+                  <span className={styles.statSub}>Butuh review keamanan</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <AlertTriangle size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.warn ?? 0}</span>
+                  <span className={styles.statLabel}>Spam / Warning</span>
+                  <span className={styles.statSub}>Email mencurigakan</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <CheckCircle2 size={20} />
+                <div>
+                  <span className={styles.statValue}>{stats?.clean ?? 0}</span>
+                  <span className={styles.statLabel}>Safe Emails</span>
+                  <span className={styles.statSub}>Terkirim bersih</span>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <FileText size={20} />
+                <div>
+                  <span className={styles.statValue}>{openReports.length}</span>
+                  <span className={styles.statLabel}>Pending Reports</span>
+                  <span className={styles.statSub}>Laporan user terbuka</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'email' && (
+          <>
+            <div className={styles.mailboxHero}>
+              <div className={styles.mailboxHeroIcon}><AtSign size={24} /></div>
+              <div>
+                <h2>{mailDomain}</h2>
+                <p>Default domain email perusahaan. Semua mailbox baru dibuat dengan domain ini.</p>
+              </div>
+              {!isSuper && (
+                <button className={styles.addBtn} onClick={() => { setAddEmailOpen(true); setMailboxError('') }}>
+                  <Plus size={16} /> Add Email
+                </button>
+              )}
+            </div>
+
+            <div className={`${styles.section} ${styles.mailboxSection}`}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionTitle}>
+                  <Shield size={18} />
+                  <div>
+                    <strong>Mailbox & Email</strong>
+                    <span>{mailboxes.length} email aktif dari domain @{mailDomain}</span>
+                  </div>
+                </div>
+                <button className={styles.addBtn} onClick={() => { setCreateMailboxOpen(true); setMailboxError('') }}>
+                  <Plus size={16} /> Buat Mailbox Baru
+                </button>
+              </div>
+              {mailboxes.length === 0 ? (
+                <div className={styles.emptyState}>
+                  {isSuper
+                    ? 'Belum ada email aktif. Buat mailbox baru untuk mulai menambahkan email perusahaan.'
+                    : 'Belum ada email aktif. Gunakan Add Email untuk menambahkan email yang sudah dibuat superadmin atau admin lain, atau buat mailbox baru jika diperlukan.'}
+                </div>
+              ) : (
+                <div className={styles.mailboxTable}>
+                  <div className={styles.mailboxTableHead}>
+                    <span>Mailbox</span>
+                    <span>Aksi</span>
+                  </div>
+                  {mailboxRows.map((row) => (
+                    <div key={row.id || row.email} className={styles.mailboxTableRow}>
+                      <div className={styles.mailboxInfoCell}>
+                        <div
+                          className={styles.mailboxIcon}
+                          style={!hasUploadedAvatar(row.avatar_url) ? { background: avatarColor(row.email) } : undefined}
+                        >
+                          {hasUploadedAvatar(row.avatar_url) ? (
+                            <img src={row.avatar_url} alt="" className={styles.mailboxAvatarImage} />
+                          ) : (
+                            <span>{mailboxAvatarLabel(row)}</span>
+                          )}
+                        </div>
+                        <div className={styles.mailboxInfo}>
+                          <strong>{row.email}</strong>
+                          <span>ID: {row.id} · {row.sender_name || 'Sender name belum diatur'}</span>
+                          <span className={styles.ownerInfo}>Aktif di: {getMailboxAccessLabel(row)}</span>
+                          {row.forward_enabled && row.forward_to && (
+                            <span className={styles.forwardInfo}>Forward: {row.forward_to}</span>
+                          )}
+                        </div>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={() => navigator.clipboard?.writeText(row.email)}
+                          title="Salin email"
+                        >
+                          <Copy size={15} />
+                        </button>
+                      </div>
+                      <div className={styles.mailboxActions}>
+                        <button className={styles.webmailBtn} onClick={() => openMailbox(row.email, true)} title={`Buka inbox ${row.email} di tab baru`}>
+                          Webmail <ChevronRight size={15} />
+                        </button>
+                        <button
+                          className={styles.iconAction}
+                          onClick={() => setMailboxMenuId(mailboxMenuId === row.id ? null : row.id)}
+                          title={`Aksi mailbox ${row.email}`}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {mailboxMenuId === row.id && (
+                          <div className={styles.mailboxActionMenu}>
+                            <button onClick={() => openPasswordModal(row)}>
+                              <KeyRound size={15} /> Ubah Password
+                            </button>
+                            <button onClick={() => openForwarderModal(row)}>
+                              {row.forward_enabled && row.forward_to ? <Pencil size={15} /> : <Forward size={15} />}
+                              {row.forward_enabled && row.forward_to ? 'Edit Forwarder' : 'Buat Forwarder'}
+                            </button>
+                            {row.forward_enabled && row.forward_to && (
+                              <button onClick={() => { setMailboxMenuId(null); setDeleteForwarderTarget(row) }}>
+                                <Trash2 size={15} /> Hapus Forwarder
+                              </button>
+                            )}
+                            <button className={styles.menuDanger} onClick={() => { setMailboxMenuId(null); setDeleteMailboxTarget(row) }}>
+                              <Trash2 size={15} /> Hapus Mailbox
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {passwordMailbox && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setPasswordMailbox(null)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Ubah password mailbox</h2>
+                      <p>{passwordMailbox.email}</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setPasswordMailbox(null)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Masukkan password baru</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      type={showPasswordDraft ? 'text' : 'password'}
+                      value={passwordDraft}
+                      onChange={(e) => { setPasswordDraft(e.target.value); setMailboxError('') }}
+                      placeholder="Masukkan password baru"
+                      autoFocus
+                    />
+                    <button type="button" onClick={() => navigator.clipboard?.writeText(passwordDraft)} title="Copy password"><Copy size={18} /></button>
+                    <button type="button" onClick={() => setShowPasswordDraft((v) => !v)} title="Lihat password">
+                      {showPasswordDraft ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <div className={styles.passwordRules}>
+                    <span className={actionPasswordChecks.number ? styles.ruleOk : ''}>Satu angka</span>
+                    <span className={actionPasswordChecks.symbol ? styles.ruleOk : ''}>Satu simbol</span>
+                    <span className={actionPasswordChecks.lower ? styles.ruleOk : ''}>Satu huruf kecil</span>
+                    <span className={actionPasswordChecks.upper ? styles.ruleOk : ''}>Satu huruf kapital</span>
+                    <span className={actionPasswordChecks.length ? styles.ruleOk : ''}>Minimal 8 karakter</span>
+                    <span className={actionPasswordChecks.latin ? styles.ruleOk : ''}>Hanya huruf Latin</span>
+                  </div>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setPasswordMailbox(null)}>Batal</button>
+                    <button className={styles.saveBtn} disabled={!actionPasswordValid} onClick={updateMailboxPassword}>Update</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {deleteMailboxTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteMailboxTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Hapus mailbox?</h2>
+                  <p>Mailbox <strong>{deleteMailboxTarget.email}</strong> akan dihapus dari daftar aktif dan tidak bisa login lagi. Data email yang sudah ada tetap tersimpan.</p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteMailboxTarget(null)}>Batal</button>
+                    <button
+                      className={styles.dangerBtn}
+                      onClick={async () => {
+                        const target = deleteMailboxTarget
+                        setDeleteMailboxTarget(null)
+                        await removeMailbox(target)
+                      }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {deleteForwarderTarget && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setDeleteForwarderTarget(null)}>
+                <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+                  <h2>Hapus forwarder?</h2>
+                  <p>
+                    Forwarder dari <strong>{deleteForwarderTarget.email}</strong> ke{' '}
+                    <strong>{deleteForwarderTarget.forward_to}</strong> akan dihapus. Email baru tidak akan diteruskan lagi.
+                  </p>
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setDeleteForwarderTarget(null)}>Batal</button>
+                    <button className={styles.dangerBtn} onClick={deleteForwarder}>
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {forwarderMailbox && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setForwarderMailbox(null)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>{forwarderMailbox.forward_enabled && forwarderMailbox.forward_to ? 'Edit forwarder' : 'Buat forwarder'}</h2>
+                      <p>Kendalikan kotak masuk Anda dengan mengalihkan email ke alamat penerusan pilihan Anda.</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setForwarderMailbox(null)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Teruskan semua email yang dikirim ke</label>
+                  <input className={styles.modalInput} value={forwarderMailbox.email} readOnly />
+                  <label className={styles.modalLabel}>Ke alamat email</label>
+                  <input
+                    className={styles.modalInput}
+                    value={forwarderTarget}
+                    onChange={(e) => { setForwarderTarget(e.target.value); setMailboxError('') }}
+                    placeholder="forward@example.com"
+                    autoFocus
+                  />
+                  <label className={styles.switchRow}>
+                    <input type="checkbox" checked={forwarderKeepCopy} onChange={(e) => setForwarderKeepCopy(e.target.checked)} />
+                    <span>Simpan salinan email yang diteruskan</span>
+                  </label>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setForwarderMailbox(null)}>Tutup</button>
+                    <button className={styles.saveBtn} onClick={saveForwarder}>
+                      {forwarderMailbox.forward_enabled && forwarderMailbox.forward_to ? 'Simpan' : 'Buat'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {addEmailOpen && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setAddEmailOpen(false)}>
+                <div className={styles.actionModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Add Email</h2>
+                      <p>Tambahkan email yang sudah dibuat oleh superadmin atau admin lain.</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setAddEmailOpen(false)}><X size={20} /></button>
+                  </div>
+                  <label className={styles.modalLabel}>Alamat email</label>
+                  <div className={styles.splitEmailInput}>
+                    <input
+                      value={addEmailAddress}
+                      onChange={(e) => { setAddEmailAddress(e.target.value.replace(/@.*$/, '')); setMailboxError('') }}
+                      placeholder="nama"
+                      autoFocus
+                    />
+                    <span>@{mailDomain}</span>
+                  </div>
+                  <label className={styles.modalLabel}>Password email</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      type={showAddEmailPassword ? 'text' : 'password'}
+                      value={addEmailPassword}
+                      onChange={(e) => { setAddEmailPassword(e.target.value); setMailboxError('') }}
+                      placeholder="Password email"
+                    />
+                    <button type="button" onClick={() => setShowAddEmailPassword((v) => !v)} title="Lihat password">
+                      {showAddEmailPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.linkBtn} onClick={() => setAddEmailOpen(false)}>Batal</button>
+                    <button className={styles.saveBtn} disabled={!addEmailAddress.trim() || !addEmailPassword} onClick={handleAddExistingEmail}>
+                      Tambahkan Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {createMailboxOpen && (
+              <div className={styles.mailboxModalOverlay} onClick={() => setCreateMailboxOpen(false)}>
+                <div className={styles.mailboxModal} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.mailboxModalHeader}>
+                    <div>
+                      <h2>Buat Mailbox Baru</h2>
+                      <p>Buat alamat email baru dengan domain perusahaan.</p>
+                    </div>
+                    <button className={styles.modalCloseBtn} onClick={() => setCreateMailboxOpen(false)}><X size={20} /></button>
+                  </div>
+
+                  <label className={styles.modalLabel}>Alamat email baru</label>
+                  <div className={styles.splitEmailInput}>
+                    <input
+                      value={mailboxInput}
+                      onChange={(e) => { setMailboxInput(e.target.value.replace(/@.*$/, '')); setMailboxError('') }}
+                      placeholder="nama"
+                      autoFocus
+                    />
+                    <span>@{mailDomain}</span>
+                  </div>
+
+                  <label className={styles.modalLabel}>Nama sender</label>
+                  <input
+                    className={styles.modalInput}
+                    value={mailboxSenderName}
+                    onChange={(e) => { setMailboxSenderName(e.target.value); setMailboxError('') }}
+                    placeholder="Contoh: Support Zenime"
+                  />
+
+                  <label className={styles.modalLabel}>Password</label>
+                  <div className={styles.passwordInput}>
+                    <input
+                      type={showMailboxPassword ? 'text' : 'password'}
+                      value={mailboxPassword}
+                      onChange={(e) => { setMailboxPassword(e.target.value); setMailboxError('') }}
+                      placeholder="Password"
+                    />
+                    <button type="button" onClick={() => navigator.clipboard?.writeText(mailboxPassword)} title="Copy password"><Copy size={18} /></button>
+                    <button type="button" onClick={() => setShowMailboxPassword((v) => !v)} title="Lihat password">
+                      {showMailboxPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+
+                  <div className={styles.passwordRules}>
+                    <span className={passwordChecks.number ? styles.ruleOk : ''}>One number</span>
+                    <span className={passwordChecks.symbol ? styles.ruleOk : ''}>One symbol</span>
+                    <span className={passwordChecks.lower ? styles.ruleOk : ''}>One lowercase letter</span>
+                    <span className={passwordChecks.upper ? styles.ruleOk : ''}>One uppercase letter</span>
+                    <span className={passwordChecks.length ? styles.ruleOk : ''}>At least 8 characters</span>
+                    <span className={passwordChecks.latin ? styles.ruleOk : ''}>Only latin letters</span>
+                  </div>
+
+                  {mailboxError && <div className={styles.formError}>{mailboxError}</div>}
+                  <div className={styles.mailboxModalActions}>
+                    <button className={styles.cancelBtn} onClick={() => setCreateMailboxOpen(false)}>Batal</button>
+                    <button className={styles.saveBtn} disabled={!mailboxInput.trim() || !mailboxSenderName.trim() || !passwordValid} onClick={handleAddMailbox}>
+                      Create
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === 'health' && isSuper && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Server size={18} />
+                <div>
+                  <strong>System Health Monitoring</strong>
+                  <span>Status service utama CogniMail.</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.healthList} style={{ padding: 16 }}>
+              {systemServices.map((svc) => {
+                const meta = statusMeta[svc.status]
+                return (
+                  <div key={svc.name} className={styles.healthRow}>
+                    <span className={styles.healthIcon} style={{ background: '#F9FAFB', color: '#374151' }}>{svc.icon}</span>
+                    <span className={styles.healthName}>{svc.name}</span>
+                    <span className={styles.healthBadge} style={{ background: meta.bg, color: meta.color }}>
+                      {meta.icon} {meta.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {tab === 'settings' && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionTitle}>
+                <Settings size={18} />
+                <div>
+                  <strong>Pengaturan</strong>
+                  <span>Konfigurasi dasar panel admin dan domain email</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.settingsList}>
+              <div className={styles.settingRow}>
+                <span>Domain email organisasi</span>
+                <strong>@{mailDomain}</strong>
+              </div>
+              <div className={styles.domainEditor}>
+                <div className={styles.fieldLeft}>
+                  <label className={styles.fieldLabel}>Edit domain default mailbox</label>
+                  <span className={styles.fieldHint}>Default dari .env: @{DEFAULT_MAIL_DOMAIN}. Mailbox baru wajib memakai domain aktif ini.</span>
+                </div>
+                <div className={styles.domainInputGroup}>
+                  <input
+                    className={styles.mailboxInput}
+                    value={domainDraft}
+                    onChange={(e) => {
+                      setDomainDraft(e.target.value)
+                      setDomainError('')
+                    }}
+                    placeholder="zenime.my.id"
+                  />
+                  <button className={styles.saveBtn} onClick={handleSaveDomain}>
+                    <Save size={16} /> Simpan Domain
+                  </button>
+                </div>
+                {domainError && <div className={styles.formError}>{domainError}</div>}
+              </div>
+
+              <div className={styles.settingRow}>
+                <span>Login admin</span>
+                <strong>{me?.user?.username}</strong>
+              </div>
+              <p className={styles.helperText}>
+                Untuk production/VPS, domain email dapat disesuaikan dari environment build frontend melalui VITE_MAIL_DOMAIN.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </AdminShell>
+  )
+}
+>>>>>>> origin/mailbox

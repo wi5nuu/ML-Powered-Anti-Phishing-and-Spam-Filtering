@@ -16,7 +16,6 @@ import asyncio
 import base64
 import html
 import json
-import logging
 import os
 import re
 import time
@@ -24,6 +23,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from email import policy
 from email.parser import Parser
+from email.utils import getaddresses
 
 import httpx
 import redis.asyncio as aio_redis
@@ -32,10 +32,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, text
 
-from database.models import AdminMailbox, QuarantineEmail, PipelineMetrics
+from database.models import AdminMailbox, QuarantineEmail
 from decision_engine.fusion import FusionResult, fuse
-from decision_engine.xai import build_xai_header
-from worker.notifier import AlertManager, AlertPayload, alert_manager
+from worker.notifier import AlertPayload, alert_manager
 from worker.email_forwarder import forward_email
 
 load_dotenv()
@@ -58,6 +57,22 @@ MAX_ATTACHMENT_BYTES = int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 102
 MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
 AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror", "permerror", "policy")
 THREAT_CATEGORIES = {"spam", "phishing", "malware"}
+
+
+def normalize_addresses(values) -> list[str]:
+    if not values:
+        return []
+    if isinstance(values, str):
+        values = [values]
+    addresses = []
+    for _, address in getaddresses([str(value) for value in values if value]):
+        clean = address.strip().lower()
+        if clean:
+            addresses.append(clean)
+    if addresses:
+        return list(dict.fromkeys(addresses))
+    fallback = [str(value).strip().lower() for value in values if str(value).strip()]
+    return list(dict.fromkeys(fallback))
 
 PHISHING_HINTS = (
     "phishing", "verify your account", "verify account", "confirm your account",
@@ -261,9 +276,7 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
 
     subject = str(msg.get("subject", "") or "")
     sender = str(msg.get("from", "") or payload.get("sender", "") or "")
-    recipients = msg.get_all("to", []) or payload.get("recipients", [])
-    if isinstance(recipients, str):
-        recipients = [recipients]
+    recipients = normalize_addresses(msg.get_all("to", []) or payload.get("recipients", []))
 
     html_body = ""
     plain_body = ""
@@ -521,20 +534,17 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         )
         asyncio.create_task(alert_manager.send_all(alert_payload))
 
-    # ── Forward CLEAN/WARN ke inbox asli ────────────────────────────────
-    import os as _os
-    category = threat_category
-    should_forward = (
-        _os.getenv("FORWARDER_SMTP_HOST")
-        and fusion.label != "QUARANTINE"
-        and category not in THREAT_CATEGORIES
-    )
+    # ── Forward CLEAN/WARN ke tujuan mailbox ────────────────────────────
+    # Fusion is the final routing decision. The heuristic category may still
+    # contain "spam" for a message that fusion explicitly released as CLEAN;
+    # using both values here silently skipped legitimate forwarding.
+    should_forward = fusion.label in {"CLEAN", "WARN"}
     if should_forward:
         recipient_lowers = {recipient.lower() for recipient in recipients}
         result = await db_session.execute(
             select(AdminMailbox).where(
-                AdminMailbox.is_active == True,
-                AdminMailbox.forward_enabled == True,
+                AdminMailbox.is_active.is_(True),
+                AdminMailbox.forward_enabled.is_(True),
                 AdminMailbox.forward_to != "",
             )
         )
@@ -543,15 +553,43 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
                 continue
             forward_payload = dict(payload)
             forward_recipients = [mailbox.forward_to]
-            if mailbox.forward_keep_copy:
-                forward_recipients.append(mailbox.email)
             forward_payload["recipients"] = list(dict.fromkeys(
                 recipient.strip().lower() for recipient in forward_recipients if recipient
             ))
+            forward_payload["forward_from"] = mailbox.email.lower()
             forward_payload["email_id"] = f"{email_id}:forward:{mailbox.id}"
-            asyncio.create_task(forward_email(
+            logger.info(
+                "mailbox_forward_started",
+                email_id=email_id,
+                mailbox=mailbox.email,
+                destination=mailbox.forward_to,
+                label=fusion.label,
+            )
+            forwarded = await forward_email(
                 raw_email, fusion.label, fusion.fused_score, forward_payload
-            ))
+            )
+            if forwarded:
+                logger.info(
+                    "mailbox_forward_succeeded",
+                    email_id=email_id,
+                    mailbox=mailbox.email,
+                    destination=mailbox.forward_to,
+                )
+            else:
+                logger.error(
+                    "mailbox_forward_failed",
+                    email_id=email_id,
+                    mailbox=mailbox.email,
+                    destination=mailbox.forward_to,
+                )
+    else:
+        logger.info(
+            "mailbox_forward_skipped",
+            email_id=email_id,
+            label=fusion.label,
+            category=threat_category,
+            reason="final_decision_not_forwardable",
+        )
 
     return fusion
 
@@ -567,6 +605,7 @@ async def run_worker():
             await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS forward_enabled BOOLEAN DEFAULT FALSE"))
             await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS forward_keep_copy BOOLEAN DEFAULT TRUE"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS attachments_json TEXT"))
+            await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
@@ -583,6 +622,8 @@ async def run_worker():
             columns = [row[1] for row in result.fetchall()]
             if "attachments_json" not in columns:
                 await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN attachments_json TEXT"))
+            if "is_read" not in columns:
+                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN is_read BOOLEAN DEFAULT FALSE"))
             if "spf_result" not in columns:
                 await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN spf_result VARCHAR(32) DEFAULT ''"))
             if "dkim_result" not in columns:

@@ -19,7 +19,6 @@ export default function HelpPage() {
           {isUser && 'Panduan untuk User - cara membaca email, melapor masalah, dan menggunakan fitur filtering.'}
         </p>
 
-        {/* ── 1. Alur Deteksi (semua role lihat) ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>1. Alur Deteksi & Pemrosesan Email</h2>
           <p className={styles.paragraph}>
@@ -89,7 +88,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ── 2. Kategori ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>2. Kategori Keamanan Email</h2>
           <div className={styles.grid}>
@@ -131,7 +129,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ── 3. Panduan User ── */}
         {isUser && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>3. Panduan Penggunaan untuk User</h2>
@@ -150,7 +147,6 @@ export default function HelpPage() {
           </section>
         )}
 
-        {/* ── 4. Panduan Admin ── */}
         {(isAdmin || isSuper) && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{isSuper ? '4.' : '3.'} Panduan untuk Admin</h2>
@@ -167,7 +163,6 @@ export default function HelpPage() {
           </section>
         )}
 
-        {/* ── 5. Panduan Super Admin (hanya superadmin) ── */}
         {isSuper && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>5. Panduan untuk Super Admin</h2>
@@ -181,7 +176,6 @@ export default function HelpPage() {
           </section>
         )}
 
-        {/* ── 6. FAQ (disesuaikan role) ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{isSuper ? '6.' : isAdmin ? '4.' : '3.'} Pertanyaan Umum</h2>
 
@@ -231,7 +225,7 @@ export default function HelpPage() {
             <>
               <div className={styles.faqItem}>
                 <div className={styles.faqQ}>Q: Bagaimana cara menambah user baru?</div>
-                <div className={styles.faqA}>Buka Admin Panel → tab Users → klik "Tambah User". Masukkan email dan pilih role. Password awal: Welcome123!.</div>
+                <div className={styles.faqA}>Buka Admin Panel → tab Users → klik "Tambah User". Masukkan username, password, dan role jika tersedia.</div>
               </div>
               <div className={styles.faqItem}>
                 <div className={styles.faqQ}>Q: Bagaimana cara mereset password user?</div>
@@ -249,7 +243,6 @@ export default function HelpPage() {
           )}
         </section>
 
-        {/* ── 7. Tips Keamanan (semua role) ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{isSuper ? '7.' : isAdmin ? '5.' : '4.'} Tips Keamanan</h2>
           <ul className={styles.tipsList}>

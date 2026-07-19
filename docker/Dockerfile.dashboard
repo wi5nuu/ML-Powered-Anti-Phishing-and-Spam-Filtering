@@ -23,9 +23,11 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy"
 
 COPY dashboard/ dashboard/
 COPY database/ database/
+COPY mail_delivery/ mail_delivery/
 COPY --from=frontend-builder /app/dashboard/static/dist dashboard/static/dist
 
 EXPOSE 8080

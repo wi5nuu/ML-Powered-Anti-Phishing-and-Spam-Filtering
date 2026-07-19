@@ -5,8 +5,8 @@ SQLAlchemy models untuk CogniMail — Enterprise Edition.
 import datetime
 import enum
 from sqlalchemy import Column, Integer, BigInteger, String, Float, Boolean, DateTime, Text, Enum as SAEnum, JSON, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
 
 Base = declarative_base()
@@ -40,6 +40,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(64), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=True, index=True)
+    avatar_url = Column(String(512), default="")
     hashed_password = Column(String(128), nullable=False)
     role = Column(String(16), default=UserRole.USER.value)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
@@ -55,6 +56,7 @@ class AdminMailbox(Base):
     domain = Column(String(255), nullable=False, index=True)
     password_hash = Column(String(128), default="")
     sender_name = Column(String(255), default="")
+    avatar_url = Column(String(512), default="")
     forward_to = Column(String(255), default="")
     forward_enabled = Column(Boolean, default=False)
     forward_keep_copy = Column(Boolean, default=True)
@@ -62,6 +64,15 @@ class AdminMailbox(Base):
     storage_bytes = Column(BigInteger, default=0)
     created_by = Column(String(64), nullable=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+class AdminMailboxAccess(Base):
+    __tablename__ = "admin_mailbox_access"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    mailbox_id = Column(Integer, ForeignKey("admin_mailboxes.id"), nullable=False, index=True)
+    username = Column(String(64), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 

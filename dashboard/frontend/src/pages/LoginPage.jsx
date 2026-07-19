@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
+<<<<<<< HEAD
 import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
+=======
+import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
+import { setMailboxSession } from '../utils/mailbox'
+>>>>>>> origin/mailbox
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -28,12 +33,40 @@ export default function LoginPage() {
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
+<<<<<<< HEAD
     return '/inbox'
+=======
+    if (role === 'user') return '/user/mailboxes'
+    return '/login'
+  }
+
+  const mailboxPathForUser = async () => {
+    try {
+      const { data } = await api.get('/user/mailboxes')
+      const rows = Array.isArray(data) ? data : []
+      const firstMailbox = rows[0]
+      const mailboxId = firstMailbox?.id || firstMailbox?.email
+      if (mailboxId) return `/mail/${encodeURIComponent(mailboxId)}/inbox`
+    } catch {
+      // Fall back to the mailbox list; route guards still enforce permissions.
+    }
+    return '/user/mailboxes'
+  }
+
+  const postLoginPathForRole = async (role) => {
+    if (role === 'user') return mailboxPathForUser()
+    return dashboardPathForRole(role)
+>>>>>>> origin/mailbox
   }
 
   useEffect(() => {
     if (!me?.authenticated) return
-    navigate(dashboardPathForRole(me.user?.role), { replace: true })
+    if (me.user?.role === 'mailbox') return
+    let cancelled = false
+    postLoginPathForRole(me.user?.role).then((target) => {
+      if (!cancelled) navigate(target, { replace: true })
+    })
+    return () => { cancelled = true }
   }, [me, navigate])
 
   const handleSubmit = async (e) => {
@@ -41,9 +74,19 @@ export default function LoginPage() {
     setError('')
     try {
       const res = await login({ username, password })
+      if (res?.data?.role === 'mailbox') {
+        const mailbox = res.data.mailbox || {
+          id: res.data.mailbox_id || res.data.username,
+          email: res.data.mailbox_email || res.data.username,
+        }
+        setMailboxSession({ ...mailbox, login_source: 'main_login' })
+        const mailboxId = mailbox.id || mailbox.email
+        window.location.replace(`/mail/${encodeURIComponent(mailboxId)}/inbox`)
+        return
+      }
       const meRes = await api.get('/auth/me').catch(() => null)
       const role = meRes?.data?.user?.role || res?.data?.role || res?.data?.user?.role
-      window.location.replace(dashboardPathForRole(role))
+      window.location.replace(await postLoginPathForRole(role))
     } catch (err) {
       setError(err.response?.data?.detail || 'Login gagal. Periksa username dan password Anda.')
     }
@@ -54,7 +97,7 @@ export default function LoginPage() {
     setError('')
     setResetMessage('')
     if (!resetIdentity.trim()) {
-      setError('Masukkan username atau email akun Anda.')
+      setError('Masukkan username akun Anda.')
       return
     }
     setResetMessage(
@@ -64,13 +107,11 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page}>
-      {/* Background decorative elements */}
       <div className={styles.bgDecor1} />
       <div className={styles.bgDecor2} />
       <div className={styles.bgDecor3} />
 
       <div className={styles.card}>
-        {/* Logo & Brand */}
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
             <Shield size={22} strokeWidth={2.5} />
@@ -83,7 +124,6 @@ export default function LoginPage() {
 
         <div className={styles.divider} />
 
-        {/* Title */}
         <div className={styles.titleBlock}>
           <h1 className={styles.title}>
             {mode === 'login' ? 'Selamat Datang' : 'Reset Password'}
@@ -91,7 +131,7 @@ export default function LoginPage() {
           <p className={styles.subtitle}>
             {mode === 'login'
               ? 'Masuk dengan akun organisasi Anda yang telah terdaftar.'
-              : 'Masukkan username atau email untuk meminta reset password.'}
+              : 'Masukkan username untuk meminta reset password.'}
           </p>
         </div>
 
@@ -112,7 +152,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="username" className={styles.fieldLabel}>
-                Email atau Username
+                Username atau Email
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -120,7 +160,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username atau email@company.com"
+                  placeholder="username atau email"
                   required
                   autoFocus
                   autoComplete="username"
@@ -168,14 +208,14 @@ export default function LoginPage() {
               ) : (
                 <Lock size={17} />
               )}
-              {isPending ? 'Memproses...' : 'Masuk ke Dashboard'}
+              {isPending ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleForgotPassword} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="resetIdentity" className={styles.fieldLabel}>
-                Username atau Email
+                Username
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -183,7 +223,7 @@ export default function LoginPage() {
                   type="text"
                   value={resetIdentity}
                   onChange={(e) => setResetIdentity(e.target.value)}
-                  placeholder="username atau email@company.com"
+                  placeholder="username"
                   required
                   autoFocus
                   autoComplete="username"
@@ -218,11 +258,6 @@ export default function LoginPage() {
             </span>
           </div>
           <p className={styles.footerNote}>ML-Powered Anti-Phishing &amp; Spam Filtering System</p>
-          <div className={styles.switchLogin}>
-            <Inbox size={15} />
-            <span>Pengguna email?</span>
-            <Link to="/mailbox-login" className={styles.switchLink}>Masuk ke Webmail</Link>
-          </div>
         </div>
       </div>
     </div>

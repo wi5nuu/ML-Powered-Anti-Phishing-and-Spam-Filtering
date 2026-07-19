@@ -2,27 +2,25 @@
 Authentication & Authorization module — JWT-based with RBAC.
 """
 
-import os
 import logging
+import os
 import secrets
-from pathlib import Path
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 from datetime import datetime, timedelta
 
 # Workaround for bcrypt >= 4.1.0 compatibility with passlib in Python 3.13
 import bcrypt
+import jwt
 if not hasattr(bcrypt, "__about__"):
     class About:
         __version__ = getattr(bcrypt, "__version__", "4.0.0")
     bcrypt.__about__ = About()
 
 from passlib.context import CryptContext
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 
+from dashboard import environment as _environment  # noqa: F401 - initializes project environment
 from database.models import User, UserRole, AuditLog, ApiKey
 from dashboard.database import get_db
 
@@ -38,6 +36,8 @@ if not _sk:
     logger.warning("=" * 60)
 SECRET_KEY = _sk
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+if ALGORITHM not in {"HS256", "HS384", "HS512"}:
+    raise RuntimeError("JWT_ALGORITHM harus menggunakan HS256, HS384, atau HS512")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -64,7 +64,7 @@ def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
@@ -94,7 +94,7 @@ def verify_api_key(key: str, db: Session) -> ApiKey:
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     api_key = db.query(ApiKey).filter(
         ApiKey.key_hash == key_hash,
-        ApiKey.is_active == True
+        ApiKey.is_active.is_(True)
     ).first()
     if not api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")

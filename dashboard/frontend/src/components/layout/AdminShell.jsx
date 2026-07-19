@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMe, useLogout } from '../../api/auth'
 import {
@@ -6,22 +6,54 @@ import {
   Mail, Settings, ChevronRight, Bell, Server, Menu, X,
   Home, FileText, Lock
 } from 'lucide-react'
+import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
 import styles from './AdminShell.module.css'
 
 export default function AdminShell({ children }) {
   const { data: me } = useMe()
   const { mutate: logout } = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [avatarFailed, setAvatarFailed] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'overview'
   const navigate = useNavigate()
   const user = me?.user
   const isSuper = user?.role === 'superadmin'
+  const isAdmin = user?.role === 'admin'
   const roleLabelMap = { superadmin: 'Superadmin', admin: 'Admin', user: 'User' }
-  const roleColorMap = { superadmin: '#7C3AED', admin: '#2563EB', user: '#059669' }
+  const roleThemeMap = {
+    superadmin: {
+      accent: '#7C3AED',
+      accent2: '#A855F7',
+      soft: '#F3E8FF',
+      softStrong: '#E9D5FF',
+      dark: '#6D28D9',
+    },
+    admin: {
+      accent: '#2563EB',
+      accent2: '#38BDF8',
+      soft: '#EFF6FF',
+      softStrong: '#DBEAFE',
+      dark: '#1D4ED8',
+    },
+    user: {
+      accent: '#059669',
+      accent2: '#10B981',
+      soft: '#ECFDF5',
+      softStrong: '#D1FAE5',
+      dark: '#047857',
+    },
+  }
   const roleLabel = roleLabelMap[user?.role] || user?.role
-  const roleColor = roleColorMap[user?.role] || '#2563EB'
+  const roleTheme = roleThemeMap[user?.role] || roleThemeMap.admin
   const dashboardPath = isSuper ? '/super-admin/dashboard' : '/admin/dashboard'
+  const shellStyle = {
+    '--role-accent': roleTheme.accent,
+    '--role-accent-2': roleTheme.accent2,
+    '--role-soft': roleTheme.soft,
+    '--role-soft-strong': roleTheme.softStrong,
+    '--role-dark': roleTheme.dark,
+  }
 
   const navTo = (tab) => setSearchParams({ tab })
 
@@ -43,13 +75,23 @@ export default function AdminShell({ children }) {
   const SectionLabel = ({ label }) =>
     sidebarOpen ? <div className={styles.sectionLabel}>{label}</div> : <div className={styles.sectionDivider} />
 
-  const initials = (user?.username || 'A').slice(0, 2).toUpperCase()
+  const avatarKey = user?.username || 'A'
+  const initials = avatarText(avatarKey, 2)
+  const userAvatarUrl = user?.avatar_url || ''
+  const userAvatar = hasUploadedAvatar(userAvatarUrl) && !avatarFailed
+    ? <img src={userAvatarUrl} alt="" className={styles.avatarImage} onError={() => setAvatarFailed(true)} />
+    : initials
+  const generatedAvatarStyle = hasUploadedAvatar(userAvatarUrl) && !avatarFailed
+    ? undefined
+    : { background: avatarColor(avatarKey) }
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [userAvatarUrl])
 
   return (
-    <div className={styles.shell}>
-      {/* Sidebar */}
+    <div className={styles.shell} style={shellStyle}>
       <aside className={`${styles.sidebar} ${!sidebarOpen ? styles.collapsed : ''}`}>
-        {/* Brand */}
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
             <Shield size={18} strokeWidth={2.5} />
@@ -69,18 +111,27 @@ export default function AdminShell({ children }) {
           </button>
         </div>
 
-        {/* Role badge removed */}
+        {sidebarOpen && (
+          <div className={styles.userCard}>
+            <div className={styles.ucAvatar} style={generatedAvatarStyle}>{userAvatar}</div>
+            <div className={styles.ucInfo}>
+              <span className={styles.ucName}>{user?.username}</span>
+              <span className={styles.ucRole}>{roleLabel}</span>
+            </div>
+          </div>
+        )}
 
-        {/* Nav */}
         <nav className={styles.nav}>
           <SectionLabel label="MAIN" />
           <NavItem tab="overview" icon={<BarChart2 size={17} />} label="Overview" />
-          {(isSuper || user?.role === 'admin') && <NavItem tab="users" icon={<Users size={17} />} label="Users" />}
-          {isSuper && <NavItem tab="email" icon={<Mail size={17} />} label="Mailboxes" />}
+          {(isSuper || isAdmin) && <NavItem tab="users" icon={<Users size={17} />} label={isSuper ? 'Users & Admins' : 'Users'} />}
+          {(isSuper || isAdmin) && <NavItem tab="email" icon={<Mail size={17} />} label="Mailboxes" />}
 
           <SectionLabel label="SECURITY" />
+          {isAdmin && <NavItem tab="quarantine" icon={<Lock size={17} />} label="Quarantine" />}
+          {isAdmin && <NavItem tab="logs" icon={<FileText size={17} />} label="Detection Logs" />}
           <NavItem tab="reports" icon={<AlertCircle size={17} />} label="Reports" />
-          <NavItem tab="activity" icon={<Activity size={17} />} label="Security Activity" />
+          <NavItem tab="activity" icon={<Activity size={17} />} label={isSuper ? 'Audit Logs' : 'Security Activity'} />
 
           <SectionLabel label="SYSTEM" />
           {isSuper && <NavItem tab="health" icon={<Server size={17} />} label="System Health" />}
@@ -89,7 +140,6 @@ export default function AdminShell({ children }) {
 
         <div className={styles.spacer} />
 
-        {/* Back to Dashboard */}
         <button
           className={styles.backBtn}
           onClick={() => navigate(dashboardPath)}
@@ -100,9 +150,7 @@ export default function AdminShell({ children }) {
         </button>
       </aside>
 
-      {/* Main */}
       <main className={styles.main}>
-        {/* Topbar */}
         <header className={styles.topbar}>
           <div className={styles.topLeft}>
             <div className={styles.breadcrumb}>
@@ -120,11 +168,10 @@ export default function AdminShell({ children }) {
               <Bell size={17} />
             </button>
             <div className={styles.userChip}>
-              <div className={styles.avatar} style={{ background: roleColor }}>
-                {initials}
-              </div>
+              <div className={styles.avatar} style={generatedAvatarStyle}>{userAvatar}</div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.username}</span>
+                <span className={styles.userRole}>{roleLabel}</span>
               </div>
             </div>
             <button className={styles.logoutBtn} onClick={() => logout()} title="Logout">
@@ -133,7 +180,6 @@ export default function AdminShell({ children }) {
           </div>
         </header>
 
-        {/* Content */}
         <div className={styles.content}>
           {children}
         </div>

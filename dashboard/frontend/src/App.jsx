@@ -16,15 +16,24 @@ import SettingsPage from './pages/SettingsPage'
 import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+<<<<<<< HEAD
 import UserDashboardPage from './pages/UserDashboardPage'
 import UserDashboardShell from './components/layout/UserDashboardShell'
 import RequireMailbox from './components/layout/RequireMailbox'
+=======
+import UserMailboxPage from './pages/UserMailboxPage'
+>>>>>>> origin/mailbox
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
+<<<<<<< HEAD
   return '/dashboard'
+=======
+  if (role === 'user') return '/user/mailboxes'
+  return '/login'
+>>>>>>> origin/mailbox
 }
 
 function ProtectedRoute({ children }) {
@@ -79,10 +88,15 @@ function MailboxRoute({ children }) {
   if (data?.authenticated) {
     const role = data?.user?.role
     if (role === 'mailbox') return children
+<<<<<<< HEAD
     if (role === 'superadmin' || role === 'admin') {
       return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
     }
     return children
+=======
+    if (role === 'user') return children
+    if (role === 'superadmin' || role === 'admin') return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
+>>>>>>> origin/mailbox
   }
 
   const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
@@ -117,7 +131,11 @@ function AdminRoute({ children, scope }) {
 
   const role = data?.user?.role
   if (role !== 'superadmin' && role !== 'admin') {
+<<<<<<< HEAD
     return <Navigate to="/inbox" replace />
+=======
+    return <Navigate to="/user/mailboxes" replace />
+>>>>>>> origin/mailbox
   }
 
   const correctPath = dashboardPathForRole(role)
@@ -191,8 +209,15 @@ export default function App() {
         <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
+<<<<<<< HEAD
         {/* User dashboard */}
         <Route path="/dashboard" element={<UserRoute><UserDashboardShell><UserDashboardPage /></UserDashboardShell></UserRoute>} />
+=======
+        {/* User Dashboard — only for regular users */}
+        <Route path="/dashboard" element={<RoleRedirect />} />
+        <Route path="/user/dashboard" element={<UserRoute><Navigate to="/user/mailboxes" replace /></UserRoute>} />
+        <Route path="/user/mailboxes" element={<UserRoute><UserMailboxPage /></UserRoute>} />
+>>>>>>> origin/mailbox
 
         {/* Admin routes — split URL by role */}
         <Route path="/admin" element={<RoleRedirect />} />

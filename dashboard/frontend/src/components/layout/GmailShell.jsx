@@ -11,8 +11,13 @@ import {
   Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
+<<<<<<< HEAD
 import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, setMailboxSession, withMailbox } from '../../utils/mailbox'
 import { useUserMailbox } from '../../api/userMailbox'
+=======
+import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, getMailboxById, getMailboxSession, setMailboxSession, withMailbox } from '../../utils/mailbox'
+import { avatarColor, avatarInitial, hasUploadedAvatar } from '../../utils/avatar'
+>>>>>>> origin/mailbox
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {
@@ -40,6 +45,7 @@ export default function GmailShell({ children }) {
   const [expiredPassword, setExpiredPassword] = useState('')
   const [expiredError, setExpiredError] = useState('')
   const [expiredLoading, setExpiredLoading] = useState(false)
+  const [avatarFailed, setAvatarFailed] = useState(false)
   const [searchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -60,6 +66,8 @@ export default function GmailShell({ children }) {
   const user = me?.user
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailboxId = getActiveMailboxId(searchParams)
+  const activeMailboxSession = activeMailboxId ? getMailboxSession(activeMailboxId, activeMailbox) : null
+  const activeMailboxDirectory = activeMailboxId ? getMailboxById(activeMailboxId) : null
   const userMailboxEmail = user?.role === 'mailbox' ? user?.mailbox_email || user?.username : ''
   const userMailboxId = user?.role === 'mailbox' ? user?.mailbox_id || '' : ''
   const assignedEmail = (assignedMailbox?.email || '').toLowerCase()
@@ -67,13 +75,21 @@ export default function GmailShell({ children }) {
   const mailboxId = activeMailboxId || userMailboxId || String(assignedMailbox?.id || '')
   const displayIdentity = mailboxIdentity || user?.username || ''
   const displayRole = mailboxIdentity ? 'Mailbox perusahaan' : user?.role
-  const displayInitial = (displayIdentity || 'U')[0].toUpperCase()
+  const displayInitial = avatarInitial(displayIdentity || 'U')
+  const mailboxAvatarUrl = activeMailboxSession?.avatar_url || activeMailboxDirectory?.avatar_url || ''
+  const avatarUrl = mailboxIdentity ? mailboxAvatarUrl : user?.avatar_url || ''
+  const uploadedAvatar = hasUploadedAvatar(avatarUrl) && !avatarFailed
+  const avatarStyle = uploadedAvatar ? undefined : { background: avatarColor(displayIdentity) }
   const hasMailboxIdentity = Boolean(mailboxId && mailboxIdentity)
   const hasTopbarIdentity = Boolean(user || hasMailboxIdentity)
 
   useEffect(() => {
     setExpiredLoginOpen(Boolean(mailboxId && searchParams.get('expired') === '1'))
   }, [mailboxId, searchParams])
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [avatarUrl])
 
   const handleExpiredLogin = async (event) => {
     event.preventDefault()
@@ -134,12 +150,17 @@ export default function GmailShell({ children }) {
 
   const handleLogoutClick = () => {
     if (mailboxIdentity) {
+      const shouldReturnToMainLogin = activeMailboxSession?.login_source === 'main_login'
       // Mailbox logout: clear the mailbox_token cookie on the server (NOT access_token)
       // and clear the localStorage session. Dashboard session is NOT affected.
       api.post('/mailboxes/logout').catch(() => {})
       clearMailboxSession(mailboxId || mailboxIdentity, mailboxIdentity)
       setUserMenuOpen(false)
-      const target = mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/login` : '/mailbox-login'
+      const target = shouldReturnToMainLogin
+        ? '/login'
+        : mailboxId
+          ? `/mail/${encodeURIComponent(mailboxId)}/login`
+          : '/mailbox-login'
       navigate(target, { replace: true })
       return
     }
@@ -325,14 +346,15 @@ export default function GmailShell({ children }) {
                 onClick={() => setUserMenuOpen((v) => !v)}
                 title={displayIdentity}
                 id="user-avatar-btn"
+                style={avatarStyle}
               >
-                {displayInitial}
+                {uploadedAvatar ? <img src={avatarUrl} alt="" className={styles.avatarImage} onError={() => setAvatarFailed(true)} /> : displayInitial}
               </div>
               {userMenuOpen && (
                 <div className={styles.userMenu}>
                   <div className={styles.userMenuHeader}>
-                    <div className={styles.userMenuAvatar}>
-                      {displayInitial}
+                    <div className={styles.userMenuAvatar} style={avatarStyle}>
+                      {uploadedAvatar ? <img src={avatarUrl} alt="" className={styles.avatarImage} onError={() => setAvatarFailed(true)} /> : displayInitial}
                     </div>
                     <div>
                       <div className={styles.userMenuName}>{displayIdentity}</div>
