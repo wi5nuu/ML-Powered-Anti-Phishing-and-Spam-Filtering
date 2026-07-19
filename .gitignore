@@ -78,3 +78,7 @@ irhc2@gmail.com
 current_email_detail_page.jsx
 old_email_detail_page.jsx
 SCRUM-*-STATUS.md
+
+# PostgreSQL dump files (use docker/initdb/ for seeding)
+*.dump
+*.sql.gz
