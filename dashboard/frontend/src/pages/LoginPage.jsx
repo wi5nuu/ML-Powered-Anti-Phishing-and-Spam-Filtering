@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-<<<<<<< HEAD
 import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
-=======
-import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock } from 'lucide-react'
 import { setMailboxSession } from '../utils/mailbox'
->>>>>>> origin/mailbox
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -33,9 +29,6 @@ export default function LoginPage() {
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
     if (role === 'admin') return '/admin/dashboard'
-<<<<<<< HEAD
-    return '/inbox'
-=======
     if (role === 'user') return '/user/mailboxes'
     return '/login'
   }
@@ -56,7 +49,6 @@ export default function LoginPage() {
   const postLoginPathForRole = async (role) => {
     if (role === 'user') return mailboxPathForUser()
     return dashboardPathForRole(role)
->>>>>>> origin/mailbox
   }
 
   useEffect(() => {

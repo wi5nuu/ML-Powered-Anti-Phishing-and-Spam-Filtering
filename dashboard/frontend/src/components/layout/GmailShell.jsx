@@ -11,13 +11,9 @@ import {
   Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
-<<<<<<< HEAD
-import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, setMailboxSession, withMailbox } from '../../utils/mailbox'
-import { useUserMailbox } from '../../api/userMailbox'
-=======
 import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, getMailboxById, getMailboxSession, setMailboxSession, withMailbox } from '../../utils/mailbox'
+import { useUserMailbox } from '../../api/userMailbox'
 import { avatarColor, avatarInitial, hasUploadedAvatar } from '../../utils/avatar'
->>>>>>> origin/mailbox
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {

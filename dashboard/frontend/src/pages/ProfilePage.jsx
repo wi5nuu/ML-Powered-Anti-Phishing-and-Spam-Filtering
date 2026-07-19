@@ -146,8 +146,7 @@ export default function ProfilePage() {
                   <div className={styles.profileEmail}>{displayEmail}</div>
                   {avatarError && <div className={styles.avatarError}>{avatarError}</div>}
                 </div>
-              </div>
-<<<<<<< HEAD
+            </div>
 
               <div className={styles.divider} />
 
@@ -192,8 +191,6 @@ export default function ProfilePage() {
                   {profile?.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
-=======
->>>>>>> origin/mailbox
             </div>
           </div>
         </div>
