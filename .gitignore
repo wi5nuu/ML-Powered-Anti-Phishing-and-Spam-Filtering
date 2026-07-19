@@ -70,3 +70,11 @@ dashboard/static/dist/
 Thumbs.db
 .DS_Store
 phishing_model.pkl
+
+# Junk / temporary root files
+*.patch
+queryex
+irhc2@gmail.com
+current_email_detail_page.jsx
+old_email_detail_page.jsx
+SCRUM-*-STATUS.md
