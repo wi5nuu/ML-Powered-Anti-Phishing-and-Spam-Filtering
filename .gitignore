@@ -22,6 +22,9 @@ coverage.xml
 *.db-journal
 *.db-wal
 *.db-shm
+*.dump
+*.backup
+database-backups/
 
 # Model versioned artifacts (keep _latest.joblib only)
 classifier/models/*_2026*.joblib
@@ -70,15 +73,3 @@ dashboard/static/dist/
 Thumbs.db
 .DS_Store
 phishing_model.pkl
-
-# Junk / temporary root files
-*.patch
-queryex
-irhc2@gmail.com
-current_email_detail_page.jsx
-old_email_detail_page.jsx
-SCRUM-*-STATUS.md
-
-# PostgreSQL dump files (use docker/initdb/ for seeding)
-*.dump
-*.sql.gz

@@ -17,7 +17,6 @@ import { avatarColor, avatarInitial, hasUploadedAvatar } from '../../utils/avata
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {
-  const { data: assignedMailbox } = useUserMailbox()
   const { theme, toggle } = useTheme()
   const { data: me } = useMe()
   const { data: stats } = useStats()
@@ -66,9 +65,8 @@ export default function GmailShell({ children }) {
   const activeMailboxDirectory = activeMailboxId ? getMailboxById(activeMailboxId) : null
   const userMailboxEmail = user?.role === 'mailbox' ? user?.mailbox_email || user?.username : ''
   const userMailboxId = user?.role === 'mailbox' ? user?.mailbox_id || '' : ''
-  const assignedEmail = (assignedMailbox?.email || '').toLowerCase()
-  const mailboxIdentity = activeMailbox || userMailboxEmail || assignedEmail
-  const mailboxId = activeMailboxId || userMailboxId || String(assignedMailbox?.id || '')
+  const mailboxIdentity = activeMailbox || userMailboxEmail
+  const mailboxId = activeMailboxId || userMailboxId
   const displayIdentity = mailboxIdentity || user?.username || ''
   const displayRole = mailboxIdentity ? 'Mailbox perusahaan' : user?.role
   const displayInitial = avatarInitial(displayIdentity || 'U')
@@ -434,7 +432,6 @@ export default function GmailShell({ children }) {
               <span>Tulis</span>
             </button>
 
-            {navItem('/metrics', <BarChart2 size={18} />, 'Dashboard', 0)}
             {navItem('/inbox', <Inbox size={18} />, 'Kotak Masuk', 0)}
             {navItem('/inbox?folder=starred', <Star size={18} />, 'Berbintang', 0)}
             {navItem('/sent', <Send size={18} />, 'Terkirim', 0)}

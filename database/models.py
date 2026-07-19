@@ -4,7 +4,7 @@ SQLAlchemy models untuk CogniMail — Enterprise Edition.
 
 import datetime
 import enum
-from sqlalchemy import Column, Integer, BigInteger, String, Float, Boolean, DateTime, Text, Enum as SAEnum, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
@@ -60,8 +60,6 @@ class AdminMailbox(Base):
     forward_to = Column(String(255), default="")
     forward_enabled = Column(Boolean, default=False)
     forward_keep_copy = Column(Boolean, default=True)
-    assigned_to = Column(String(255), default="")
-    storage_bytes = Column(BigInteger, default=0)
     created_by = Column(String(64), nullable=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
