@@ -1,0 +1,343 @@
+.row {
+  display: grid;
+  grid-template-columns: 72px minmax(150px, 224px) minmax(260px, 1fr) 82px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px 0 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  column-gap: 8px;
+  position: relative;
+}
+
+.row.read {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .row {
+  background: #1f1f1f;
+  color: #e8eaed;
+  border-bottom-color: #303134;
+}
+
+[data-theme='dark'] .row.read {
+  background: #171717;
+  color: #bdc1c6;
+}
+
+.row:hover {
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
+}
+
+[data-theme='dark'] .row:hover {
+  background: #2b2c2f;
+  box-shadow: inset 1px 0 0 #3c4043, inset -1px 0 0 #3c4043;
+}
+
+.selected {
+  background: #c2dbff !important;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.checkboxWrap,
+.starBtn,
+.quickBtn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.starBtn,
+.quickBtn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #bdc1c6;
+  cursor: pointer;
+  padding: 0;
+}
+
+.starBtn:hover,
+.quickBtn:hover {
+  background: rgba(60, 64, 67, 0.12);
+  color: var(--text-muted);
+}
+
+.starActive {
+  color: #f4b400;
+}
+
+.starBtn svg {
+  stroke-width: 1.8;
+}
+
+.senderCol {
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.sender,
+.subject,
+.time {
+  font-weight: 700;
+}
+
+.sender {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  line-height: 20px;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 20px;
+}
+
+.subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+.separator {
+  margin: 0 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.preview {
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.read .sender,
+.read .subject,
+.read .time {
+  font-weight: 400;
+}
+
+.read .preview,
+.read .separator {
+  color: var(--text-muted);
+}
+
+.quickActions {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 18px;
+  background: linear-gradient(90deg, transparent, var(--bg) 18px, var(--bg));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.read .quickActions {
+  background: linear-gradient(90deg, transparent, var(--bg) 18px, var(--bg));
+}
+
+.selected .quickActions {
+  background: linear-gradient(90deg, transparent, #c2dbff 18px, #c2dbff);
+}
+
+.row:hover .quickActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.time {
+  justify-self: end;
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 20px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachmentIcon {
+  color: var(--text-muted);
+}
+
+.read .time {
+  color: var(--text-muted);
+}
+
+.row:hover .time {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: 72px minmax(110px, 160px) minmax(160px, 1fr) 72px;
+  }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 64px minmax(90px, 120px) minmax(120px, 1fr) 62px;
+    padding-right: 10px;
+  }
+
+  .preview {
+    display: none;
+  }
+}
+
+/* ── Thread count badge (e.g. "3") ─────────────────────────────────── */
+.threadCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  background: var(--border);
+  color: var(--text-muted);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadCountBadge {
+  background: #3c4043;
+  color: #e8eaed;
+}
+
+/* ── Security classification badge ────────────────────────────────── */
+.securityBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  margin-right: 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  vertical-align: middle;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.securityBadge_clean {
+  background: var(--accent-light);
+  color: #137333;
+}
+
+.securityBadge_spam {
+  background: #fef3cd;
+  color: #856404;
+}
+
+.securityBadge_phishing {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.securityBadge_malware {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.securityBadge_quarantine {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+[data-theme='dark'] .securityBadge_clean {
+  background: rgba(230, 244, 234, 0.15);
+  color: #81c995;
+}
+
+[data-theme='dark'] .securityBadge_spam {
+  background: rgba(254, 243, 205, 0.15);
+  color: #fdd663;
+}
+
+[data-theme='dark'] .securityBadge_phishing {
+  background: rgba(252, 232, 230, 0.15);
+  color: #f28b82;
+}
+
+[data-theme='dark'] .securityBadge_malware {
+  background: rgba(243, 232, 255, 0.15);
+  color: #c58af9;
+}
+
+[data-theme='dark'] .securityBadge_quarantine {
+  background: rgba(252, 232, 230, 0.15);
+  color: #f28b82;
+}
+
+/* ── Draft indicator on thread rows ────────────────────────────────── */
+.threadDraftIndicator {
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 188, 4, 0.18);
+  color: #b06000;
+  border: 1px solid rgba(251, 188, 4, 0.35);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadDraftIndicator {
+  color: #fbbc04;
+  background: rgba(251, 188, 4, 0.15);
+  border-color: rgba(251, 188, 4, 0.3);
+}
+

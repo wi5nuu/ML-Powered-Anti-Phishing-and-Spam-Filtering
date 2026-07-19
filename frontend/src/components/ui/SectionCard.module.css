@@ -1,0 +1,34 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.icon {
+  color: var(--accent);
+  flex-shrink: 0;
+  display: flex;
+}
+.title {
+  flex: 1;
+}
+.badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.action {
+  margin-left: auto;
+}
