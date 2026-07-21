@@ -2,20 +2,20 @@
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 32px 60px;
-  font-family: 'Google Sans', Roboto, sans-serif;
+  padding: var(--page-padding-y) var(--page-padding-x) var(--page-padding-bottom);
+  font-family: var(--font-sans);
   box-sizing: border-box;
 }
 
 .header {
-  margin-bottom: 24px;
+  margin-bottom: var(--section-gap);
 }
 
 .title {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.4rem;
+  font-size: var(--title-font-size);
   font-weight: 500;
   color: var(--text);
   margin: 0 0 6px 0;
@@ -44,6 +44,29 @@
 
 @media (max-width: 900px) {
   .body { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .wrap { padding: var(--page-padding-y-mobile) var(--page-padding-x-mobile) var(--page-padding-bottom-mobile); }
+  .title { font-size: var(--title-font-size-mobile); }
+  .textarea { min-height: 200px; }
+  .actions { flex-wrap: wrap; }
+  .btnPrimary,
+  .btnSecondary { flex: 1 1 auto; justify-content: center; }
+  .topRow { flex-direction: column; align-items: stretch; gap: 14px; }
+  .gaugeWrap { align-self: center; }
+  /* Confidence bars: let the label wrap instead of forcing 180px */
+  .confRow { flex-wrap: wrap; }
+  .confLabel { min-width: 0; flex: 1 1 100%; }
+  /* URL breakdown: stack the 4 columns into labeled rows */
+  .urlHeader { display: none; }
+  .urlRow { grid-template-columns: 1fr; }
+  .urlRow > span {
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+    padding: 6px 10px;
+  }
+  .urlRow > span:last-child { border-bottom: none; }
 }
 
 /* ── Input Panel ────────────────────────────────────────── */

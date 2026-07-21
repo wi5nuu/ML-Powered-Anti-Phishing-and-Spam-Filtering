@@ -1,6 +1,6 @@
 .wrap {
-  padding: 28px 32px 60px;
-  font-family: 'Google Sans', Roboto, sans-serif;
+  padding: var(--page-padding-y) var(--page-padding-x) var(--page-padding-bottom);
+  font-family: var(--font-sans);
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
@@ -11,7 +11,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: var(--title-margin-bottom);
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -20,7 +20,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.4rem;
+  font-size: var(--title-font-size);
   font-weight: 500;
   color: var(--text);
   margin: 0 0 4px 0;
@@ -282,3 +282,21 @@
 
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .wrap { 
+    padding: var(--page-padding-y-mobile) var(--page-padding-x-mobile) var(--page-padding-bottom-mobile); 
+  }
+  .title { font-size: var(--title-font-size-mobile); }
+  .header { flex-direction: column; align-items: stretch; }
+  .exportBtn { justify-content: center; }
+  /* Filters stack full-width and stay tappable */
+  .filters { flex-direction: column; align-items: stretch; }
+  .filterGroup { width: 100%; }
+  .select,
+  .input { flex: 1; min-width: 0; width: 100%; }
+  .timelineItem { padding: 14px; }
+  .timelineLine { margin-right: 12px; }
+  .pagination { gap: 10px; }
+}

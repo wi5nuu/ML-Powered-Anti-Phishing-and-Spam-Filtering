@@ -4,6 +4,8 @@ import { Eye, EyeOff, LayoutDashboard } from 'lucide-react'
 import api from '../api/client'
 import { getMailboxById, getMailboxSession, setMailboxSession } from '../utils/mailbox'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
+import { useTranslation } from '../i18n/context'
+import logoImg from '../assets/logo.png'
 import styles from './MailboxLoginPage.module.css'
 
 export default function MailboxLoginPage() {
@@ -21,6 +23,29 @@ export default function MailboxLoginPage() {
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { t } = useTranslation()
+
+  // Auto-login jika ?autotoken= ada di URL (dari klik ikon mata di tabel admin)
+  useEffect(() => {
+    const autoToken = searchParams.get('autotoken')
+    if (!autoToken) return
+    // Bersihkan token dari address bar sebelum API call agar tidak terlihat
+    const cleanUrl = window.location.pathname + (searchParams.get('email') ? `?email=${encodeURIComponent(searchParams.get('email'))}` : '')
+    window.history.replaceState(null, '', cleanUrl)
+    setLoading(true)
+    api.post('/mailboxes/autologin', { token: autoToken })
+      .then(({ data }) => {
+        const mailbox = data.mailbox || data
+        setMailboxSession(mailbox)
+        const id = encodeURIComponent(mailbox.id || mailboxId || initialEmail)
+        navigate(`/mail/${id}/inbox`, { replace: true })
+      })
+      .catch((err) => {
+        setError(err.response?.data?.detail || t('mailboxLogin.autoLoginError'))
+        setLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const domain = useMemo(() => {
     const parts = email.split('@')
@@ -34,18 +59,17 @@ export default function MailboxLoginPage() {
   useEffect(() => {
     if (sessionExpired) return
     if (!initialEmail) return
+    if (searchParams.get('autotoken')) return
     const session = getMailboxSession(mailboxId || initialEmail, initialEmail)
     if (!session) return
-    const id = encodeURIComponent(session.id || mailboxId || initialEmail)
-    navigate(`/mail/${id}/inbox`, { replace: true })
-  }, [initialEmail, mailboxId, navigate, sessionExpired])
+  }, [initialEmail, mailboxId, navigate, sessionExpired, searchParams])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setPasswordTouched(true)
     setError('')
     if (!password.trim()) {
-      setError('Password wajib diisi')
+      setError(t('mailboxLogin.passwordRequired'))
       return
     }
     setLoading(true)
@@ -56,11 +80,18 @@ export default function MailboxLoginPage() {
         password,
       })
       const mailbox = data.mailbox || data
-      setMailboxSession(mailbox)
+      // Mark session so logout redirects to main login page (not mailbox login)
+      setMailboxSession({ ...mailbox, login_source: mailbox.user_mode ? 'main_login' : mailbox.login_source })
+      // If the backend authenticated via User table (not AdminMailbox),
+      // redirect to the user dashboard instead of webmail inbox.
+      if (mailbox.user_mode) {
+        navigate('/user/mailboxes', { replace: true })
+        return
+      }
       const id = encodeURIComponent(mailbox.id || mailboxId || email)
       navigate(`/mail/${id}/inbox`, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login mailbox gagal. Periksa email dan password mailbox.')
+      setError(err.response?.data?.detail || t('mailboxLogin.error'))
     } finally {
       setLoading(false)
     }
@@ -74,19 +105,14 @@ export default function MailboxLoginPage() {
         <section className={styles.card}>
           <div className={styles.identityPane}>
             <div className={styles.brandMark} aria-hidden="true">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <circle cx="20" cy="20" r="20" fill="#f6f8fc" />
-                <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13 6.88-1.26 12-6.93 12-13v-9L20 6z" fill="#EA4335" />
-                <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13V6z" fill="#c5221f" />
-                <path d="M16 20l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <img src={logoImg} alt="CogniMail" style={{ width: 40, height: 40, objectFit: 'contain' }} />
               <span>CogniMail</span>
             </div>
-            <h1>Masuk</h1>
+            <h1>{t('mailboxLogin.title')}</h1>
             <p>
               {sessionExpired
-                ? 'Sesi mailbox berakhir. Masuk kembali untuk melanjutkan.'
-                : 'Gunakan mailbox perusahaan untuk membuka webmail.'}
+                ? t('mailboxLogin.expiredMessage')
+                : t('mailboxLogin.message')}
             </p>
             {hasPresetEmail && email && (
               <div className={styles.accountChip}>
@@ -108,14 +134,14 @@ export default function MailboxLoginPage() {
           <form onSubmit={handleSubmit} className={styles.form}>
             {!hasPresetEmail && (
               <div className={styles.fieldGroup}>
-                <label htmlFor="mailboxEmail">Email</label>
+                <label htmlFor="mailboxEmail">{t('mailboxLogin.email')}</label>
                 <input
                   id="mailboxEmail"
                   className={styles.input}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@domainanda.com"
+                  placeholder={t('mailboxLogin.emailPlaceholder')}
                   required
                   autoFocus
                   autoComplete="username"
@@ -124,7 +150,7 @@ export default function MailboxLoginPage() {
             )}
 
             <div className={styles.fieldGroup}>
-              <label htmlFor="mailboxPassword">Masukkan password</label>
+              <label htmlFor="mailboxPassword">{t('mailboxLogin.password')}</label>
               <div className={styles.passwordWrap}>
                 <input
                   id="mailboxPassword"
@@ -134,7 +160,7 @@ export default function MailboxLoginPage() {
                   onBlur={() => setPasswordTouched(true)}
                   onChange={(e) => {
                     setPassword(e.target.value)
-                    if (error === 'Password wajib diisi') setError('')
+                    if (error === t('mailboxLogin.passwordRequired')) setError('')
                   }}
                   required
                   autoFocus={hasPresetEmail}
@@ -144,7 +170,7 @@ export default function MailboxLoginPage() {
                   type="button"
                   className={styles.eyeButton}
                   onClick={() => setShowPwd((v) => !v)}
-                  aria-label={showPwd ? 'Sembunyikan password' : 'Tampilkan password'}
+                  aria-label={showPwd ? t('mailboxLogin.hidePassword') : t('mailboxLogin.showPassword')}
                 >
                   {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -152,19 +178,16 @@ export default function MailboxLoginPage() {
             </div>
 
             {(error || passwordRequired) && (
-              <div className={styles.error}>{error || 'Password wajib diisi'}</div>
+              <div className={styles.error}>{error || t('mailboxLogin.passwordRequired')}</div>
             )}
 
             <p className={styles.note}>
-              {domain ? `Webmail domain @${domain} dilindungi oleh CogniMail.` : 'Webmail perusahaan dilindungi oleh CogniMail.'}
+              {domain ? t('mailboxLogin.noteWithDomain').replace('{domain}', domain) : t('mailboxLogin.note')}
             </p>
 
             <div className={styles.actions}>
-              <button type="button" className={styles.textButton}>
-                Lupa password?
-              </button>
               <button type="submit" className={styles.submitButton} disabled={loading}>
-                {loading ? 'Memproses...' : 'Masuk'}
+                {loading ? t('login.processing') : t('mailboxLogin.btn')}
               </button>
             </div>
           </form>
@@ -172,14 +195,14 @@ export default function MailboxLoginPage() {
 
         <footer className={styles.footer}>
           <div className={styles.footerLinks}>
-            <span>Indonesia</span>
-            <button type="button">Bantuan</button>
-            <button type="button">Privasi</button>
-            <button type="button">Persyaratan</button>
+            <span>{t('mailboxLogin.lang')}</span>
+            <button type="button">{t('mailboxLogin.help')}</button>
+            <button type="button">{t('mailboxLogin.privacy')}</button>
+            <button type="button">{t('mailboxLogin.terms')}</button>
           </div>
           <Link to="/login" className={styles.dashboardLink}>
             <LayoutDashboard size={15} />
-            Masuk ke Dashboard
+            {t('mailboxLogin.goToDashboard')}
           </Link>
         </footer>
       </main>

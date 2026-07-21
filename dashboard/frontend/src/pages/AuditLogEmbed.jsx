@@ -5,9 +5,7 @@ import {
   Loader2, Search, RefreshCw, Shield, Eye, Trash2, LogOut,
   AlertTriangle, Settings, Activity, Mail
 } from 'lucide-react'
-import GmailShell from '../components/layout/GmailShell'
 import { useAuditLog, downloadEmailsCsv } from '../api/metrics'
-import { useToast } from '../hooks/useToast'
 import styles from './AuditPage.module.css'
 
 const ACTION_CFG = {
@@ -77,35 +75,25 @@ function TimelineItem({ item, isLast, t }) {
 function Pagination({ page, pages, onPageChange, t }) {
   return (
     <div className={styles.pagination}>
-      <button
-        className={styles.pageBtn}
-        onClick={() => onPageChange(page - 1)}
-        disabled={page <= 1}
-        id="audit-prev-btn"
-      >
+      <button className={styles.pageBtn} onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
         <ChevronLeft size={16} />
       </button>
       <span className={styles.pageInfo}>{t('audit.page', 'Hal.')} {page} {t('audit.of', 'dari')} {pages || 1}</span>
-      <button
-        className={styles.pageBtn}
-        onClick={() => onPageChange(page + 1)}
-        disabled={page >= pages}
-        id="audit-next-btn"
-      >
+      <button className={styles.pageBtn} onClick={() => onPageChange(page + 1)} disabled={page >= pages}>
         <ChevronRight size={16} />
       </button>
     </div>
   )
 }
 
-export default function AuditPage() {
+export default function AuditLogEmbed() {
   const { t } = useTranslation()
-  const { addToast } = useToast()
   const [page, setPage] = useState(1)
   const [eventType, setEventType] = useState('')
   const [usernameFilter, setUsernameFilter] = useState('')
   const [usernameInput, setUsernameInput] = useState('')
   const [isExporting, setIsExporting] = useState(false)
+  const [exportMsg, setExportMsg] = useState('')
 
   const EVENT_TYPES = [
     { value: '', label: t('audit.allActions', 'Semua aksi') },
@@ -128,143 +116,95 @@ export default function AuditPage() {
   const total = data?.total || 0
   const pages = data?.pages || 1
 
-  const handleSearch = () => {
-    setPage(1)
-    setUsernameFilter(usernameInput)
-  }
-
-  const handleEventChange = (e) => {
-    setPage(1)
-    setEventType(e.target.value)
-  }
+  const handleSearch = () => { setPage(1); setUsernameFilter(usernameInput) }
+  const handleEventChange = (e) => { setPage(1); setEventType(e.target.value) }
 
   const handleExport = async () => {
     setIsExporting(true)
     try {
       await downloadEmailsCsv()
-      addToast(t('audit.exportSuccess', 'Ekspor CSV berhasil diunduh.'), 'success')
+      setExportMsg(t('audit.exportSuccess', 'Ekspor CSV berhasil.'))
+      setTimeout(() => setExportMsg(''), 3000)
     } catch {
-      addToast(t('audit.exportError', 'Gagal mengekspor data.'), 'error')
+      setExportMsg(t('audit.exportError', 'Gagal mengekspor.'))
+      setTimeout(() => setExportMsg(''), 3000)
     } finally {
       setIsExporting(false)
     }
   }
 
   return (
-    <GmailShell>
-      <div className={styles.wrap}>
-        {/* Header */}
-        <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}><ClipboardList size={22} /> {t('audit.title', 'Audit Log')}</h1>
-            <p className={styles.subtitle}>
-              {t('audit.subtitle', 'Rekam jejak semua aktivitas sistem — {total} entri total.').replace('{total}', total.toLocaleString())}
-            </p>
-          </div>
-          <button
-            className={styles.exportBtn}
-            onClick={handleExport}
-            disabled={isExporting}
-            id="audit-export-btn"
-          >
+    <div className={styles.wrap}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div>
+          <h1 className={styles.title}><ClipboardList size={22} /> {t('audit.title', 'Audit Log')}</h1>
+          <p className={styles.subtitle}>
+            {t('audit.subtitle', 'Rekam jejak semua aktivitas sistem — {total} entri total.').replace('{total}', total.toLocaleString())}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {exportMsg && <span style={{ fontSize: '0.8rem', color: exportMsg.includes('berhasil') ? '#137333' : '#c5221f' }}>{exportMsg}</span>}
+          <button className={styles.exportBtn} onClick={handleExport} disabled={isExporting}>
             {isExporting ? <Loader2 size={15} className={styles.spin} /> : <Download size={15} />}
             {isExporting ? t('audit.exporting', 'Mengekspor...') : t('audit.exportCsv', 'Ekspor CSV')}
           </button>
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className={styles.filters}>
-          <div className={styles.filterGroup}>
-            <Filter size={15} className={styles.filterIcon} />
-            <select
-              className={styles.select}
-              value={eventType}
-              onChange={handleEventChange}
-              id="audit-event-filter"
-            >
-              {EVENT_TYPES.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.filterGroup}>
-            <input
-              className={styles.input}
-              type="text"
-              placeholder={t('audit.filterByUsername', 'Filter by username...')}
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              id="audit-username-filter"
-            />
-            <button
-              className={styles.searchBtn}
-              onClick={handleSearch}
-              id="audit-search-btn"
-            >
-              <Search size={14} />
-            </button>
-          </div>
-
-          <button
-            className={styles.refreshBtn}
-            onClick={() => refetch()}
-            disabled={isFetching}
-            id="audit-refresh-btn"
-            title={t('audit.refresh', 'Refresh')}
-          >
-            <RefreshCw size={15} className={isFetching ? styles.spin : ''} />
+      {/* Filters */}
+      <div className={styles.filters}>
+        <div className={styles.filterGroup}>
+          <Filter size={15} className={styles.filterIcon} />
+          <select className={styles.select} value={eventType} onChange={handleEventChange}>
+            {EVENT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <input
+            className={styles.input}
+            type="text"
+            placeholder={t('audit.filterByUsername', 'Filter by username...')}
+            value={usernameInput}
+            onChange={(e) => setUsernameInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button className={styles.searchBtn} onClick={handleSearch}>
+            <Search size={14} />
           </button>
         </div>
-
-        {/* Content */}
-        {isLoading && (
-          <div className={styles.loadingWrap}>
-            <Loader2 size={24} className={styles.spin} />
-            {t('audit.loading', 'Memuat audit log...')}
-          </div>
-        )}
-
-        {isError && (
-          <div className={styles.errorWrap}>
-            <AlertTriangle size={20} />
-            {t('audit.loadError', 'Gagal memuat audit log. Anda mungkin tidak memiliki izin yang cukup.')}
-          </div>
-        )}
-
-        {!isLoading && !isError && items.length === 0 && (
-          <div className={styles.empty}>
-            <ClipboardList size={48} opacity={0.15} />
-            <p>{t('audit.empty', 'Tidak ada entri audit log ditemukan.')}</p>
-          </div>
-        )}
-
-        {!isLoading && items.length > 0 && (
-          <>
-            <div className={styles.timeline}>
-              {items.map((item, i) => (
-                <TimelineItem
-                  key={item.id}
-                  item={item}
-                  isLast={i === items.length - 1}
-                  t={t}
-                />
-              ))}
-            </div>
-
-            <Pagination
-              page={page}
-              pages={pages}
-              onPageChange={(p) => {
-                setPage(p)
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}
-              t={t}
-            />
-          </>
-        )}
+        <button className={styles.refreshBtn} onClick={() => refetch()} disabled={isFetching} title={t('audit.refresh', 'Refresh')}>
+          <RefreshCw size={15} className={isFetching ? styles.spin : ''} />
+        </button>
       </div>
-    </GmailShell>
+
+      {/* Content */}
+      {isLoading && (
+        <div className={styles.loadingWrap}>
+          <Loader2 size={24} className={styles.spin} /> {t('audit.loading', 'Memuat audit log...')}
+        </div>
+      )}
+      {isError && (
+        <div className={styles.errorWrap}>
+          <AlertTriangle size={20} /> {t('audit.loadError', 'Gagal memuat audit log. Anda mungkin tidak memiliki izin yang cukup.')}
+        </div>
+      )}
+      {!isLoading && !isError && items.length === 0 && (
+        <div className={styles.empty}>
+          <ClipboardList size={48} opacity={0.15} />
+          <p>{t('audit.empty', 'Tidak ada entri audit log ditemukan.')}</p>
+        </div>
+      )}
+      {!isLoading && items.length > 0 && (
+        <>
+          <div className={styles.timeline}>
+            {items.map((item, i) => (
+              <TimelineItem key={item.id} item={item} isLast={i === items.length - 1} t={t} />
+            ))}
+          </div>
+          <Pagination page={page} pages={pages} onPageChange={(p) => setPage(p)} t={t} />
+        </>
+      )}
+    </div>
   )
 }

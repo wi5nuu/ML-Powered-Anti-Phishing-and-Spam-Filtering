@@ -1,6 +1,6 @@
 .wrapper {
-  padding: 28px 32px 60px;
-  font-family: 'Google Sans', 'Roboto', sans-serif;
+  padding: var(--page-padding-y) var(--page-padding-x) var(--page-padding-bottom);
+  font-family: var(--font-sans);
   color: var(--text);
   box-sizing: border-box;
   max-width: 1400px;
@@ -9,7 +9,7 @@
 }
 
 .title {
-  font-size: 2rem;
+  font-size: var(--title-font-size);
   font-weight: 500;
   margin-bottom: 8px;
   color: var(--text);
@@ -17,8 +17,8 @@
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 1.1rem;
-  margin-bottom: 32px;
+  font-size: 1rem;
+  margin-bottom: var(--section-gap);
 }
 
 .section {
@@ -28,7 +28,7 @@
 .sectionTitle {
   font-size: 1.3rem;
   font-weight: 500;
-  margin-bottom: 16px;
+  margin-bottom: var(--card-gap);
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
@@ -37,7 +37,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  gap: var(--card-gap);
   margin-top: 16px;
 }
 
@@ -275,4 +275,19 @@
   padding-top: 16px;
   border-top: 1px solid var(--border);
   font-style: italic;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .wrapper { padding: 18px 14px 48px; }
+  .title { font-size: 1.5rem; }
+  .subtitle { font-size: 1rem; margin-bottom: 24px; }
+  .section { margin-bottom: 28px; }
+  .sectionTitle { font-size: 1.15rem; }
+  .grid,
+  .settingsGrid { grid-template-columns: 1fr; }
+  .scenario,
+  .roleGuide { padding: 16px; }
+  .mlDetail { padding: 16px; }
+  .mlStep { gap: 12px; }
 }

@@ -1,5 +1,5 @@
 .wrap {
-  padding: 24px;
+  padding: var(--page-padding-y) var(--page-padding-x) var(--page-padding-bottom);
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -12,7 +12,7 @@
   background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
   border-radius: 16px;
   padding: 28px 32px;
-  margin-bottom: 24px;
+  margin-bottom: var(--section-gap);
   color: #fff;
 }
 .heroLeft { flex: 1; }
@@ -37,7 +37,7 @@
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: var(--card-gap);
   margin-bottom: 24px;
 }
 .statCard {

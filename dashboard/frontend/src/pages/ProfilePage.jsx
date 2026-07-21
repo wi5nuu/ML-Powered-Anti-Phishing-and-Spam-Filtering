@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Loader2, ArrowLeft, Camera } from 'lucide-react'
+import { Loader2, ArrowLeft, Camera, Activity, Shield, Mail, Calendar } from 'lucide-react'
 import GmailShell from '../components/layout/GmailShell'
 import { useProfile, useUploadProfileAvatar } from '../api/profile'
 import { getActiveMailbox, getActiveMailboxId, setMailboxSession } from '../utils/mailbox'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
+import { useTranslation } from '../i18n/context'
 import styles from './ProfilePage.module.css'
 
 const MAX_AVATAR_BYTES = 1024 * 1024
@@ -27,6 +28,7 @@ function readImageSize(file) {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef(null)
@@ -35,7 +37,7 @@ export default function ProfilePage() {
   const activeMailboxId = getActiveMailboxId(searchParams)
   const { data: profile, isLoading: profileLoading } = useProfile(activeMailboxId)
   const uploadAvatar = useUploadProfileAvatar()
-  const displayEmail = profile?.mailbox_email || activeMailbox || profile?.email || profile?.username || 'N/A'
+  const displayEmail = profile?.mailbox_email || activeMailbox || profile?.email || profile?.username || t('common.na')
   const isMailboxProfile = Boolean(profile?.mailbox_email || activeMailboxId)
   const displayName = isMailboxProfile
     ? (profile?.sender_name || displayEmail)
@@ -52,21 +54,21 @@ export default function ProfilePage() {
 
     setAvatarError('')
     if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
-      setAvatarError('File harus berupa gambar JPG, PNG, GIF, atau WEBP.')
+      setAvatarError(t('profile.avatarTypeError'))
       return
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      setAvatarError('Ukuran avatar maksimal 1 MB.')
+      setAvatarError(t('profile.avatarSizeError'))
       return
     }
     try {
       const { width, height } = await readImageSize(file)
       if (width !== height) {
-        setAvatarError('Rasio avatar harus 1:1.')
+        setAvatarError(t('profile.avatarRatioError'))
         return
       }
     } catch {
-      setAvatarError('Dimensi gambar tidak dapat dibaca.')
+      setAvatarError(t('profile.avatarDimError'))
       return
     }
 
@@ -81,7 +83,7 @@ export default function ProfilePage() {
         }
       },
       onError: (error) => {
-        setAvatarError(error.response?.data?.detail || 'Upload avatar gagal.')
+        setAvatarError(error.response?.data?.detail || t('profile.avatarUploadError'))
       },
     })
   }
@@ -91,7 +93,7 @@ export default function ProfilePage() {
       <GmailShell>
         <div className={styles.loading}>
           <Loader2 size={24} className={styles.spin} />
-          Loading profile...
+          {t('profile.loading')}
         </div>
       </GmailShell>
     )
@@ -105,8 +107,8 @@ export default function ProfilePage() {
             <ArrowLeft size={18} />
           </button>
           <div className={styles.headerInfo}>
-            <h1 className={styles.title}>Account Settings</h1>
-            <p className={styles.subtitle}>Manage your profile</p>
+            <h1 className={styles.title}>{t('profile.title')}</h1>
+            <p className={styles.subtitle}>{t('profile.subtitle')}</p>
           </div>
         </div>
 
@@ -119,8 +121,8 @@ export default function ProfilePage() {
                     type="button"
                     className={styles.profileAvatar}
                     onClick={() => fileInputRef.current?.click()}
-                    title="Upload avatar"
-                    aria-label="Upload avatar"
+                    title={t('profile.uploadAvatar')}
+                    aria-label={t('profile.uploadAvatar')}
                     disabled={uploadAvatar.isPending}
                     style={!uploadedAvatar ? { background: avatarColor(avatarKey) } : undefined}
                   >
@@ -153,26 +155,26 @@ export default function ProfilePage() {
               {activeMailbox && (
                 <div className={styles.infoRow}>
                   <Mail size={15} className={styles.infoIcon} />
-                  <span className={styles.infoLabel}>Email Aktif</span>
+                  <span className={styles.infoLabel}>{t('profile.activeEmail')}</span>
                   <span className={styles.infoValue}>{activeMailbox}</span>
                 </div>
               )}
 
               <div className={styles.infoRow}>
                 <Mail size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>Operator Login</span>
+                <span className={styles.infoLabel}>{t('profile.operatorLogin')}</span>
                 <span className={styles.infoValue}>{profile?.username}</span>
               </div>
 
               <div className={styles.infoRow}>
                 <Shield size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>Role</span>
+                <span className={styles.infoLabel}>{t('users.role')}</span>
                 <span className={styles.infoValue}>{roleLabel}</span>
               </div>
 
               <div className={styles.infoRow}>
                 <Calendar size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>Member since</span>
+                <span className={styles.infoLabel}>{t('profile.memberSince')}</span>
                 <span className={styles.infoValue}>
                   {profile?.created_at
                     ? new Date(profile.created_at).toLocaleDateString('id-ID', {
@@ -180,15 +182,15 @@ export default function ProfilePage() {
                         month: 'long',
                         day: 'numeric',
                       })
-                    : 'N/A'}
+                    : t('common.na')}
                 </span>
               </div>
 
               <div className={styles.infoRow}>
                 <Activity size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>Status</span>
+                <span className={styles.infoLabel}>{t('users.status')}</span>
                 <span className={`${styles.infoValue} ${profile?.is_active ? styles.activeStatus : styles.inactiveStatus}`}>
-                  {profile?.is_active ? 'Active' : 'Inactive'}
+                  {profile?.is_active ? t('label.active') : t('label.inactive')}
                 </span>
               </div>
             </div>

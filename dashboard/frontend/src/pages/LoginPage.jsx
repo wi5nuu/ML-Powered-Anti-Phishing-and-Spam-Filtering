@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLogin, useMe } from '../api/auth'
 import api from '../api/client'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Shield, Lock, Inbox } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Lock, Shield, ShieldCheck, Zap, Bell } from 'lucide-react'
 import { setMailboxSession } from '../utils/mailbox'
+import { useTranslation } from '../i18n/context'
+import logoImg from '../assets/logo.png'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -19,12 +21,13 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login')
   const [resetIdentity, setResetIdentity] = useState('')
   const [resetMessage, setResetMessage] = useState('')
+  const { t } = useTranslation()
 
   useEffect(() => {
     const err = searchParams.get('error')
     if (err) setError(decodeURIComponent(err))
-    else if (sessionExpired) setError('Sesi sudah berakhir. Silakan masuk kembali.')
-  }, [searchParams, sessionExpired])
+    else if (sessionExpired) setError(t('login.sessionExpired'))
+  }, [searchParams, sessionExpired, t])
 
   const dashboardPathForRole = (role) => {
     if (role === 'superadmin') return '/super-admin/dashboard'
@@ -35,13 +38,23 @@ export default function LoginPage() {
 
   const mailboxPathForUser = async () => {
     try {
+      // Always use the user's own email as mailbox identity
+      const meRes = await api.get('/auth/me').catch(() => null)
+      const userEmail = meRes?.data?.user?.email
+      if (userEmail && userEmail.includes('@')) {
+        setMailboxSession({ id: userEmail, email: userEmail, login_source: 'main_login' })
+        return `/mail/${encodeURIComponent(userEmail)}/inbox`
+      }
+      // Fallback to mailboxes list
       const { data } = await api.get('/user/mailboxes')
       const rows = Array.isArray(data) ? data : []
       const firstMailbox = rows[0]
-      const mailboxId = firstMailbox?.id || firstMailbox?.email
-      if (mailboxId) return `/mail/${encodeURIComponent(mailboxId)}/inbox`
+      const mailboxKey = firstMailbox?.email || firstMailbox?.id
+      if (mailboxKey) {
+        setMailboxSession({ ...firstMailbox, id: mailboxKey, email: firstMailbox?.email || mailboxKey, login_source: 'main_login' })
+        return `/mail/${encodeURIComponent(mailboxKey)}/inbox`
+      }
     } catch {
-      // Fall back to the mailbox list; route guards still enforce permissions.
     }
     return '/user/mailboxes'
   }
@@ -53,9 +66,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!me?.authenticated) return
-    if (me.user?.role === 'mailbox') return
     let cancelled = false
-    postLoginPathForRole(me.user?.role).then((target) => {
+    const role = me.user?.role
+    if (role === 'mailbox') {
+      navigate('/mailbox-login', { replace: true })
+      return
+    }
+    postLoginPathForRole(role).then((target) => {
       if (!cancelled) navigate(target, { replace: true })
     })
     return () => { cancelled = true }
@@ -80,7 +97,7 @@ export default function LoginPage() {
       const role = meRes?.data?.user?.role || res?.data?.role || res?.data?.user?.role
       window.location.replace(await postLoginPathForRole(role))
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login gagal. Periksa username dan password Anda.')
+      setError(err.response?.data?.detail || t('login.error'))
     }
   }
 
@@ -89,41 +106,76 @@ export default function LoginPage() {
     setError('')
     setResetMessage('')
     if (!resetIdentity.trim()) {
-      setError('Masukkan username akun Anda.')
+      setError(t('login.resetRequired'))
       return
     }
-    setResetMessage(
-      'Permintaan reset password diterima. Hubungi Admin atau Superadmin untuk dibuatkan password baru melalui Admin Panel.'
-    )
+    setResetMessage(t('login.resetMessage'))
   }
 
   return (
     <div className={styles.page}>
-      <div className={styles.bgDecor1} />
-      <div className={styles.bgDecor2} />
-      <div className={styles.bgDecor3} />
 
-      <div className={styles.card}>
-        <div className={styles.brand}>
-          <div className={styles.brandIcon}>
-            <Shield size={22} strokeWidth={2.5} />
-          </div>
-          <div className={styles.brandText}>
-            <span className={styles.brandName}>CogniMail</span>
-            <span className={styles.brandSub}>Security Platform</span>
+      {/* ── Left panel — branding ── */}
+      <div className={styles.left}>
+        <div className={styles.leftDecor1} />
+        <div className={styles.leftDecor2} />
+        <div className={styles.leftDecor3} />
+
+        {/* Hero */}
+        <div className={styles.leftHero}>
+          <h2 className={styles.leftTagline}>
+            {t('login.heroTitle')}
+          </h2>
+          <p className={styles.leftTaglineSub}>
+            {t('login.heroSubtitle')}
+          </p>
+          <div className={styles.leftFeatures}>
+            {[
+              { icon: <ShieldCheck size={15} />, text: t('login.feature1text') },
+              { icon: <Zap size={15} />, text: t('login.feature2text') },
+              { icon: <Bell size={15} />, text: t('login.feature3text') },
+            ].map((f, i) => (
+              <div key={i} className={styles.leftFeatureItem}>
+                <div className={styles.leftFeatureDot}>{f.icon}</div>
+                <span className={styles.leftFeatureText}>{f.text}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className={styles.divider} />
+        {/* Footer badges */}
+        <div className={styles.leftFooter}>
+          <span className={styles.leftFooterBadge}>
+            <Shield size={11} /> {t('login.mlPowered')}
+          </span>
+          <span className={styles.leftFooterBadge}>
+            <Lock size={11} /> {t('login.e2eEncrypted')}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Right panel — form ── */}
+      <div className={styles.right}>
+
+        {/* Brand — sudut kanan atas */}
+        <div className={styles.rightBrand}>
+          <img src={logoImg} alt="CogniMail" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+          <div>
+            <div className={styles.rightBrandName}>CogniMail</div>
+            <div className={styles.rightBrandSub}>{t('login.brandSub')}</div>
+          </div>
+        </div>
+
+        <div className={styles.rightInner}>
 
         <div className={styles.titleBlock}>
           <h1 className={styles.title}>
-            {mode === 'login' ? 'Selamat Datang' : 'Reset Password'}
+            {mode === 'login' ? t('login.title') : t('login.forgotTitle')}
           </h1>
           <p className={styles.subtitle}>
             {mode === 'login'
-              ? 'Masuk dengan akun organisasi Anda yang telah terdaftar.'
-              : 'Masukkan username untuk meminta reset password.'}
+              ? t('login.subtitle')
+              : t('login.forgotSubtitle')}
           </p>
         </div>
 
@@ -144,7 +196,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="username" className={styles.fieldLabel}>
-                Username atau Email
+                {t('login.email')}
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -152,7 +204,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username atau email"
+                  placeholder={t('login.emailPlaceholder')}
                   required
                   autoFocus
                   autoComplete="username"
@@ -163,13 +215,13 @@ export default function LoginPage() {
 
             <div className={styles.field}>
               <div className={styles.labelRow}>
-                <label htmlFor="password" className={styles.fieldLabel}>Password</label>
+                <label htmlFor="password" className={styles.fieldLabel}>{t('login.password')}</label>
                 <button
                   type="button"
                   className={styles.forgotBtn}
                   onClick={() => { setMode('forgot'); setError(''); setResetMessage('') }}
                 >
-                  Lupa password?
+                  {t('login.forgotPassword')}
                 </button>
               </div>
               <div className={styles.pwdWrap}>
@@ -178,7 +230,7 @@ export default function LoginPage() {
                   type={showPwd ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan password"
+                  placeholder={t('login.passwordPlaceholder')}
                   required
                   autoComplete="current-password"
                   className={styles.input}
@@ -195,19 +247,15 @@ export default function LoginPage() {
             </div>
 
             <button type="submit" className={styles.submitBtn} disabled={isPending}>
-              {isPending ? (
-                <span className={styles.spinner} />
-              ) : (
-                <Lock size={17} />
-              )}
-              {isPending ? 'Memproses...' : 'Masuk'}
+              {isPending ? <span className={styles.spinner} /> : <Lock size={17} />}
+              {isPending ? t('login.processing') : t('login.btn')}
             </button>
           </form>
         ) : (
           <form onSubmit={handleForgotPassword} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="resetIdentity" className={styles.fieldLabel}>
-                Username
+                {t('login.resetIdentity')}
               </label>
               <div className={styles.inputWrap}>
                 <input
@@ -215,7 +263,7 @@ export default function LoginPage() {
                   type="text"
                   value={resetIdentity}
                   onChange={(e) => setResetIdentity(e.target.value)}
-                  placeholder="username"
+                  placeholder={t('login.resetPlaceholder')}
                   required
                   autoFocus
                   autoComplete="username"
@@ -225,7 +273,7 @@ export default function LoginPage() {
             </div>
             <button type="submit" className={styles.submitBtn}>
               <KeyRound size={17} />
-              Minta Reset Password
+              {t('login.resetBtn')}
             </button>
             <button
               type="button"
@@ -233,7 +281,7 @@ export default function LoginPage() {
               onClick={() => { setMode('login'); setError(''); setResetMessage('') }}
             >
               <ArrowLeft size={16} />
-              Kembali ke Login
+              {t('login.backToLogin')}
             </button>
           </form>
         )}
@@ -241,16 +289,16 @@ export default function LoginPage() {
         <div className={styles.footer}>
           <div className={styles.footerBadges}>
             <span className={styles.footerBadge}>
-              <Shield size={12} />
-              ML-Powered
+              <Shield size={11} /> {t('login.mlPowered')}
             </span>
             <span className={styles.footerBadge}>
-              <Lock size={12} />
-              End-to-End Encrypted
+              <Lock size={11} /> {t('login.e2eEncrypted')}
             </span>
           </div>
-          <p className={styles.footerNote}>ML-Powered Anti-Phishing &amp; Spam Filtering System</p>
+          <p className={styles.footerNote}>{t('login.footerNote')}</p>
         </div>
+
+        </div>{/* end rightInner */}
       </div>
     </div>
   )

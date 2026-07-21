@@ -1,9 +1,9 @@
 .wrap {
-  padding: 28px 32px;
-  font-family: 'Google Sans', Roboto, sans-serif;
+  padding: var(--page-padding-y) var(--page-padding-x) var(--page-padding-bottom);
+  font-family: var(--font-sans);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--section-gap);
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
@@ -43,7 +43,7 @@
 }
 
 .title {
-  font-size: 1.5rem;
+  font-size: var(--title-font-size);
   font-weight: 400;
   color: var(--text);
 }
@@ -146,7 +146,7 @@
 }
 
 .barClean { background-color: var(--gmail-green); }
-.barWarn { background-color: var(--gmail-yellow); color: #3c4043; text-shadow: none; }
+.barWarn { background-color: var(--gmail-yellow); color: var(--text-secondary); text-shadow: none; }
 .barQuarantine { background-color: var(--gmail-red); }
 
 .legend {
@@ -316,7 +316,7 @@
   transition: background-color 0.1s;
 }
 .inboxBtn:hover {
-  background-color: #1557b0;
+  background-color: var(--gmail-blue-dark);
 }
 
 @media (max-width: 768px) {
@@ -326,4 +326,10 @@
   .summaryCard {
     width: 100%;
   }
+}
+
+@media (max-width: 600px) {
+  .wrap { padding: var(--page-padding-y-mobile) var(--page-padding-x-mobile) var(--page-padding-bottom-mobile); gap: var(--card-gap); }
+  .grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .title { font-size: 1.25rem; }
 }

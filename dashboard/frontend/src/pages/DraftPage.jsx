@@ -8,6 +8,8 @@ import { useSearchParams } from 'react-router-dom'
 import { getActiveMailbox, getActiveMailboxId } from '../utils/mailbox'
 import { useMe } from '../api/auth'
 import { dedupeDrafts, displaySubject } from '../utils/threadUtils'
+import { FileText } from 'lucide-react'
+import { useTranslation } from '../i18n/context'
 
 const PAGE_SIZE = 50
 
@@ -20,6 +22,7 @@ function cleanDraftPreview(value = '') {
 export default function DraftPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: meData } = useMe()
+  const { t } = useTranslation()
   const mailbox = getActiveMailbox(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_email || meData.user.username || '' : '')
   const mailboxId = getActiveMailboxId(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_id || '' : '')
   const query = searchParams.get('q') || ''
@@ -35,7 +38,6 @@ export default function DraftPage() {
 
   const emails = data?.emails || []
 
-  // 1. Filter to only real drafts belonging to this mailbox
   const rawDrafts = emails.filter((e) => {
     const isDraft = e.label === 'DRAFT' || e.status === 'draft'
     if (!isDraft) return false
@@ -44,7 +46,6 @@ export default function DraftPage() {
     return String(e.sender || e.sender_email || '').toLowerCase() === target
   })
 
-  // 2. Deduplicate: one draft per (thread + compose_mode), newest wins
   const draftEmails = useMemo(() => {
     const deduped = dedupeDrafts(rawDrafts, mailboxId)
     return deduped.map((draft) => ({
@@ -124,20 +125,20 @@ export default function DraftPage() {
           )}
           {isError && (
             <div className={styles.empty}>
-              <p>Gagal memuat draf. Cek koneksi server.</p>
+              <p>{t('draft.loadError')}</p>
             </div>
           )}
           {!isLoading && !isError && draftEmails.length === 0 && (
             <div className={styles.empty}>
-              <p>Tidak ada draf</p>
+              <FileText size={40} strokeWidth={1.2} />
+              <p style={{ margin: 0, fontWeight: 500 }}>{t('draft.empty')}</p>
+              <p style={{ margin: 0, fontSize: '0.875rem' }}>{t('draft.emptyHint')}</p>
             </div>
           )}
           {!isLoading && !isError && draftEmails.map((email) => (
             <EmailRow
               key={email.email_id}
               email={email}
-              // Reply drafts → open original thread detail page (not compose popup)
-              // New message drafts → open ComposeModal
               openDraftMode={email._isReplyDraft ? 'detail' : 'compose'}
               isSelected={isThreadSelected(email)}
               onToggleSelect={() => toggleSelectThread(email)}

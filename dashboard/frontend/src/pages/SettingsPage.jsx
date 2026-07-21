@@ -11,9 +11,9 @@ import { useSettings, useUpdateSettings, useTestImap } from '../api/metrics'
 import { useUpdateProfile } from '../api/profile'
 import { useToast } from '../hooks/useToast'
 import { getActiveMailbox, getMailDomain } from '../utils/mailbox'
+import { useTranslation } from '../i18n/context'
 import styles from './SettingsPage.module.css'
 
-// ─── Section wrapper ─────────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, children }) {
   return (
     <div className={styles.section}>
@@ -23,7 +23,6 @@ function Section({ icon: Icon, title, children }) {
   )
 }
 
-// ─── Field row ───────────────────────────────────────────────────────────────────
 function FieldRow({ label, hint, children }) {
   return (
     <div className={styles.fieldRow}>
@@ -36,7 +35,6 @@ function FieldRow({ label, hint, children }) {
   )
 }
 
-// ─── Threshold slider ─────────────────────────────────────────────────────────────
 function ThresholdSlider({ label, value, onChange, min = 0, max = 1, step = 0.01, color }) {
   return (
     <div className={styles.sliderWrap}>
@@ -59,8 +57,8 @@ function ThresholdSlider({ label, value, onChange, min = 0, max = 1, step = 0.01
   )
 }
 
-// ─── Editable list (domains / whitelist) ─────────────────────────────────────────
 function EditableList({ items, onAdd, onRemove, placeholder, id }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState('')
   const handleAdd = () => {
     const v = draft.trim().toLowerCase()
@@ -73,7 +71,7 @@ function EditableList({ items, onAdd, onRemove, placeholder, id }) {
     <div className={styles.listWrap}>
       <div className={styles.listItems}>
         {items.length === 0 && (
-          <span className={styles.listEmpty}>Belum ada item.</span>
+          <span className={styles.listEmpty}>{t('settings.noItems')}</span>
         )}
         {items.map((item, i) => (
           <div key={i} className={styles.listChip}>
@@ -81,7 +79,7 @@ function EditableList({ items, onAdd, onRemove, placeholder, id }) {
             <button
               className={styles.chipRemove}
               onClick={() => onRemove(i)}
-              title={`Hapus ${item}`}
+              title={`${t('common.delete')} ${item}`}
               id={`${id}-remove-${i}`}
             >
               <Trash2 size={12} />
@@ -104,14 +102,13 @@ function EditableList({ items, onAdd, onRemove, placeholder, id }) {
           onClick={handleAdd}
           id={`${id}-add-btn`}
         >
-          <Plus size={14} /> Tambah
+          <Plus size={14} /> {t('common.add')}
         </button>
       </div>
     </div>
   )
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────────
 const DEFAULTS = {
   threshold_quarantine: 0.70,
   threshold_warn: 0.30,
@@ -129,6 +126,7 @@ const DEFAULTS = {
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const { addToast } = useToast()
   const { data: me, isLoading: meLoading } = useMe()
   const { data: remoteSettings, isLoading, isError } = useSettings()
@@ -156,7 +154,6 @@ export default function SettingsPage() {
     if (me?.user?.username) setAccountUsername(me.user.username)
   }, [me?.user?.username])
 
-  // Sync from server
   useEffect(() => {
     if (remoteSettings) {
       setLocal({ ...DEFAULTS, ...remoteSettings })
@@ -170,52 +167,51 @@ export default function SettingsPage() {
   }
 
   const handleSave = () => {
-    // Validate weights sum to ~1
     const wsum = local.fusion_ml_weight + local.fusion_sa_weight + local.fusion_anomaly_weight
     if (Math.abs(wsum - 1.0) > 0.05) {
-      addToast(`Total bobot fusi harus = 100% (sekarang ${(wsum * 100).toFixed(0)}%)`, 'warning')
+      addToast(`${t('msg.settings.weightSum')} (${(wsum * 100).toFixed(0)}%)`, 'warning')
       return
     }
     if (local.threshold_warn >= local.threshold_quarantine) {
-      addToast('Ambang karantina harus lebih besar dari ambang peringatan.', 'warning')
+      addToast(t('msg.settings.quarantineGtWarn'), 'warning')
       return
     }
     saveSettings(local, {
       onSuccess: () => {
-        addToast('Pengaturan berhasil disimpan.', 'success')
+        addToast(t('msg.settings.saved'), 'success')
         setDirty(false)
       },
       onError: (err) => {
-        const msg = err?.response?.data?.detail || 'Gagal menyimpan pengaturan.'
+        const msg = err?.response?.data?.detail || t('msg.settings.saveError')
         addToast(msg, 'error')
       },
     })
   }
 
   const handleReset = () => {
-    if (!window.confirm('Reset semua pengaturan ke nilai default? Perubahan yang belum disimpan akan hilang.')) return
+    if (!window.confirm(t('msg.settings.resetConfirm'))) return
     setLocal(DEFAULTS)
     setDirty(true)
-    addToast('Pengaturan direset ke default.', 'info')
+    addToast(t('msg.settings.resetDone'), 'info')
   }
 
   const handleTestImap = () => {
     testImap(undefined, {
       onSuccess: (data) => {
         if (data?.data?.ok) addToast(data.data.message, 'success')
-        else addToast(data?.data?.message || 'Koneksi gagal.', 'error')
+        else addToast(data?.data?.message || t('msg.settings.imapTestFail'), 'error')
       },
-      onError: () => addToast('Gagal menguji koneksi IMAP.', 'error'),
+      onError: () => addToast(t('msg.settings.imapTestError'), 'error'),
     })
   }
 
   const handleSaveAccount = () => {
     if (!currentPassword) {
-      addToast('Masukkan password saat ini untuk menyimpan perubahan akun.', 'warning')
+      addToast(t('msg.settings.accountPasswordRequired'), 'warning')
       return
     }
     if (newPassword && newPassword !== confirmPassword) {
-      addToast('Konfirmasi password baru tidak cocok.', 'warning')
+      addToast(t('msg.settings.accountPasswordMismatch'), 'warning')
       return
     }
     updateProfile({
@@ -224,58 +220,58 @@ export default function SettingsPage() {
       new_password: newPassword,
     }, {
       onSuccess: () => {
-        addToast('Akun berhasil diperbarui.', 'success')
+        addToast(t('msg.settings.accountUpdated'), 'success')
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       },
       onError: (err) => {
-        addToast(err?.response?.data?.detail || 'Gagal memperbarui akun.', 'error')
+        addToast(err?.response?.data?.detail || t('msg.settings.accountUpdateError'), 'error')
       },
     })
   }
 
   const accountSection = !isMailbox ? (
-    <Section icon={User} title="Akun Login">
-      <FieldRow label="Username" hint="Username yang digunakan saat login.">
+    <Section icon={User} title={t('settings.accountLogin')}>
+      <FieldRow label={t('users.username')} hint={t('settings.usernameHint')}>
         <input
           className={styles.input}
           value={accountUsername}
           onChange={(e) => setAccountUsername(e.target.value)}
-          placeholder="Username"
+          placeholder={t('users.username')}
         />
       </FieldRow>
-      <FieldRow label="Password Saat Ini" hint="Wajib diisi untuk mengganti username atau password.">
+      <FieldRow label={t('settings.currentPassword')} hint={t('settings.currentPasswordHint')}>
         <input
           className={styles.input}
           type="password"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
-          placeholder="Password saat ini"
+          placeholder={t('settings.currentPassword')}
         />
       </FieldRow>
-      <FieldRow label="Password Baru" hint="Kosongkan jika tidak ingin mengganti password.">
+      <FieldRow label={t('settings.newPassword')} hint={t('settings.newPasswordHint')}>
         <input
           className={styles.input}
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="Password baru"
+          placeholder={t('settings.newPassword')}
         />
       </FieldRow>
-      <FieldRow label="Konfirmasi Password" hint="Ulangi password baru.">
+      <FieldRow label={t('settings.confirmPassword')} hint={t('settings.confirmPasswordHint')}>
         <input
           className={styles.input}
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Konfirmasi password baru"
+          placeholder={t('settings.confirmPassword')}
         />
       </FieldRow>
       <div className={styles.sectionActions}>
         <button className={styles.btnPrimary} onClick={handleSaveAccount} disabled={isUpdatingProfile}>
           {isUpdatingProfile ? <Loader2 size={15} className={styles.spin} /> : <Save size={15} />}
-          {isUpdatingProfile ? 'Menyimpan...' : 'Simpan Akun'}
+          {isUpdatingProfile ? t('common.saving') : t('settings.saveAccount')}
         </button>
       </div>
     </Section>
@@ -286,69 +282,68 @@ export default function SettingsPage() {
       <GmailShell>
         <div className={styles.loading}>
           <Loader2 size={24} className={styles.spin} />
-          Memuat pengaturan...
+          {t('settings.loading')}
         </div>
       </GmailShell>
     )
   }
 
-  // ── ANALYST / REGULAR USER ──
   if (!isAdmin && !isSuper) {
     return (
       <GmailShell>
         <div className={styles.wrap}>
           <div className={styles.header}>
             <div className={styles.headerLeft}>
-              <h1 className={styles.title}><Settings size={22} /> Pengaturan Akun</h1>
-              <p className={styles.subtitle}>Kelola preferensi notifikasi dan informasi akun Anda.</p>
+              <h1 className={styles.title}><Settings size={22} /> {t('settings.accountTitle')}</h1>
+              <p className={styles.subtitle}>{t('settings.accountSubtitle')}</p>
             </div>
           </div>
 
           <div className={styles.layoutBottom}>
             {activeMailbox && (
-              <Section icon={Mail} title="Mailbox Aktif">
-                <FieldRow label="Email aktif" hint="Pengaturan sedang dibuka dari dashboard mailbox ini.">
+              <Section icon={Mail} title={t('settings.activeMailbox')}>
+                <FieldRow label={t('profile.activeEmail')} hint={t('settings.activeEmailHint')}>
                   <strong className={styles.readOnlyValue}>{activeMailbox}</strong>
                 </FieldRow>
-                <FieldRow label="Domain mailbox" hint="Domain perusahaan yang dipakai mailbox ini.">
+                <FieldRow label={t('settings.mailboxDomain')} hint={t('settings.mailboxDomainHint')}>
                   <strong className={styles.readOnlyValue}>@{activeMailDomain}</strong>
                 </FieldRow>
                 {isMailbox && (
                   <div className={styles.fieldRow}>
                     <div className={styles.fieldLeft}>
-                      <label className={styles.fieldLabel}>Akses akun</label>
-                      <span className={styles.fieldHint}>Mailbox menggunakan kredensial yang dikelola administrator.</span>
+                      <label className={styles.fieldLabel}>{t('settings.accessAccount')}</label>
+                      <span className={styles.fieldHint}>{t('settings.accessAccountHint')}</span>
                     </div>
                   </div>
                 )}
               </Section>
             )}
             {accountSection}
-            <Section icon={User} title="Informasi Profil">
+            <Section icon={User} title={t('settings.profileInfo')}>
               <div className={styles.fieldRow}>
                 <div className={styles.fieldLeft}>
-                  <label className={styles.fieldLabel}>Username</label>
+                  <label className={styles.fieldLabel}>{t('users.username')}</label>
                   <span className={styles.fieldHint}>{me?.user?.username || '-'}</span>
                 </div>
                 <div className={styles.fieldRight}>
                   <button className={styles.btnOutline} onClick={() => navigate('/profile')}>
-                    <User size={15} /> Lihat Profil
+                    <User size={15} /> {t('profile.view')}
                   </button>
                 </div>
               </div>
               <div className={styles.fieldRow}>
                 <div className={styles.fieldLeft}>
-                  <label className={styles.fieldLabel}>Role</label>
+                  <label className={styles.fieldLabel}>{t('users.role')}</label>
                   <span className={styles.fieldHint}>{me?.user?.role || '-'}</span>
                 </div>
               </div>
             </Section>
 
-            <Section icon={Bell} title="Preferensi Notifikasi">
+            <Section icon={Bell} title={t('settings.notifPreferences')}>
               <div className={styles.fieldRow}>
                 <div className={styles.fieldLeft}>
-                  <label className={styles.fieldLabel}>Notifikasi Email</label>
-                  <span className={styles.fieldHint}>Dapatkan pemberitahuan saat ada email masuk dikarantina</span>
+                  <label className={styles.fieldLabel}>{t('settings.notifEmail')}</label>
+                  <span className={styles.fieldHint}>{t('settings.notifEmailHint')}</span>
                 </div>
                 <div className={styles.fieldRight}>
                   <label className={styles.toggle}>
@@ -359,8 +354,8 @@ export default function SettingsPage() {
               </div>
               <div className={styles.fieldRow}>
                 <div className={styles.fieldLeft}>
-                  <label className={styles.fieldLabel}>Ringkasan Harian</label>
-                  <span className={styles.fieldHint}>Terima laporan ringkasan setiap hari</span>
+                  <label className={styles.fieldLabel}>{t('settings.notifDaily')}</label>
+                  <span className={styles.fieldHint}>{t('settings.notifDailyHint')}</span>
                 </div>
                 <div className={styles.fieldRight}>
                   <label className={styles.toggle}>
@@ -374,7 +369,7 @@ export default function SettingsPage() {
 
           <div className={styles.footer}>
             <small style={{ color: 'var(--text-muted)', padding: '8px 0' }}>
-              Pengaturan sistem hanya dapat diubah oleh Admin dan Super Admin.
+              {t('settings.footerNote')}
             </small>
           </div>
         </div>
@@ -382,12 +377,11 @@ export default function SettingsPage() {
     )
   }
 
-  // ── ADMIN / SUPERADMIN — config error ──
   if (isError) {
     return (
       <GmailShell>
         <div className={styles.error}>
-          Gagal memuat pengaturan sistem.
+          {t('settings.loadError')}
         </div>
       </GmailShell>
     )
@@ -398,11 +392,10 @@ export default function SettingsPage() {
   return (
     <GmailShell>
       <div className={styles.wrap}>
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.title}><Settings size={22} /> Pengaturan Sistem</h1>
-            <p className={styles.subtitle}>Konfigurasi threshold, bobot model, dan parameter koneksi email.</p>
+            <h1 className={styles.title}><Settings size={22} /> {t('settings.systemTitle')}</h1>
+            <p className={styles.subtitle}>{t('settings.systemSubtitle')}</p>
           </div>
           <div className={styles.headerActions}>
             <button
@@ -411,7 +404,7 @@ export default function SettingsPage() {
               disabled={isSaving}
               id="settings-reset-btn"
             >
-              <RefreshCw size={15} /> Reset Default
+              <RefreshCw size={15} /> {t('settings.resetDefault')}
             </button>
             <button
               className={`${styles.btnPrimary} ${dirty ? styles.btnDirty : ''}`}
@@ -420,92 +413,90 @@ export default function SettingsPage() {
               id="settings-save-btn"
             >
               {isSaving ? <Loader2 size={15} className={styles.spin} /> : <Save size={15} />}
-              {isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+              {isSaving ? t('common.saving') : t('settings.saveSettings')}
             </button>
           </div>
         </div>
 
         {dirty && (
           <div className={styles.dirtyBanner}>
-            ⚠ Ada perubahan yang belum disimpan.
+            ⚠ {t('settings.unsavedChanges')}
           </div>
         )}
 
-        {/* 3-column grid: Thresholds | Fusion Weights | IMAP */}
         <div className={styles.layoutBottom}>
           {activeMailbox && (
-            <Section icon={Mail} title="Mailbox Aktif">
-              <FieldRow label="Email aktif" hint="Pengaturan sedang dibuka dari dashboard mailbox ini.">
+            <Section icon={Mail} title={t('settings.activeMailbox')}>
+              <FieldRow label={t('profile.activeEmail')} hint={t('settings.activeEmailHint')}>
                 <strong className={styles.readOnlyValue}>{activeMailbox}</strong>
               </FieldRow>
-              <FieldRow label="Domain mailbox" hint="Domain perusahaan yang dipakai mailbox ini.">
+              <FieldRow label={t('settings.mailboxDomain')} hint={t('settings.mailboxDomainHint')}>
                 <strong className={styles.readOnlyValue}>@{activeMailDomain}</strong>
               </FieldRow>
             </Section>
           )}
           {accountSection}
-          <Section icon={Lock} title="Role & Akses">
+          <Section icon={Lock} title={t('settings.roleAccess')}>
             <div className={styles.fieldRow}>
               <div className={styles.fieldLeft}>
-                <label className={styles.fieldLabel}>Role</label>
+                <label className={styles.fieldLabel}>{t('users.role')}</label>
                 <span className={styles.fieldHint}>{me?.user?.role || '-'}</span>
               </div>
               <div className={styles.fieldRight}>
                 <button className={styles.btnOutline} onClick={() => navigate('/profile')}>
-                  <User size={15} /> Lihat Profil
+                  <User size={15} /> {t('profile.view')}
                 </button>
               </div>
             </div>
           </Section>
         </div>
 
-        {/* 3-column grid: Thresholds | Fusion Weights | IMAP */}
         <div className={styles.layoutTop}>
-          <Section icon={Sliders} title="Ambang Deteksi">
+          <Section icon={Sliders} title={t('settings.detectionThresholds')}>
             <ThresholdSlider
-              label="Ambang Karantina (QUARANTINE)"
+              label={t('settings.quarantineThreshold')}
               value={local.threshold_quarantine}
               onChange={(v) => set('threshold_quarantine', v)}
               color="var(--text-muted)"
             />
             <ThresholdSlider
-              label="Ambang Peringatan (WARN)"
+              label={t('settings.warnThreshold')}
               value={local.threshold_warn}
               onChange={(v) => set('threshold_warn', v)}
               color="var(--text-muted)"
             />
             <p className={styles.hint}>
-              Skor ≥ Karantina → QUARANTINE | Skor ≥ Peringatan → WARN | Skor lebih rendah → CLEAN
+              {t('settings.thresholdHint')}
             </p>
           </Section>
 
-          <Section icon={Sliders} title="Bobot Fusi Model (Total harus = 100%)">
+          <Section icon={Sliders} title={t('settings.fusionWeights')}>
             <ThresholdSlider
-              label={`ML Supervised (XGBoost) — saat ini ${(local.fusion_ml_weight * 100).toFixed(0)}%`}
+              label={`${t('settings.fusionMlLabel')} ${(local.fusion_ml_weight * 100).toFixed(0)}%`}
               value={local.fusion_ml_weight}
               onChange={(v) => set('fusion_ml_weight', Math.round(v * 100) / 100)}
               color="var(--text-muted)"
             />
             <ThresholdSlider
-              label={`SpamAssassin — saat ini ${(local.fusion_sa_weight * 100).toFixed(0)}%`}
+              label={`${t('settings.fusionSaLabel')} ${(local.fusion_sa_weight * 100).toFixed(0)}%`}
               value={local.fusion_sa_weight}
               onChange={(v) => set('fusion_sa_weight', Math.round(v * 100) / 100)}
               color="var(--text-muted)"
             />
             <ThresholdSlider
-              label={`Anomali Unsupervised — saat ini ${(local.fusion_anomaly_weight * 100).toFixed(0)}%`}
+              label={`${t('settings.fusionAnomalyLabel')} ${(local.fusion_anomaly_weight * 100).toFixed(0)}%`}
               value={local.fusion_anomaly_weight}
               onChange={(v) => set('fusion_anomaly_weight', Math.round(v * 100) / 100)}
               color="var(--text-muted)"
             />
             <div className={`${styles.weightSum} ${Math.abs(wsum - 1) > 0.05 ? styles.weightBad : styles.weightGood}`}>
-              Total: {(wsum * 100).toFixed(0)}%
-              {Math.abs(wsum - 1) > 0.05 ? ' ⚠ Harus tepat 100%' : ' ✓'}
+              {t('settings.fusionTotal')} {(wsum * 100).toFixed(0)}%
+              {Math.abs(wsum - 1) > 0.05 ? ` ⚠ ${t('settings.fusionMustBe100')}` : ' ✓'}
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Koneksi IMAP">
-            <FieldRow label="IMAP Host" hint="Server email yang akan di-poll">
+          <Section icon={Wifi} title={t('settings.imapConnection')}>
+            <FieldRow label={t('settings.imapHost')} hint={t('settings.imapHostHint')}>
               <input
                 className={styles.input}
                 type="text"
@@ -515,7 +506,7 @@ export default function SettingsPage() {
                 id="settings-imap-host"
               />
             </FieldRow>
-            <FieldRow label="Port" hint="993 untuk SSL, 143 untuk STARTTLS">
+            <FieldRow label={t('settings.imapPort')} hint={t('settings.imapPortHint')}>
               <input
                 className={styles.input}
                 type="number"
@@ -525,7 +516,7 @@ export default function SettingsPage() {
                 id="settings-imap-port"
               />
             </FieldRow>
-            <FieldRow label="Username" hint="Alamat email akun monitor">
+            <FieldRow label={t('settings.imapUsername')} hint={t('settings.imapUsernameHint')}>
               <input
                 className={styles.input}
                 type="text"
@@ -535,7 +526,7 @@ export default function SettingsPage() {
                 id="settings-imap-user"
               />
             </FieldRow>
-            <FieldRow label="Poll Interval" hint="Seberapa sering email di-poll (detik)">
+            <FieldRow label={t('settings.imapPollInterval')} hint={t('settings.imapPollIntervalHint')}>
               <input
                 className={styles.input}
                 type="number"
@@ -553,7 +544,7 @@ export default function SettingsPage() {
                 id="settings-test-imap-btn"
               >
                 {isTesting ? <Loader2 size={15} className={styles.spin} /> : <TestTube size={15} />}
-                {isTesting ? 'Menguji...' : 'Uji Koneksi'}
+                {isTesting ? t('settings.testing') : t('settings.testConnection')}
               </button>
               {imapTestResult?.data && (
                 <div className={`${styles.testResult} ${imapTestResult.data.ok ? styles.testOk : styles.testFail}`}>
@@ -567,38 +558,36 @@ export default function SettingsPage() {
           </Section>
         </div>
 
-        {/* 2-column grid: Domains | Whitelist */}
         <div className={styles.layoutBottom}>
-          <Section icon={Shield} title="Domain Terlindungi">
+          <Section icon={Shield} title={t('settings.protectedDomains')}>
             <p className={styles.hint}>
-              Domain-domain berikut akan dimonitor untuk serangan lookalike / typosquatting.
+              {t('settings.protectedDomainsHint')}
             </p>
             <EditableList
               id="settings-domains"
               items={local.protected_domains || []}
               onAdd={(v) => set('protected_domains', [...(local.protected_domains || []), v])}
               onRemove={(i) => set('protected_domains', local.protected_domains.filter((_, idx) => idx !== i))}
-              placeholder="contoh: lodaya.id"
+              placeholder={t('settings.domainPlaceholder')}
             />
           </Section>
 
-          <Section icon={CheckCircle} title="Whitelist Pengirim Terpercaya">
+          <Section icon={CheckCircle} title={t('settings.whitelistSenders')}>
             <p className={styles.hint}>
-              Email dari pengirim di daftar ini tidak akan dikarantina (dikecualikan dari filter).
+              {t('settings.whitelistSendersHint')}
             </p>
             <EditableList
               id="settings-whitelist"
               items={local.whitelist_senders || []}
               onAdd={(v) => set('whitelist_senders', [...(local.whitelist_senders || []), v])}
               onRemove={(i) => set('whitelist_senders', local.whitelist_senders.filter((_, idx) => idx !== i))}
-              placeholder="contoh: noreply@trusted-bank.co.id"
+              placeholder={t('settings.whitelistPlaceholder')}
             />
           </Section>
         </div>
 
-        {/* Misc */}
-        <Section icon={Settings} title="Pengaturan Lainnya">
-          <FieldRow label="Email Notifikasi Admin" hint="Alert dikirim ke alamat ini saat ada ancaman">
+        <Section icon={Settings} title={t('settings.otherSettings')}>
+          <FieldRow label={t('settings.adminNotifEmail')} hint={t('settings.adminNotifEmailHint')}>
             <input
               className={styles.input}
               type="email"
@@ -608,7 +597,7 @@ export default function SettingsPage() {
               id="settings-alert-email"
             />
           </FieldRow>
-          <FieldRow label="Retensi Karantina (hari)" hint="Email karantina dihapus otomatis setelah N hari">
+          <FieldRow label={t('settings.quarantineRetention')} hint={t('settings.quarantineRetentionHint')}>
             <input
               className={styles.input}
               type="number"
@@ -620,27 +609,25 @@ export default function SettingsPage() {
           </FieldRow>
         </Section>
 
-        {/* Superadmin-only: User Management */}
         {isSuper && (
-          <Section icon={Lock} title="Manajemen Super Admin">
+          <Section icon={Lock} title={t('settings.superadminManagement')}>
             <p className={styles.hint}>
-              Kelola pengguna, kebijakan keamanan, dan konfigurasi tingkat sistem lainnya.
+              {t('settings.superadminHint')}
             </p>
             <div className={styles.fieldRow}>
               <div className={styles.fieldLeft}>
-                <label className={styles.fieldLabel}>Panel Admin</label>
-                <span className={styles.fieldHint}>Kelola user, laporan, dan aktivitas sistem</span>
+                <label className={styles.fieldLabel}>{t('settings.adminPanel')}</label>
+                <span className={styles.fieldHint}>{t('settings.adminPanelHint')}</span>
               </div>
               <div className={styles.fieldRight}>
                 <button className={styles.btnPrimary} onClick={() => navigate(isSuper ? '/super-admin/dashboard' : '/admin/dashboard')}>
-                  <Lock size={15} /> Buka Admin Panel
+                  <Lock size={15} /> {t('settings.openAdminPanel')}
                 </button>
               </div>
             </div>
           </Section>
         )}
 
-        {/* Save footer */}
         <div className={styles.footer}>
           <button
             className={styles.btnOutline}
@@ -648,7 +635,7 @@ export default function SettingsPage() {
             disabled={isSaving}
             id="settings-reset-footer-btn"
           >
-            <RefreshCw size={15} /> Reset Default
+            <RefreshCw size={15} /> {t('settings.resetDefault')}
           </button>
           <button
             className={`${styles.btnPrimary} ${dirty ? styles.btnDirty : ''}`}
@@ -657,7 +644,7 @@ export default function SettingsPage() {
             id="settings-save-footer-btn"
           >
             {isSaving ? <Loader2 size={15} className={styles.spin} /> : <Save size={15} />}
-            {isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+            {isSaving ? t('common.saving') : t('settings.saveSettings')}
           </button>
         </div>
       </div>

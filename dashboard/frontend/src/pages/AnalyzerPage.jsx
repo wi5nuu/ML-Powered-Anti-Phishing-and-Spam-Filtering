@@ -7,15 +7,17 @@ import {
 import GmailShell from '../components/layout/GmailShell'
 import { useAnalyzeEmail } from '../api/analyzer'
 import { useToast } from '../hooks/useToast'
+import { useTranslation } from '../i18n/context'
 import styles from './AnalyzerPage.module.css'
 
 // ─── Risk gauge ─────────────────────────────────────────────────────────────────
 function RiskGauge({ score }) {
+  const { t } = useTranslation()
   const pct = Math.round((score || 0) * 100)
-  const angle = -135 + pct * 2.7  // -135deg to +135deg
+  const angle = -135 + pct * 2.7
   const color = pct >= 70 ? '#EA4335' : pct >= 40 ? '#FBBC04' : '#34A853'
   return (
-    <div className={styles.gaugeWrap} aria-label={`Risk score: ${pct}%`}>
+    <div className={styles.gaugeWrap} aria-label={`${t('analyzer.riskScore')}: ${pct}%`}>
       <svg viewBox="0 0 120 80" className={styles.gaugeSvg}>
         <path d="M10,70 A50,50 0 0,1 110,70" fill="none" stroke="#e8eaed" strokeWidth="12" strokeLinecap="round" />
         <path
@@ -39,25 +41,26 @@ function RiskGauge({ score }) {
         <circle cx="60" cy="70" r="4" fill={color} />
       </svg>
       <div className={styles.gaugeValue} style={{ color }}>{pct}</div>
-      <div className={styles.gaugeLabel}>Risk Score</div>
+      <div className={styles.gaugeLabel}>{t('analyzer.riskScore')}</div>
     </div>
   )
 }
 
 // ─── Badge ───────────────────────────────────────────────────────────────────────
 const LABEL_CFG = {
-  QUARANTINE: { text: 'KARANTINA', bg: '#fce8e6', fg: '#c5221f', icon: AlertTriangle },
-  WARN:       { text: 'PERINGATAN', bg: '#fef7e0', fg: '#8c6d1f', icon: AlertTriangle },
-  CLEAN:      { text: 'BERSIH', bg: '#e6f4ea', fg: '#137333', icon: CheckCircle },
-  UNKNOWN:    { text: 'TIDAK DIKETAHUI', bg: '#e8eaed', fg: '#5f6368', icon: Info },
+  QUARANTINE: { bg: '#fce8e6', fg: '#c5221f', icon: AlertTriangle, key: 'analyzer.labelQuarantine' },
+  WARN:       { bg: '#fef7e0', fg: '#8c6d1f', icon: AlertTriangle, key: 'analyzer.labelWarn' },
+  CLEAN:      { bg: '#e6f4ea', fg: '#137333', icon: CheckCircle, key: 'analyzer.labelClean' },
+  UNKNOWN:    { bg: '#e8eaed', fg: '#5f6368', icon: Info, key: 'analyzer.labelUnknown' },
 }
 
 function ClassificationBadge({ label }) {
+  const { t } = useTranslation()
   const cfg = LABEL_CFG[label] || LABEL_CFG.UNKNOWN
   const Icon = cfg.icon
   return (
     <span className={styles.badge} style={{ background: cfg.bg, color: cfg.fg }}>
-      <Icon size={14} /> {cfg.text}
+      <Icon size={14} /> {t(cfg.key)}
     </span>
   )
 }
@@ -82,6 +85,7 @@ function ConfidenceBar({ value, label, color }) {
 
 // ─── Collapsible raw header ──────────────────────────────────────────────────────
 function RawHeaderViewer({ raw }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   return (
     <div className={styles.rawWrap}>
@@ -91,11 +95,11 @@ function RawHeaderViewer({ raw }) {
         id="analyzer-raw-toggle"
       >
         <FileText size={14} />
-        Header Email Mentah
+        {t('analyzer.rawHeader')}
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
       {open && (
-        <pre className={styles.rawPre}>{raw || '(tidak ada header)'}</pre>
+        <pre className={styles.rawPre}>{raw || t('analyzer.noHeader')}</pre>
       )}
     </div>
   )
@@ -107,21 +111,22 @@ export default function AnalyzerPage() {
   const [result, setResult] = useState(null)
   const fileInputRef = useRef(null)
   const { addToast } = useToast()
+  const { t } = useTranslation()
 
   const { mutate: analyze, isPending } = useAnalyzeEmail()
 
   const handleAnalyze = () => {
     if (!rawEmail.trim()) {
-      addToast('Masukkan konten email terlebih dahulu.', 'warning')
+      addToast(t('analyzer.emptyInput'), 'warning')
       return
     }
     analyze(rawEmail, {
       onSuccess: (data) => {
         setResult(data)
-        addToast('Analisis selesai.', 'success')
+        addToast(t('analyzer.analysisDone'), 'success')
       },
       onError: (err) => {
-        const msg = err?.response?.data?.detail || 'Gagal menganalisis email.'
+        const msg = err?.response?.data?.detail || t('analyzer.error')
         addToast(msg, 'error')
       },
     })
@@ -131,13 +136,13 @@ export default function AnalyzerPage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.name.endsWith('.eml') && file.type !== 'message/rfc822') {
-      addToast('File harus berformat .eml', 'warning')
+      addToast(t('analyzer.fileRequired'), 'warning')
       return
     }
     const reader = new FileReader()
     reader.onload = (ev) => setRawEmail(ev.target.result || '')
     reader.readAsText(file)
-    addToast(`File "${file.name}" dimuat.`, 'success')
+    addToast(`"${file.name}" ${t('analyzer.fileLoaded')}`, 'success')
   }
 
   const handleClear = () => {
@@ -162,11 +167,10 @@ export default function AnalyzerPage() {
         <div className={styles.header}>
           <h1 className={styles.title}>
             <Search size={22} />
-            Analisis Email Manual
+            {t('analyzer.title')}
           </h1>
           <p className={styles.subtitle}>
-            Tempel konten email mentah (format RFC 2822) atau unggah file <code>.eml</code>
-            untuk dianalisis oleh sistem ML dual-layer.
+            {t('analyzer.subtitle')}
           </p>
         </div>
 
@@ -177,7 +181,7 @@ export default function AnalyzerPage() {
               <textarea
                 id="analyzer-textarea"
                 className={styles.textarea}
-                placeholder={`Tempel email mentah di sini...\n\nContoh:\nFrom: sender@example.com\nTo: staff@lodaya.id\nSubject: Verifikasi akun Anda SEGERA\nDate: Thu, 26 Jun 2026 10:00:00 +0700\nMIME-Version: 1.0\n\nKlik link berikut untuk verifikasi: http://l0daya.id/verify`}
+                placeholder={t('analyzer.placeholder')}
                 value={rawEmail}
                 onChange={(e) => setRawEmail(e.target.value)}
                 spellCheck={false}
@@ -186,7 +190,7 @@ export default function AnalyzerPage() {
                 <button
                   className={styles.clearBtn}
                   onClick={handleClear}
-                  title="Bersihkan"
+                  title={t('analyzer.clear')}
                   id="analyzer-clear-btn"
                 >
                   <X size={16} />
@@ -209,7 +213,7 @@ export default function AnalyzerPage() {
                 id="analyzer-upload-btn"
               >
                 <Upload size={16} />
-                Unggah .eml
+                {t('analyzer.upload')}
               </button>
               <button
                 className={styles.btnPrimary}
@@ -218,9 +222,9 @@ export default function AnalyzerPage() {
                 id="analyzer-analyze-btn"
               >
                 {isPending ? (
-                  <><Loader2 size={16} className={styles.spin} /> Menganalisis...</>
+                  <><Loader2 size={16} className={styles.spin} /> {t('analyzer.analyzing')}</>
                 ) : (
-                  <><Search size={16} /> Analisis</>
+                  <><Search size={16} /> {t('analyzer.analyze')}</>
                 )}
               </button>
             </div>
@@ -239,12 +243,12 @@ export default function AnalyzerPage() {
                   {recommendedAction === 'quarantine' && <AlertTriangle size={18} />}
                   {recommendedAction === 'warn' && <AlertTriangle size={18} />}
                   {recommendedAction === 'deliver' && <CheckCircle size={18} />}
-                  <strong>Rekomendasi:</strong>{' '}
+                  <strong>{t('analyzer.recommendation')}</strong>{' '}
                   {recommendedAction === 'quarantine'
-                    ? 'Karantina email ini — risiko sangat tinggi'
+                    ? t('analyzer.recQuarantine')
                     : recommendedAction === 'warn'
-                    ? 'Kirim dengan peringatan — periksa dengan hati-hati'
-                    : 'Aman untuk dikirim ke inbox'}
+                    ? t('analyzer.recWarn')
+                    : t('analyzer.recDeliver')}
                 </div>
               )}
 
@@ -252,25 +256,25 @@ export default function AnalyzerPage() {
               <div className={styles.topRow}>
                 <RiskGauge score={fusedScore} />
                 <div className={styles.classInfo}>
-                  <div className={styles.classLabel}>Klasifikasi</div>
+                  <div className={styles.classLabel}>{t('analyzer.label')}</div>
                   <ClassificationBadge label={label} />
 
                   {result.subject && (
                     <div className={styles.metaItem}>
-                      <span className={styles.metaKey}>Subjek</span>
+                      <span className={styles.metaKey}>{t('common.subject')}</span>
                       <span className={styles.metaVal}>{result.subject}</span>
                     </div>
                   )}
                   {result.sender && (
                     <div className={styles.metaItem}>
-                      <span className={styles.metaKey}>Pengirim</span>
+                      <span className={styles.metaKey}>{t('common.sender')}</span>
                       <span className={styles.metaVal}>{result.sender}</span>
                     </div>
                   )}
                   {result.processing_time_ms != null && (
                     <div className={styles.metaItem}>
-                      <span className={styles.metaKey}>Waktu proses</span>
-                      <span className={styles.metaVal}>{result.processing_time_ms} ms</span>
+                      <span className={styles.metaKey}>{t('analyzer.processingTime')}</span>
+                      <span className={styles.metaVal}>{result.processing_time_ms} {t('analyzer.ms')}</span>
                     </div>
                   )}
                 </div>
@@ -278,19 +282,19 @@ export default function AnalyzerPage() {
 
               {/* Confidence bars */}
               <div className={styles.card}>
-                <h3 className={styles.cardTitle}><Activity size={15} /> Skor Deteksi</h3>
-                <ConfidenceBar value={fusedScore} label="Skor Fusi (Final)" color="#1a73e8" />
-                <ConfidenceBar value={mlProb} label="Model ML (Supervised)" color="#8b44e8" />
-                <ConfidenceBar value={anomalyScore} label="Anomali (Unsupervised)" color="#e8780a" />
+                <h3 className={styles.cardTitle}><Activity size={15} /> {t('analyzer.detectionScores')}</h3>
+                <ConfidenceBar value={fusedScore} label={t('analyzer.fusedScore')} color="#1a73e8" />
+                <ConfidenceBar value={mlProb} label={t('analyzer.mlScore')} color="#8b44e8" />
+                <ConfidenceBar value={anomalyScore} label={t('analyzer.anomalyScore')} color="#e8780a" />
                 {saScore > 0 && (
-                  <ConfidenceBar value={saScore / 20} label={`SpamAssassin (${saScore.toFixed(1)}/20)`} color="#ea4335" />
+                  <ConfidenceBar value={saScore / 20} label={t('analyzer.saScore').replace('{score}', saScore.toFixed(1))} color="#ea4335" />
                 )}
               </div>
 
               {/* XAI Reasons */}
               {reasons.length > 0 && (
                 <div className={styles.card}>
-                  <h3 className={styles.cardTitle}><AlertTriangle size={15} /> Alasan Deteksi (XAI)</h3>
+                  <h3 className={styles.cardTitle}><AlertTriangle size={15} /> {t('analyzer.xaiTitle')}</h3>
                   <ul className={styles.reasonsList}>
                     {reasons.map((r, i) => (
                       <li key={i} className={styles.reasonItem}>
@@ -305,13 +309,13 @@ export default function AnalyzerPage() {
               {/* URL Analysis */}
               {urlAnalysis.length > 0 && (
                 <div className={styles.card}>
-                  <h3 className={styles.cardTitle}><LinkIcon size={15} /> Analisis URL ({urlAnalysis.length})</h3>
+                  <h3 className={styles.cardTitle}><LinkIcon size={15} /> {t('analyzer.urlTitle').replace('{count}', urlAnalysis.length)}</h3>
                   <div className={styles.urlTable}>
                     <div className={styles.urlHeader}>
-                      <span>URL</span>
-                      <span>Status</span>
-                      <span>Mirip dengan</span>
-                      <span>Edit Dist.</span>
+                      <span>{t('analyzer.urlHeader')}</span>
+                      <span>{t('analyzer.statusHeader')}</span>
+                      <span>{t('analyzer.lookalikeHeader')}</span>
+                      <span>{t('analyzer.editDistHeader')}</span>
                     </div>
                     {urlAnalysis.map((u, i) => (
                       <div key={i} className={styles.urlRow}>
@@ -320,7 +324,7 @@ export default function AnalyzerPage() {
                           {u.url?.length > 55 ? u.url.slice(0, 52) + '…' : u.url}
                         </span>
                         <span className={u.is_suspicious ? styles.urlDanger : styles.urlSafe}>
-                          {u.is_suspicious ? '⚠ Mencurigakan' : '✓ Aman'}
+                          {u.is_suspicious ? t('analyzer.urlSuspicious') : t('analyzer.urlSafe')}
                         </span>
                         <span className={styles.urlLookalike}>
                           {u.lookalike_of || '—'}
@@ -343,7 +347,7 @@ export default function AnalyzerPage() {
           {!result && !isPending && (
             <div className={styles.emptyResult}>
               <Shield size={56} opacity={0.15} />
-              <p>Hasil analisis akan muncul di sini setelah email dianalisis.</p>
+              <p>{t('analyzer.emptyResult')}</p>
             </div>
           )}
 

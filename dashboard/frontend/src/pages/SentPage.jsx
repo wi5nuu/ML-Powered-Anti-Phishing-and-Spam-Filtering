@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import GmailShell from '../components/layout/GmailShell'
+import { useTranslation } from '../i18n/context'
 import { useEmails } from '../api/emails'
 import { useMe } from '../api/auth'
 import EmailRow from '../components/inbox/EmailRow'
 import EmailToolbar from '../components/inbox/EmailToolbar'
 import { getActiveMailbox, getActiveMailboxId } from '../utils/mailbox'
+import { Send } from 'lucide-react'
 import styles from '../components/inbox/EmailList.module.css'
 
 const PAGE_SIZE = 50
@@ -27,6 +29,7 @@ function threadKey(email) {
 }
 
 export default function SentPage() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: meData } = useMe()
   const mailbox = getActiveMailbox(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_email || meData.user.username || '' : '')
@@ -43,25 +46,26 @@ export default function SentPage() {
   const [selected, setSelected] = useState(new Set())
   const [starred, setStarred] = useState(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail.starred') || '[]'))
+      return new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]'))
     } catch {
       return new Set()
     }
   })
   const [readIds, setReadIds] = useState(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail.read') || '[]'))
+      return new Set(JSON.parse(localStorage.getItem('cognimail_read_ids') || '[]'))
     } catch {
       return new Set()
     }
   })
 
   useEffect(() => {
-    localStorage.setItem('cognimail.starred', JSON.stringify(Array.from(starred)))
+    localStorage.setItem('cognimail_starred_ids', JSON.stringify(Array.from(starred)))
+    window.dispatchEvent(new Event('cognimail_starred_changed'))
   }, [starred])
 
   useEffect(() => {
-    localStorage.setItem('cognimail.read', JSON.stringify(Array.from(readIds)))
+    localStorage.setItem('cognimail_read_ids', JSON.stringify(Array.from(readIds)))
   }, [readIds])
 
   const sentRows = useMemo(() => {
@@ -178,19 +182,21 @@ export default function SentPage() {
           )}
           {isError && (
             <div className={styles.empty}>
-              <p>Gagal memuat email terkirim. Cek koneksi server.</p>
+              <p>{t('common.error')}</p>
             </div>
           )}
           {!isLoading && !isError && filtered.length === 0 && (
             <div className={styles.empty}>
-              <p>Tidak ada email terkirim</p>
+              <Send size={40} strokeWidth={1.2} />
+              <p style={{ margin: 0, fontWeight: 500 }}>{t('gmail.noMails')}</p>
+              <p style={{ margin: 0, fontSize: '0.875rem' }}>Email yang Anda kirim akan muncul di sini.</p>
             </div>
           )}
           {!isLoading && paginated.map((email) => (
             <EmailRow
               key={email.email_id}
               email={email}
-              senderLabel={`Kepada: ${email.recipient_list || 'Penerima tidak diketahui'}`}
+              senderLabel={`${t('common.recipient')}: ${email.recipient_list || t('common.na')}`}
               isRead={readIds.has(email.email_id)}
               isSelected={isThreadSelected(email)}
               onToggleSelect={() => toggleSelectThread(email)}

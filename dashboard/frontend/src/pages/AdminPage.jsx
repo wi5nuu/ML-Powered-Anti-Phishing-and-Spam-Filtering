@@ -1,27 +1,45 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from '../i18n/context'
 import AdminShell from '../components/layout/AdminShell'
 import api from '../api/client'
 import { useMe } from '../api/auth'
-import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward } from 'lucide-react'
+import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, RefreshCw, Download } from 'lucide-react'
 import SuperadminDashboardOverview from './SuperadminDashboardOverview'
 import SuperadminUserManagement from './SuperadminUserManagement'
 import SuperadminMailboxManagement from './SuperadminMailboxManagement'
 import SuperadminSystemHealth from './SuperadminSystemHealth'
+import SuperadminUserAnalytics from './SuperadminUserAnalytics'
 import AdminUserManagement from './AdminUserManagement'
 import AdminMailboxManagement from './AdminMailboxManagement'
 import AdminQuarantineReview from './AdminQuarantineReview'
 import AdminDetectionLogs from './AdminDetectionLogs'
+import AuditLogEmbed from './AuditLogEmbed'
+import ThreatReportPage from './ThreatReportPage'
+import ExportModal from '../components/common/ExportModal'
 import { DEFAULT_MAIL_DOMAIN, getMailboxSession, getMailDomain, getMailboxes, setMailDomain, setMailboxDirectory, setMailboxes } from '../utils/mailbox'
 import styles from './AdminPage.module.css'
+import trackStyles from './ThreatReportPage.module.css'
 
-const CATEGORY_LABELS = { bug: 'Bug / Error', question: 'Pertanyaan', access: 'Akses', false_positive: 'False Positive', other: 'Lainnya' }
 const CATEGORY_COLORS = { bug: '#ea4335', question: '#1a73e8', access: '#f29900', false_positive: '#34a853', other: '#5f6368' }
 const PRIORITY_COLORS = { low: '#5f6368', normal: '#1a73e8', high: '#f29900', urgent: '#ea4335' }
+const systemServices = [
+  { nameKey: 'service.smtp', status: 'healthy', icon: <Mail size={14} /> },
+  { nameKey: 'service.database', status: 'healthy', icon: <Database size={14} /> },
+  { nameKey: 'service.redis', status: 'healthy', icon: <Wifi size={14} /> },
+  { nameKey: 'service.classifier', status: 'healthy', icon: <Cpu size={14} /> },
+  { nameKey: 'service.restApi', status: 'healthy', icon: <Server size={14} /> },
+]
+const statusMeta = {
+  healthy:  { bg: '#ECFDF5', color: '#059669', icon: <CheckCircle2 size={13} />, labelKey: 'status.online' },
+  warning:  { bg: '#FFFBEB', color: '#D97706', icon: <AlertTriangle size={13} />, labelKey: 'status.warning' },
+  down:     { bg: '#FEF2F2', color: '#DC2626', icon: <XCircle size={13} />, labelKey: 'status.offline' },
+}
 export default function AdminPage() {
   const { data: me } = useMe()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { t } = useTranslation()
   const tab = searchParams.get('tab') || 'overview'
   const isSuper = me?.user?.role === 'superadmin'
   const isAdmin = me?.user?.role === 'admin'
@@ -51,6 +69,10 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null)
   const [reports, setReports] = useState([])
   const [trackData, setTrackData] = useState(null)
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsDetail, setAnalyticsDetail] = useState(null)
+  const [analyticsDetailLoading, setAnalyticsDetailLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [expandedReport, setExpandedReport] = useState(null)
   const [replyText, setReplyText] = useState('')
@@ -74,6 +96,7 @@ export default function AdminPage() {
   const [forwarderTarget, setForwarderTarget] = useState('')
   const [forwarderKeepCopy, setForwarderKeepCopy] = useState(true)
   const [deleteMailboxTarget, setDeleteMailboxTarget] = useState(null)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const fetchData = () => {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
@@ -102,11 +125,32 @@ export default function AdminPage() {
 
   useEffect(() => { fetchData(); fetchMailboxes() }, [])
 
+  const fetchAnalytics = () => {
+    setAnalyticsLoading(true)
+    api.get('/admin/user-analytics')
+      .then((r) => setAnalyticsData(r.data))
+      .catch(() => setAnalyticsData(null))
+      .finally(() => setAnalyticsLoading(false))
+  }
+
+  const fetchAnalyticsDetail = (username) => {
+    setAnalyticsDetailLoading(true)
+    api.get(`/admin/user-detail/${username}`)
+      .then((r) => setAnalyticsDetail(r.data))
+      .catch(() => setAnalyticsDetail(null))
+      .finally(() => setAnalyticsDetailLoading(false))
+  }
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') || 'overview'
+    if (currentTab === 'analytics' && isSuper && !analyticsData) fetchAnalytics()
+  }, [searchParams])
+
   const handleResolveReport = async (id) => {
     try {
       await api.put(`/admin/reports/${id}`, { status: 'resolved' })
       fetchData()
-    } catch (e) { setMsg('Gagal update laporan') }
+    } catch (e) { setMsg(t('msg.reportUpdateError')) }
   }
 
   const handleReplyReport = async (id) => {
@@ -116,14 +160,14 @@ export default function AdminPage() {
       setReplyText('')
       setExpandedReport(null)
       fetchData()
-    } catch (e) { setMsg('Gagal membalas laporan') }
+    } catch (e) { setMsg(t('msg.reportReplyError')) }
   }
 
   const handleStatusChange = async (id, status) => {
     try {
       await api.put(`/admin/reports/${id}`, { status })
       fetchData()
-    } catch (e) { setMsg('Gagal update status') }
+    } catch (e) { setMsg(t('msg.statusUpdateError')) }
   }
 
   const persistMailboxes = (next) => {
@@ -156,15 +200,15 @@ export default function AdminPage() {
     setMailboxError('')
 
     if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
-      setMailboxError('Masukkan nama email yang valid.')
+      setMailboxError(t('mailbox.validEmail'))
       return
     }
     if (!passwordValid) {
-      setMailboxError('Password belum memenuhi semua persyaratan.')
+      setMailboxError(t('mailbox.passwordRequirements'))
       return
     }
     if (mailboxes.includes(email)) {
-      setMailboxError('Email ini sudah ada.')
+      setMailboxError(t('mailbox.emailExists'))
       return
     }
 
@@ -181,10 +225,10 @@ export default function AdminPage() {
       setMailboxSenderName('')
       setShowMailboxPassword(false)
       setCreateMailboxOpen(false)
-      setMsg(`Email ${email} berhasil ditambahkan.`)
+      setMsg(t('msg.mailboxCreated').replace('{email}', email))
       setTimeout(() => setMsg(''), 4000)
     } catch (e) {
-      setMailboxError(e.response?.data?.detail || 'Gagal menambahkan email.')
+      setMailboxError(e.response?.data?.detail || t('msg.mailboxAddError'))
     }
   }
 
@@ -197,10 +241,10 @@ export default function AdminPage() {
         persistMailboxes(mailboxes.filter((item) => item !== row.email))
         setMailboxRows(mailboxRows.filter((item) => item.email !== row.email))
       }
-      setMsg(`Email ${row.email} dihapus dari daftar.`)
+      setMsg(t('msg.mailboxDeleted').replace('{email}', row.email))
       setTimeout(() => setMsg(''), 4000)
     } catch (e) {
-      setMsg(e.response?.data?.detail || 'Gagal menghapus mailbox.')
+      setMsg(e.response?.data?.detail || t('msg.mailboxDeleteError'))
       setTimeout(() => setMsg(''), 4000)
     }
   }
@@ -218,12 +262,12 @@ export default function AdminPage() {
     setMailboxError('')
     try {
       await api.put(`/admin/mailboxes/${passwordMailbox.id}/password`, { password: passwordDraft })
-      setMsg(`Password ${passwordMailbox.email} berhasil diubah.`)
+      setMsg(t('msg.passwordUpdated').replace('{email}', passwordMailbox.email))
       setPasswordMailbox(null)
       setPasswordDraft('')
       setTimeout(() => setMsg(''), 4000)
     } catch (e) {
-      setMailboxError(e.response?.data?.detail || 'Gagal mengubah password mailbox.')
+      setMailboxError(e.response?.data?.detail || t('msg.passwordUpdateError'))
     }
   }
 
@@ -237,7 +281,7 @@ export default function AdminPage() {
 
   const saveForwarder = async () => {
     if (!forwarderMailbox || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forwarderTarget.trim())) {
-      setMailboxError('Masukkan alamat email tujuan yang valid.')
+      setMailboxError(t('mailbox.invalidTarget'))
       return
     }
     setMailboxError('')
@@ -248,13 +292,13 @@ export default function AdminPage() {
         keep_copy: forwarderKeepCopy,
       })
       await fetchMailboxes()
-      setMsg(`Forwarder ${forwarderMailbox.email} berhasil dibuat.`)
+      setMsg(t('msg.forwarderCreated').replace('{email}', forwarderMailbox.email))
       setForwarderMailbox(null)
       setForwarderTarget('')
       setMailboxError('')
       setTimeout(() => setMsg(''), 4000)
     } catch (e) {
-      setMailboxError(e.response?.data?.detail || 'Gagal menyimpan forwarder.')
+      setMailboxError(e.response?.data?.detail || t('msg.forwarderSaveError'))
     }
   }
 
@@ -262,18 +306,18 @@ export default function AdminPage() {
     const clean = domainDraft.trim().toLowerCase().replace(/^@+/, '')
     setDomainError('')
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(clean)) {
-      setDomainError('Masukkan domain yang valid, contoh: zenime.my.id')
+      setDomainError(t('mailbox.validDomain'))
       return
     }
     const existingOutsideDomain = mailboxes.filter((email) => !email.endsWith(`@${clean}`))
     if (existingOutsideDomain.length > 0) {
-      setDomainError(`Hapus atau sesuaikan mailbox lama terlebih dahulu: ${existingOutsideDomain.join(', ')}`)
+      setDomainError(t('mailbox.domainConflict').replace('{list}', existingOutsideDomain.join(', ')))
       return
     }
     const saved = setMailDomain(clean)
     setMailDomainState(saved)
     setDomainDraft(saved)
-    setMsg(`Domain email default diubah menjadi @${saved}.`)
+    setMsg(t('msg.domainUpdated').replace('{domain}', saved))
     setTimeout(() => setMsg(''), 4000)
   }
 
@@ -322,16 +366,16 @@ export default function AdminPage() {
         {msg && <div className={styles.msg}>{msg}</div>}
 
         <div className={styles.tabs}>
-          <button className={`${styles.tab} ${tab === 'overview' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'overview' })}>Overview</button>
-          {isSuper && <button className={`${styles.tab} ${tab === 'track' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'track' })}>Tracking</button>}
-          <button className={`${styles.tab} ${tab === 'users' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'users' })}>Users</button>
-          <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>Activity</button>
-          <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>Mailboxes</button>
-          <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>Reports</button>
-          {!isSuper && <button className={`${styles.tab} ${tab === 'review' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'review' })}>Review</button>}
-          {!isSuper && <button className={`${styles.tab} ${tab === 'logs' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'logs' })}>Logs</button>}
-          {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>Health</button>}
-          <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>Settings</button>
+          <button className={`${styles.tab} ${tab === 'overview' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'overview' })}>{t('tab.overview')}</button>
+          {isSuper && <button className={`${styles.tab} ${tab === 'track' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'track' })}>{t('tab.tracking')}</button>}
+          <button className={`${styles.tab} ${tab === 'users' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'users' })}>{t('tab.users')}</button>
+          <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>{t('tab.activity')}</button>
+          <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>{t('tab.email')}</button>
+          <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>{t('tab.reports')}</button>
+          {!isSuper && <button className={`${styles.tab} ${tab === 'review' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'review' })}>{t('tab.review')}</button>}
+          {!isSuper && <button className={`${styles.tab} ${tab === 'logs' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'logs' })}>{t('tab.logs')}</button>}
+          {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>{t('tab.health')}</button>}
+          <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>{t('tab.settings')}</button>
         </div>
 
         {tab === 'overview' && isSuper && (
@@ -344,25 +388,25 @@ export default function AdminPage() {
               <div className={styles.dashHeroLeft}>
                 <div className={styles.dashGreetRow}>
                   <h1 className={styles.dashTitle}>
-                    {isSuper ? 'Superadmin Dashboard' : 'Admin Dashboard'}
+                    {isSuper ? t('superadmin.overview.title') : t('admin.overview.title')}
                   </h1>
                   <span className={styles.roleBadgePill} style={isSuper
                     ? { background: '#F3E8FF', color: '#7C3AED', border: '1px solid #DDD6FE' }
                     : { background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' }
                   }>
-                    {isSuper ? '👑 Superadmin' : '🛡️ Admin'}
+                    {isSuper ? t('label.superadmin') : t('label.admin')}
                   </span>
                 </div>
                 <p className={styles.dashSubtitle}>
                   {isSuper
-                    ? 'Monitor platform security, users, mailboxes, and system health.'
-                    : 'Review email security, quarantine, and detection activity.'}
+                    ? t('superadmin.overview.subtitle')
+                    : t('admin.overview.subtitle')}
                 </p>
               </div>
               <div className={styles.dashHeroRight}>
                 <div className={styles.dashHeroTime}>
                   <Clock size={13} />
-                  <span>Last updated: {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>{t('overview.lastUpdatedLabel')} {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
             </div>
@@ -377,8 +421,8 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{stats.total_users ?? '—'}</span>
-                    <span className={styles.sc2Label}>Total Users</span>
-                    <span className={styles.sc2Sub}>{stats.active_users ?? 0} active</span>
+                    <span className={styles.sc2Label}>{t('stat.totalUsers')}</span>
+                    <span className={styles.sc2Sub}>{stats.active_users ?? 0} {t('stat.activeUsersShort')}</span>
                   </div>
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
@@ -390,7 +434,7 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{mailboxRows.length}</span>
-                    <span className={styles.sc2Label}>{isSuper ? 'Active Mailboxes' : 'Inbox Emails'}</span>
+                    <span className={styles.sc2Label}>{isSuper ? t('stat.activeMailboxes') : t('stat.inboxEmails')}</span>
                     <span className={styles.sc2Sub}>domain @{mailDomain}</span>
                   </div>
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
@@ -403,8 +447,8 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{stats.total_emails ?? '—'}</span>
-                    <span className={styles.sc2Label}>Emails Processed</span>
-                    <span className={styles.sc2Sub}>{stats.clean ?? 0} safe emails</span>
+                    <span className={styles.sc2Label}>{t('stat.emailsProcessed')}</span>
+                    <span className={styles.sc2Sub}>{stats.clean ?? 0} {t('stat.safeEmails')}</span>
                   </div>
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
@@ -416,8 +460,8 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{totalThreats}</span>
-                    <span className={styles.sc2Label}>Threats Detected</span>
-                    <span className={styles.sc2Sub}>{((totalThreats / totalEmails) * 100).toFixed(1)}% of total</span>
+                    <span className={styles.sc2Label}>{t('stat.threatsDetected')}</span>
+                    <span className={styles.sc2Sub}>{((totalThreats / totalEmails) * 100).toFixed(1)}{t('stat.percentOfTotal')}</span>
                   </div>
                   <TrendingDown size={14} className={styles.sc2Arrow} style={{ color: '#DC2626' }} />
                 </div>
@@ -429,8 +473,8 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{stats.quarantine ?? '—'}</span>
-                    <span className={styles.sc2Label}>Quarantined</span>
-                    <span className={styles.sc2Sub}>{quarantinePct}% quarantine rate</span>
+                    <span className={styles.sc2Label}>{t('stat.quarantined')}</span>
+                    <span className={styles.sc2Sub}>{quarantinePct}{t('stat.quarantineRate')}</span>
                   </div>
                   <ArrowUpRight size={14} className={styles.sc2Arrow} />
                 </div>
@@ -442,10 +486,10 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value} style={{ color: '#059669' }}>
-                      {isSuper ? 'Healthy' : openReports.length}
+                      {isSuper ? t('stat.healthy') : openReports.length}
                     </span>
-                    <span className={styles.sc2Label}>{isSuper ? 'System Health' : 'Pending Review'}</span>
-                    <span className={styles.sc2Sub}>{isSuper ? 'All services online' : `${reports.length} total reports`}</span>
+                    <span className={styles.sc2Label}>{isSuper ? t('stat.systemHealth') : t('stat.pendingReview')}</span>
+                    <span className={styles.sc2Sub}>{isSuper ? t('stat.allServicesOnline') : `${reports.length} ${t('stat.totalReports')}`}</span>
                   </div>
                   <CheckCircle2 size={14} className={styles.sc2Arrow} style={{ color: '#059669' }} />
                 </div>
@@ -462,14 +506,14 @@ export default function AdminPage() {
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <Shield size={16} className={styles.sectionCardIcon} />
-                      <span>Security Overview</span>
+                      <span>{t('overview.securityTitle')}</span>
                     </div>
                     <div className={styles.securityBars}>
                       <div className={styles.secBar}>
                         <div className={styles.secBarMeta}>
                           <span className={styles.secBarLabel}>
                             <span className={styles.secDot} style={{ background: '#059669' }} />
-                            Ham / Safe
+                            {t('overview.hamSafe')}
                           </span>
                           <span className={styles.secBarCount}>{stats.clean ?? 0}</span>
                         </div>
@@ -483,7 +527,7 @@ export default function AdminPage() {
                         <div className={styles.secBarMeta}>
                           <span className={styles.secBarLabel}>
                             <span className={styles.secDot} style={{ background: '#D97706' }} />
-                            Spam
+                            {t('overview.spam')}
                           </span>
                           <span className={styles.secBarCount}>{stats.warn ?? 0}</span>
                         </div>
@@ -497,7 +541,7 @@ export default function AdminPage() {
                         <div className={styles.secBarMeta}>
                           <span className={styles.secBarLabel}>
                             <span className={styles.secDot} style={{ background: '#DC2626' }} />
-                            Phishing / Malware
+                            {t('overview.phishingMalware')}
                           </span>
                           <span className={styles.secBarCount}>{Math.round((stats.quarantine ?? 0) * 0.6)}</span>
                         </div>
@@ -511,7 +555,7 @@ export default function AdminPage() {
                         <div className={styles.secBarMeta}>
                           <span className={styles.secBarLabel}>
                             <span className={styles.secDot} style={{ background: '#7C3AED' }} />
-                            Quarantined
+                            {t('overview.quarantined')}
                           </span>
                           <span className={styles.secBarCount}>{stats.quarantine ?? 0}</span>
                         </div>
@@ -529,7 +573,7 @@ export default function AdminPage() {
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <Mail size={16} className={styles.sectionCardIcon} />
-                      <span>Mailbox Overview</span>
+                      <span>{t('mailbox.title')}</span>
                     </div>
                     <div className={styles.mailboxOverview}>
                       <div className={styles.mboDomainRow}>
@@ -538,26 +582,26 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <div className={styles.mboDomain}>{mailDomain}</div>
-                          <div className={styles.mboSub}>Primary domain</div>
+                          <div className={styles.mboSub}>{t('mailbox.primaryDomain')}</div>
                         </div>
                       </div>
                       <div className={styles.mboStats}>
                         <div className={styles.mboStatItem}>
                           <span className={styles.mboStatValue}>{mailboxRows.length}</span>
-                          <span className={styles.mboStatLabel}>Active Mailboxes</span>
+                          <span className={styles.mboStatLabel}>{t('mailbox.activeMailboxes')}</span>
                         </div>
                         <div className={styles.mboStatItem}>
                           <span className={styles.mboStatValue}>0 KB</span>
-                          <span className={styles.mboStatLabel}>Storage Used</span>
+                          <span className={styles.mboStatLabel}>{t('mailbox.storageUsed')}</span>
                         </div>
                         <div className={styles.mboStatItem}>
                           <span className={styles.mboStatValue} style={{ color: '#059669' }}>100%</span>
-                          <span className={styles.mboStatLabel}>Available</span>
+                          <span className={styles.mboStatLabel}>{t('mailbox.available')}</span>
                         </div>
                       </div>
                       <button className={styles.mboBtn} onClick={() => setSearchParams({ tab: 'email' })}>
                         <Mail size={14} />
-                        Manage Mailboxes
+                        {t('mailbox.manage')}
                       </button>
                     </div>
                   </div>
@@ -565,24 +609,24 @@ export default function AdminPage() {
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <TrendingDown size={16} className={styles.sectionCardIcon} style={{ color: '#DC2626' }} />
-                      <span>Threat Breakdown</span>
+                      <span>{t('overview.threatBreakdown')}</span>
                     </div>
                     <div className={styles.threatGrid}>
                       <div className={styles.threatItem} style={{ '--tc': '#D97706', '--tb': '#FFFBEB' }}>
                         <span className={styles.threatValue}>{stats?.warn ?? 0}</span>
-                        <span className={styles.threatLabel}>Spam</span>
+                        <span className={styles.threatLabel}>{t('overview.spam')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#DC2626', '--tb': '#FEF2F2' }}>
                         <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.6)}</span>
-                        <span className={styles.threatLabel}>Phishing</span>
+                        <span className={styles.threatLabel}>{t('overview.phishing')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#7C3AED', '--tb': '#F3E8FF' }}>
                         <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.4)}</span>
-                        <span className={styles.threatLabel}>Malware</span>
+                        <span className={styles.threatLabel}>{t('overview.malware')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#059669', '--tb': '#ECFDF5' }}>
                         <span className={styles.threatValue}>{stats?.clean ?? 0}</span>
-                        <span className={styles.threatLabel}>Safe / Ham</span>
+                        <span className={styles.threatLabel}>{t('overview.safeHam')}</span>
                       </div>
                     </div>
                   </div>
@@ -597,8 +641,8 @@ export default function AdminPage() {
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <Server size={16} className={styles.sectionCardIcon} />
-                      <span>System Health</span>
-                      <span className={styles.sectionCardBadge} style={{ background: '#ECFDF5', color: '#059669' }}>All Systems Online</span>
+                      <span>{t('overview.systemHealth')}</span>
+                      <span className={styles.sectionCardBadge} style={{ background: '#ECFDF5', color: '#059669' }}>{t('overview.allSystemsOnline')}</span>
                     </div>
                     <div className={styles.healthList}>
                       {systemServices.map((svc) => {
@@ -606,9 +650,9 @@ export default function AdminPage() {
                         return (
                           <div key={svc.name} className={styles.healthRow}>
                             <span className={styles.healthIcon} style={{ background: '#F9FAFB', color: '#374151' }}>{svc.icon}</span>
-                            <span className={styles.healthName}>{svc.name}</span>
+                            <span className={styles.healthName}>{t(svc.nameKey)}</span>
                             <span className={styles.healthBadge} style={{ background: meta.bg, color: meta.color }}>
-                              {meta.icon} {meta.label}
+                              {meta.icon} {t(meta.labelKey)}
                             </span>
                           </div>
                         )
@@ -619,9 +663,9 @@ export default function AdminPage() {
                   <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <ListFilter size={16} className={styles.sectionCardIcon} />
-                      <span>Security Queue</span>
+                      <span>{t('overview.securityQueue')}</span>
                       <button className={styles.sectionCardLink} onClick={() => setSearchParams({ tab: 'activity' })}>
-                        View All
+                        {t('overview.viewAll')}
                       </button>
                     </div>
                     <div className={styles.queueList}>
@@ -637,7 +681,7 @@ export default function AdminPage() {
                           <code className={styles.queueAction}>{l.action}</code>
                         </div>
                       )) : (
-                        <div className={styles.emptySmall}>No recent queue items.</div>
+                        <div className={styles.emptySmall}>{t('overview.noQueueItems')}</div>
                       )}
                     </div>
                   </div>
@@ -647,9 +691,9 @@ export default function AdminPage() {
                 <div className={styles.sectionCard}>
                   <div className={styles.sectionCardHeader}>
                     <Activity size={16} className={styles.sectionCardIcon} />
-                    <span>Recent Activity</span>
+                    <span>{t('overview.recentActivity')}</span>
                     <button className={styles.sectionCardLink} onClick={() => setSearchParams({ tab: 'activity' })}>
-                      View All
+                      {t('overview.viewAll')}
                     </button>
                   </div>
                   <div className={styles.activityFeed}>
@@ -662,7 +706,7 @@ export default function AdminPage() {
                           </div>
                           <div className={styles.activityBody}>
                             <span className={styles.activityAction}>{l.action}</span>
-                            <span className={styles.activityUser}>by {l.user}</span>
+                            <span className={styles.activityUser}>{t('activity.byUser')} {l.user}</span>
                           </div>
                           <span className={styles.activityTime}>
                             {l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
@@ -670,7 +714,7 @@ export default function AdminPage() {
                         </div>
                       )
                     }) : (
-                      <div className={styles.emptySmall}>No recent activity.</div>
+                      <div className={styles.emptySmall}>{t('overview.noRecentActivity')}</div>
                     )}
                   </div>
                 </div>
@@ -679,24 +723,24 @@ export default function AdminPage() {
                 <div className={styles.sectionCard}>
                   <div className={styles.sectionCardHeader}>
                     <Zap size={16} className={styles.sectionCardIcon} />
-                    <span>Quick Actions</span>
+                    <span>{t('overview.quickActions')}</span>
                   </div>
                   <div className={styles.quickActions}>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: isSuper ? 'email' : 'review' })}>
                       <Mail size={16} />
-                      <span>{isSuper ? 'Manage Mailboxes' : 'Review Quarantine'}</span>
+                      <span>{isSuper ? t('qa.manageMailboxes') : t('qa.reviewQuarantine')}</span>
                     </button>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'users' })}>
                       <Users size={16} />
-                      <span>{isSuper ? 'Manage Users' : 'Add Whitelist'}</span>
+                      <span>{isSuper ? t('qa.manageUsers') : t('qa.addWhitelist')}</span>
                     </button>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'reports' })}>
                       <FileText size={16} />
-                      <span>{isSuper ? 'View Reports' : 'Export Report'}</span>
+                      <span>{isSuper ? t('qa.viewReports') : t('qa.exportReport')}</span>
                     </button>
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'settings' })}>
                       <Settings size={16} />
-                      <span>{isSuper ? 'Settings' : 'Manage Rules'}</span>
+                      <span>{isSuper ? t('qa.settings') : t('qa.manageRules')}</span>
                     </button>
                   </div>
                 </div>
@@ -713,286 +757,258 @@ export default function AdminPage() {
         )}
 
         {tab === 'reports' && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <AlertCircle size={16} /> Laporan & Bantuan User
-              <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          <div className={trackStyles.wrap}>
+            <div className={trackStyles.header}>
+              <div>
+                <h1 className={trackStyles.title}><AlertCircle size={20} /> {t('report.title')}</h1>
+                <p className={trackStyles.lastUpdated}>{t('report.subtitle')}</p>
+              </div>
+              <div className={trackStyles.headerActions}>
                 {['all', 'question', 'bug', 'false_positive', 'access', 'other'].map((cat) => (
                   <button
                     key={cat}
-                    className={styles.filterChip}
-                    style={{ background: filterCategory === cat ? CATEGORY_COLORS[cat] || '#1a73e8' : 'transparent', color: filterCategory === cat ? '#fff' : 'var(--text-muted)' }}
                     onClick={() => setFilterCategory(cat)}
+                    style={{
+                      padding: '4px 12px', borderRadius: 20, border: '1px solid #dadce0', cursor: 'pointer',
+                      fontSize: '0.78rem', fontWeight: 500,
+                      background: filterCategory === cat ? (CATEGORY_COLORS[cat] || '#1a73e8') : '#fff',
+                      color: filterCategory === cat ? '#fff' : 'var(--text-muted)',
+                      transition: 'all 0.15s',
+                    }}
                   >
-                    {cat === 'all' ? 'Semua' : CATEGORY_LABELS[cat]}
+                    {cat === 'all' ? t('report.filterAll') : t('category.' + cat)}
                   </button>
                 ))}
               </div>
             </div>
             {filteredReports.length === 0 ? (
-              <div className={styles.emptyState}>Belum ada laporan dari user.</div>
+              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {t('report.empty')}
+              </div>
             ) : (
-              <div className={styles.reportList}>
-                {filteredReports.map((r) => (
-                  <div key={r.id} className={styles.reportCard}>
-                    <div className={styles.reportCardHeader}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong>{r.username}</strong>
-                        <span className={styles.reportCategory} style={{ background: CATEGORY_COLORS[r.category] || '#5f6368' }}>
-                          {CATEGORY_LABELS[r.category] || r.category}
+              <div className={trackStyles.panel}>
+                <h3 className={trackStyles.panelTitle}><FileText size={15} /> {filteredReports.length} {t('report.count')}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {filteredReports.map((r) => (
+                    <div key={r.id} style={{ border: '1px solid #e0e0e0', borderRadius: 10, background: '#fff', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: expandedReport === r.id ? '1px solid #f0f0f0' : 'none', cursor: 'pointer' }}
+                        onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
+                        <strong style={{ fontSize: '0.88rem' }}>{r.username}</strong>
+                        <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem', fontWeight: 600, background: CATEGORY_COLORS[r.category] || '#5f6368', color: '#fff' }}>
+                          {t('category.' + r.category)}
                         </span>
-                        <span className={styles.reportPriority} style={{ color: PRIORITY_COLORS[r.priority] || '#5f6368' }}>
-                          <Flag size={12} /> {r.priority}
+                        <span style={{ fontSize: '0.75rem', color: PRIORITY_COLORS[r.priority] || '#5f6368', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <Flag size={11} /> {r.priority}
                         </span>
+                        <span style={{ marginLeft: 'auto', padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem', fontWeight: 600,
+                          background: r.status === 'open' ? '#fce8e6' : r.status === 'in_progress' ? '#fef9e7' : '#e8f5e9',
+                          color: r.status === 'open' ? '#c5221f' : r.status === 'in_progress' ? '#856404' : '#137333' }}>
+                          {r.status === 'open' ? t('report.statusOpen') : r.status === 'in_progress' ? t('report.statusProgress') : t('report.statusResolved')}
+                        </span>
+                        <ChevronDown size={15} style={{ color: 'var(--text-muted)', transform: expandedReport === r.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={r.status === 'open' ? styles.reportOpen : r.status === 'in_progress' ? styles.reportProgress : styles.reportDone}>
-                          {r.status === 'open' ? 'Terbuka' : r.status === 'in_progress' ? 'Diproses' : 'Selesai'}
-                        </span>
-                        <button className={styles.expandBtn} onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
-                          {expandedReport === r.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
+                      <div style={{ padding: '0 16px 12px', paddingTop: 8 }}>
+                        <p style={{ margin: '0 0 4px', fontSize: '0.82rem', fontWeight: 600 }}>{r.subject}</p>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{r.message}</p>
                       </div>
-                    </div>
-                    <p className={styles.reportSubject}>{r.subject}</p>
-                    <p className={styles.reportMessage}>{r.message}</p>
-                    <div className={styles.reportFooter}>
-                      <span className={styles.reportDate}>{r.created_at?.split('.')[0]}</span>
-                      {r.status === 'open' && (
-                        <button className={styles.resolveBtn} onClick={() => handleResolveReport(r.id)}>
-                          <Check size={14} /> Selesai
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Expanded detail */}
-                    {expandedReport === r.id && (
-                      <div className={styles.reportDetail}>
-                        {r.admin_reply && (
-                          <div className={styles.replyBubble}>
-                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Balasan Admin:</strong>
-                            <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text)' }}>{r.admin_reply}</p>
-                          </div>
-                        )}
-                        <div className={styles.replyArea}>
+                      {expandedReport === r.id && (
+                        <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+                          {r.admin_reply && (
+                            <div style={{ marginBottom: 10, padding: '8px 12px', background: '#e8f0fe', borderRadius: 8 }}>
+                              <strong style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('report.adminReply')}</strong>
+                              <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text)' }}>{r.admin_reply}</p>
+                            </div>
+                          )}
                           <textarea
-                            className={styles.replyInput}
-                            placeholder="Tulis balasan untuk user ini..."
+                            style={{ width: '100%', borderRadius: 8, border: '1px solid #dadce0', padding: '8px 12px', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                            placeholder={t('report.replyPlaceholder')}
                             value={expandedReport === r.id ? replyText : ''}
                             onChange={(e) => setReplyText(e.target.value)}
                             rows={3}
                           />
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button className={styles.replySendBtn} onClick={() => handleReplyReport(r.id)} disabled={!replyText.trim()}>
-                              <Reply size={14} /> Kirim Balasan
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                            <button className={trackStyles.btnRefresh} onClick={() => handleReplyReport(r.id)} disabled={!replyText.trim()}>
+                              <Reply size={13} /> {t('report.sendReply')}
                             </button>
                             {r.status !== 'resolved' && (
                               <>
-                                <button className={styles.resolveBtn} onClick={() => handleStatusChange(r.id, 'in_progress')}>
-                                  <Activity size={14} /> Proses
+                                <button className={trackStyles.btnRefresh} onClick={() => handleStatusChange(r.id, 'in_progress')}>
+                                  <Activity size={13} /> {t('report.process')}
                                 </button>
-                                <button className={styles.resolveBtn} onClick={() => handleResolveReport(r.id)}>
-                                  <Check size={14} /> Selesai
+                                <button className={trackStyles.btnRefresh} onClick={() => handleResolveReport(r.id)}>
+                                  <Check size={13} /> {t('report.resolve')}
                                 </button>
                               </>
                             )}
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         )}
-
         {tab === 'activity' && (
-          <div className={styles.section}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Aksi</th>
-                  <th>Email ID</th>
-                  <th>Detail</th>
-                  <th>Waktu</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((l, i) => (
-                  <tr key={i}>
-                    <td>{l.user}</td>
-                    <td><code className={styles.actionCode}>{l.action}</code></td>
-                    <td className={styles.mono}>{l.email_id || '-'}</td>
-                    <td className={styles.detailCell}>{l.details || '-'}</td>
-                    <td className={styles.mono}>{l.created_at?.split('.')[0]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AuditLogEmbed />
         )}
 
         {tab === 'track' && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitle}>
-                <Shield size={18} className={styles.sectionIcon} />
-                <div>
-                  <strong>Superadmin Tracking</strong>
-                  <span>Monitor organization traffic, admin activity, suspicious IPs, and data leak risks.</span>
-                </div>
+          <div className={trackStyles.wrap}>
+            {/* Header */}
+            <div className={trackStyles.header}>
+              <div>
+                <h1 className={trackStyles.title}><Shield size={20} /> {t('tracking.title')}</h1>
+                <p className={trackStyles.lastUpdated}>{t('tracking.subtitle')}</p>
+              </div>
+              <div className={trackStyles.headerActions}>
+                <button className={trackStyles.btnRefresh} onClick={() => api.get('/admin/track').then((r) => setTrackData(r.data)).catch(() => {})}>
+                  <RefreshCw size={14} /> {t('tracking.refresh')}
+                </button>
+                <button className={trackStyles.btnPdf} onClick={() => setExportOpen(true)}>
+                  <Download size={14} /> {t('tracking.generateReport')}
+                </button>
               </div>
             </div>
+
             {!trackData ? (
-              <div className={styles.emptyState}>Loading tracking data...</div>
+              <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('tracking.loading')}</div>
             ) : (
               <>
-                <div className={styles.statsGrid} style={{ marginBottom: 24 }}>
-                  <div className={styles.statCard}>
-                    <div>
-                      <span className={styles.statValue}>{trackData.total_emails ?? 0}</span>
-                      <span className={styles.statLabel}>Total emails processed</span>
-                      <span className={styles.statSub}>Across all users and organizations</span>
+                {/* Summary cards */}
+                <div className={trackStyles.summaryGrid}>
+                  <div className={`${trackStyles.summaryCard} ${trackStyles.cardBlue}`}>
+                    <div className={trackStyles.cardIcon}><Mail size={18} /></div>
+                    <div className={trackStyles.cardContent}>
+                      <div className={trackStyles.cardValue}>{trackData.total_emails ?? 0}</div>
+                      <div className={trackStyles.cardLabel}>{t('tracking.totalEmail')}</div>
+                      <div className={trackStyles.cardSubtext}>{t('tracking.allUsers')}</div>
                     </div>
                   </div>
-                  <div className={styles.statCard}>
-                    <div>
-                      <span className={styles.statValue}>{trackData.total_clean ?? 0}</span>
-                      <span className={styles.statLabel}>Clean emails</span>
-                      <span className={styles.statSub}>Delivered safely</span>
+                  <div className={`${trackStyles.summaryCard} ${trackStyles.cardGreen}`}>
+                    <div className={trackStyles.cardIcon}><CheckCircle2 size={18} /></div>
+                    <div className={trackStyles.cardContent}>
+                      <div className={trackStyles.cardValue}>{trackData.total_clean ?? 0}</div>
+                      <div className={trackStyles.cardLabel}>{t('tracking.clean')}</div>
+                      <div className={trackStyles.cardSubtext}>{t('tracking.deliveredSafe')}</div>
                     </div>
                   </div>
-                  <div className={styles.statCard}>
-                    <div>
-                      <span className={styles.statValue}>{trackData.total_warn ?? 0}</span>
-                      <span className={styles.statLabel}>Spam/Warn</span>
-                      <span className={styles.statSub}>Suspicious messages flagged</span>
+                  <div className={`${trackStyles.summaryCard} ${trackStyles.cardYellow}`}>
+                    <div className={trackStyles.cardIcon}><AlertTriangle size={18} /></div>
+                    <div className={trackStyles.cardContent}>
+                      <div className={trackStyles.cardValue}>{trackData.total_warn ?? 0}</div>
+                      <div className={trackStyles.cardLabel}>{t('tracking.spamWarn')}</div>
+                      <div className={trackStyles.cardSubtext}>{t('tracking.suspicious')}</div>
                     </div>
                   </div>
-                  <div className={styles.statCard}>
-                    <div>
-                      <span className={styles.statValue}>{trackData.total_quarantine ?? 0}</span>
-                      <span className={styles.statLabel}>Quarantined</span>
-                      <span className={styles.statSub}>Blocked threats</span>
+                  <div className={`${trackStyles.summaryCard} ${trackStyles.cardRed}`}>
+                    <div className={trackStyles.cardIcon}><ShieldAlert size={18} /></div>
+                    <div className={trackStyles.cardContent}>
+                      <div className={trackStyles.cardValue}>{trackData.total_quarantine ?? 0}</div>
+                      <div className={trackStyles.cardLabel}>{t('tracking.quarantine')}</div>
+                      <div className={trackStyles.cardSubtext}>{t('tracking.blockedThreats')}</div>
                     </div>
                   </div>
                 </div>
 
-                <div className={styles.sectionCard}>
-                  <div className={styles.sectionCardHeader}>
-                    <div className={styles.sectionTitle}>
-                      <Mail size={18} className={styles.sectionIcon} />
-                      <div>
-                        <strong>Organization Email Traffic</strong>
-                        <span>See how many emails each company and its users processed.</span>
-                      </div>
-                    </div>
+                {/* Organization Email Traffic */}
+                <div className={trackStyles.panel}>
+                  <h3 className={trackStyles.panelTitle}><Users size={15} /> {t('tracking.orgTrafficTitle')}</h3>
+                  <p className={trackStyles.periodNote}>{t('tracking.orgTrafficSub')}</p>
+                  <div className={trackStyles.tableWrap}>
+                    <table className={trackStyles.table}>
+                      <thead><tr>
+                        <th>{t('tracking.org')}</th><th>{t('tracking.users')}</th><th>{t('tracking.totalEmail')}</th>
+                        <th>{t('tracking.clean')}</th><th>{t('tracking.warn')}</th><th>{t('tracking.quarantine')}</th>
+                      </tr></thead>
+                      <tbody>
+                        {trackData.organizations?.map((org) => (
+                          <tr key={org.organization_id}>
+                            <td className={trackStyles.tdBold}>{org.organization_name || t('tracking.unknown')}</td>
+                            <td>{org.users}</td>
+                            <td className={trackStyles.tdBold}>{org.total_emails}</td>
+                            <td className={trackStyles.tdGreen}>{org.clean}</td>
+                            <td className={trackStyles.tdWarn}>{org.warn}</td>
+                            <td className={trackStyles.tdRed}>{org.quarantine}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Organization</th>
-                        <th>Users</th>
-                        <th>Total emails</th>
-                        <th>Clean</th>
-                        <th>Warn</th>
-                        <th>Quarantine</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trackData.organizations?.map((org) => (
-                        <tr key={org.organization_id}>
-                          <td>{org.organization_name || 'Unknown'}</td>
-                          <td>{org.users}</td>
-                          <td>{org.total_emails}</td>
-                          <td>{org.clean}</td>
-                          <td>{org.warn}</td>
-                          <td>{org.quarantine}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
 
-                <div className={styles.sectionCard}>
-                  <div className={styles.sectionCardHeader}>
-                    <div className={styles.sectionTitle}>
-                      <ShieldAlert size={18} className={styles.sectionIcon} />
-                      <div>
-                        <strong>Admin Monitoring</strong>
-                        <span>View admins, assigned organizations, and recent suspicious activity.</span>
-                      </div>
-                    </div>
+                {/* Admin Monitoring */}
+                <div className={trackStyles.panel}>
+                  <h3 className={trackStyles.panelTitle}><Shield size={15} /> {t('tracking.adminMonitoringTitle')}</h3>
+                  <p className={trackStyles.periodNote}>{t('tracking.adminMonitoringSub')}</p>
+                  <div className={trackStyles.tableWrap}>
+                    <table className={trackStyles.table}>
+                      <thead><tr>
+                        <th>{t('tracking.admin')}</th><th>{t('tracking.role')}</th><th>{t('tracking.org')}</th>
+                        <th>{t('tracking.recentAction')}</th><th>{t('tracking.suspicious')}</th>
+                      </tr></thead>
+                      <tbody>
+                        {trackData.admins?.map((admin) => {
+                          const roleBg = admin.role === 'superadmin' ? '#f3e8ff' : '#eff6ff'
+                          const roleColor = admin.role === 'superadmin' ? '#7c3aed' : '#2563eb'
+                          return (
+                            <tr key={admin.username}>
+                              <td className={trackStyles.tdBold}>{admin.username}</td>
+                              <td>
+                                <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:'4px', fontSize:'0.72rem', fontWeight:600, background:roleBg, color:roleColor }}>
+                                  {admin.role}
+                                </span>
+                              </td>
+                              <td>{admin.organization_name || t('tracking.global')}</td>
+                              <td>
+                                {admin.recent_actions?.slice(0, 3).map((a, i) => (
+                                  <div key={i} style={{ fontSize:'0.75rem', color:'var(--text-muted)', lineHeight:'1.6' }}>
+                                    {a.action} <span style={{ color:'var(--text)' }}>{a.created_at?.split('.')[0]}</span>
+                                  </div>
+                                ))}
+                              </td>
+                              <td>
+                                {admin.suspicious_actions?.slice(0, 2).map((a, i) => (
+                                  <div key={i} style={{ fontSize:'0.75rem', fontFamily:'monospace', lineHeight:'1.6' }}>
+                                    {a.action} <span className={trackStyles.tdMuted}>{a.ip_address}</span>
+                                  </div>
+                                ))}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Admin</th>
-                        <th>Role</th>
-                        <th>Organization</th>
-                        <th>Recent actions</th>
-                        <th>Suspicious activity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trackData.admins?.map((admin) => (
-                        <tr key={admin.username}>
-                          <td>{admin.username}</td>
-                          <td>{admin.role}</td>
-                          <td>{admin.organization_name || 'Global'}</td>
-                          <td>
-                            {admin.recent_actions?.slice(0, 3).map((a, index) => (
-                              <div key={index} className={styles.mono}>{a.action} {a.created_at?.split('.')[0]}</div>
-                            ))}
-                          </td>
-                          <td>
-                            {admin.suspicious_actions?.slice(0, 2).map((a, index) => (
-                              <div key={index} className={styles.detailCell}>
-                                <div>{a.action}</div>
-                                <div>{a.ip_address || 'no-ip'}</div>
-                              </div>
-                            ))}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
 
-                <div className={styles.sectionCard}>
-                  <div className={styles.sectionCardHeader}>
-                    <div className={styles.sectionTitle}>
-                      <Activity size={18} className={styles.sectionIcon} />
-                      <div>
-                        <strong>Suspicious Activity Feed</strong>
-                        <span>Track attempts, unusual actions, and potential data leak events.</span>
-                      </div>
-                    </div>
+                {/* Suspicious Activity Feed */}
+                <div className={trackStyles.panel}>
+                  <h3 className={trackStyles.panelTitle}><AlertCircle size={15} /> {t('tracking.suspiciousFeedTitle')}</h3>
+                  <p className={trackStyles.periodNote}>{t('tracking.suspiciousFeedSub')}</p>
+                  <div className={trackStyles.tableWrap}>
+                    <table className={trackStyles.table}>
+                      <thead><tr>
+                        <th>{t('tracking.user')}</th><th>{t('tracking.action')}</th><th>{t('tracking.ipAddress')}</th><th>{t('tracking.detail')}</th><th>{t('tracking.time')}</th>
+                      </tr></thead>
+                      <tbody>
+                        {trackData.suspicious_activities?.map((item, index) => (
+                          <tr key={index} className={item.action?.includes('failed') ? trackStyles.trDanger : ''}>
+                            <td className={trackStyles.tdBold}>{item.user}</td>
+                            <td>
+                              <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:'4px', fontSize:'0.72rem', fontWeight:600, background:'#fce8e6', color:'#c5221f' }}>
+                                {item.action}
+                              </span>
+                            </td>
+                            <td style={{ fontFamily:'monospace', fontSize:'0.8rem' }}>{item.ip_address || '—'}</td>
+                            <td className={trackStyles.tdEllipsis}>{item.details || '—'}</td>
+                            <td style={{ fontFamily:'monospace', fontSize:'0.75rem', whiteSpace:'nowrap' }}>{item.created_at?.split('.')[0]}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Action</th>
-                        <th>IP Address</th>
-                        <th>Details</th>
-                        <th>Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trackData.suspicious_activities?.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.user}</td>
-                          <td><code className={styles.actionCode}>{item.action}</code></td>
-                          <td className={styles.mono}>{item.ip_address || '-'}</td>
-                          <td className={styles.detailCell}>{item.details || '-'}</td>
-                          <td className={styles.mono}>{item.created_at?.split('.')[0]}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
               </>
             )}
@@ -1006,11 +1022,27 @@ export default function AdminPage() {
           <AdminMailboxManagement />
         )}
 
+        {tab === 'threat' && (
+          <ThreatReportPage />
+        )}
+
+        {tab === 'analytics' && isSuper && (
+          <SuperadminUserAnalytics />
+        )}
+
         {tab === 'review' && !isSuper && (
           <AdminQuarantineReview />
         )}
 
+        {tab === 'review' && isSuper && (
+          <AdminQuarantineReview />
+        )}
+
         {tab === 'logs' && !isSuper && (
+          <AdminDetectionLogs />
+        )}
+
+        {tab === 'logs' && isSuper && (
           <AdminDetectionLogs />
         )}
 
@@ -1019,54 +1051,49 @@ export default function AdminPage() {
         )}
 
         {tab === 'settings' && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitle}>
-                <Settings size={18} />
-                <div>
-                  <strong>Pengaturan</strong>
-                  <span>Konfigurasi dasar panel admin dan domain email</span>
-                </div>
+          <div className={trackStyles.wrap}>
+            <div className={trackStyles.header}>
+              <div>
+                <h1 className={trackStyles.title}><Settings size={20} /> {t('settings.title')}</h1>
+                <p className={trackStyles.lastUpdated}>{t('settings.subtitle')}</p>
               </div>
             </div>
-            <div className={styles.settingsList}>
-              <div className={styles.settingRow}>
-                <span>Domain email organisasi</span>
-                <strong>@{mailDomain}</strong>
-              </div>
-              <div className={styles.domainEditor}>
-                <div className={styles.fieldLeft}>
-                  <label className={styles.fieldLabel}>Edit domain default mailbox</label>
-                  <span className={styles.fieldHint}>Default dari .env: @{DEFAULT_MAIL_DOMAIN}. Mailbox baru wajib memakai domain aktif ini.</span>
+            <div className={trackStyles.panel}>
+              <h3 className={trackStyles.panelTitle}><Mail size={15} /> {t('settings.emailConfig')}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{t('settings.orgDomain')}</span>
+                  <strong style={{ fontSize: '0.875rem' }}>@{mailDomain}</strong>
                 </div>
-                <div className={styles.domainInputGroup}>
-                  <input
-                    className={styles.mailboxInput}
-                    value={domainDraft}
-                    onChange={(e) => {
-                      setDomainDraft(e.target.value)
-                      setDomainError('')
-                    }}
-                    placeholder="zenime.my.id"
-                  />
-                  <button className={styles.saveBtn} onClick={handleSaveDomain}>
-                    <Save size={16} /> Simpan Domain
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>{t('settings.editDomainLabel')}</label>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('settings.editDomainHint').replace('{default}', DEFAULT_MAIL_DOMAIN)}</span>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <input
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #dadce0', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit' }}
+                      value={domainDraft}
+                      onChange={(e) => { setDomainDraft(e.target.value); setDomainError('') }}
+                      placeholder={t('settings.domainPlaceholder')}
+                    />
+                    <button className={trackStyles.btnRefresh} onClick={handleSaveDomain}>
+                      <Save size={14} /> {t('settings.saveDomain')}
+                    </button>
+                  </div>
+                  {domainError && <div style={{ color: '#c5221f', fontSize: '0.8rem', marginTop: 2 }}>{domainError}</div>}
                 </div>
-                {domainError && <div className={styles.formError}>{domainError}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{t('settings.adminLogin')}</span>
+                  <strong style={{ fontSize: '0.875rem' }}>{me?.user?.username}</strong>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  {t('settings.prodNote')}
+                </p>
               </div>
-
-              <div className={styles.settingRow}>
-                <span>Login admin</span>
-                <strong>{me?.user?.username}</strong>
-              </div>
-              <p className={styles.helperText}>
-                Untuk production/VPS, domain email dapat disesuaikan dari environment build frontend melalui VITE_MAIL_DOMAIN.
-              </p>
             </div>
           </div>
         )}
       </div>
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} userRole={me?.user?.role} />
     </AdminShell>
   )
 }
