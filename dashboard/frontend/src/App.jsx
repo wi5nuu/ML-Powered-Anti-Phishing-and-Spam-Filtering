@@ -1,10 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useMe } from './api/auth'
+import { useWebSocket } from './hooks/useWebSocket'
+import { I18nProvider } from './i18n/context'
 import LoginPage from './pages/LoginPage'
 import MailboxLoginPage from './pages/MailboxLoginPage'
 import InboxPage from './pages/InboxPage'
 import EmailDetailPage from './pages/EmailDetailPage'
-import MetricsPage from './pages/MetricsPage'
 import HelpPage from './pages/HelpPage'
 import StarredPage from './pages/StarredPage'
 import SentPage from './pages/SentPage'
@@ -13,11 +14,8 @@ import DraftPage from './pages/DraftPage'
 import PembelianPage from './pages/PembelianPage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import SettingsPage from './pages/SettingsPage'
-import AuditPage from './pages/AuditPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
-import UserDashboardPage from './pages/UserDashboardPage'
-import UserDashboardShell from './components/layout/UserDashboardShell'
 import RequireMailbox from './components/layout/RequireMailbox'
 import UserMailboxPage from './pages/UserMailboxPage'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
@@ -26,11 +24,15 @@ function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
   if (role === 'user') return '/user/mailboxes'
+  if (role === 'mailbox') return '/mailbox-login'
   return '/login'
 }
 
 function ProtectedRoute({ children }) {
   const { data, isLoading } = useMe()
+  
+  // Activate WebSocket for all authenticated users
+  useWebSocket()
 
   if (isLoading) {
     return (
@@ -83,6 +85,9 @@ function MailboxRoute({ children }) {
     if (role === 'mailbox') return children
     if (role === 'user') return children
     if (role === 'superadmin' || role === 'admin') {
+      // Allow admin/superadmin through on email detail routes so they can view emails
+      const isEmailDetailRoute = /\/email\/[^/]+/.test(location.pathname)
+      if (isEmailDetailRoute) return children
       return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
     }
     return children
@@ -120,7 +125,7 @@ function AdminRoute({ children, scope }) {
 
   const role = data?.user?.role
   if (role !== 'superadmin' && role !== 'admin') {
-    return <Navigate to="/user/mailboxes" replace />
+    return <Navigate to={dashboardPathForRole(role)} replace />
   }
 
   const correctPath = dashboardPathForRole(role)
@@ -138,7 +143,6 @@ function RootRoute() {
   if (isLoading) return null
   if (data?.authenticated) {
     const role = data?.user?.role
-    if (role === 'mailbox') return <Navigate to="/login" replace />
     const target = dashboardPathForRole(role)
     const qs = searchParams.toString()
     return <Navigate to={qs ? `${target}?${qs}` : target} replace />
@@ -161,6 +165,7 @@ function RoleRedirect() {
 export default function App() {
   return (
     <Router>
+      <I18nProvider>
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
@@ -180,12 +185,10 @@ export default function App() {
         <Route path="/mail/:mailboxId/phishing" element={<MailboxRoute><InboxPage view="phishing" /></MailboxRoute>} />
         <Route path="/mail/:mailboxId/malware" element={<MailboxRoute><InboxPage view="malware" /></MailboxRoute>} />
         <Route path="/mail/:mailboxId/profile" element={<MailboxRoute><ProfilePage /></MailboxRoute>} />
-        <Route path="/mail/:mailboxId/metrics" element={<MailboxRoute><MetricsPage /></MailboxRoute>} />
         <Route path="/mail/:mailboxId/email/:emailId" element={<MailboxRoute><EmailDetailPage /></MailboxRoute>} />
-        <Route path="/metrics" element={<ProtectedRoute><MetricsPage /></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-        <Route path="/audit" element={<AdminRoute><AuditPage /></AdminRoute>} />
+        {/* /audit route removed - audit logs now accessed via admin dashboard tab */}
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/starred" element={<RequireMailbox><MailboxRoute><StarredPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/sent" element={<RequireMailbox><MailboxRoute><SentPage /></MailboxRoute></RequireMailbox>} />
@@ -194,9 +197,7 @@ export default function App() {
         <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
-        {/* User dashboard */}
-        <Route path="/dashboard" element={<UserRoute><UserDashboardShell><UserDashboardPage /></UserDashboardShell></UserRoute>} />
-        <Route path="/user/dashboard" element={<UserRoute><Navigate to="/user/mailboxes" replace /></UserRoute>} />
+        {/* User mailboxes */}
         <Route path="/user/mailboxes" element={<UserRoute><UserMailboxPage /></UserRoute>} />
 
         {/* Admin routes — split URL by role */}
@@ -208,6 +209,7 @@ export default function App() {
         {/* Fallback — redirect based on role */}
         <Route path="*" element={<RoleRedirect />} />
       </Routes>
+      </I18nProvider>
     </Router>
   )
 }

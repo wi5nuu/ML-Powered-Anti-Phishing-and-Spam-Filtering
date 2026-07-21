@@ -61,7 +61,11 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       const url = err.config?.url || ''
       const isLoginRequest = url.includes('/auth/login') || url.includes('/mailboxes/login')
-      if (!isLoginRequest) redirectExpiredSession()
+      // Only redirect to login when /auth/me returns 401 (session expired).
+      // Admin/data endpoints returning 401 should fail silently — redirecting
+      // on every data-fetch 401 creates an infinite reload loop for admin users.
+      const isSessionCheck = url.includes('/auth/me')
+      if (!isLoginRequest && isSessionCheck) redirectExpiredSession()
     }
     return Promise.reject(err)
   }
