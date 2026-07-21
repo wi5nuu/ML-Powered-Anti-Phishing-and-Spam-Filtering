@@ -23,7 +23,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy"
+RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy, reportlab, openpyxl"
 
 COPY dashboard/ dashboard/
 COPY database/ database/

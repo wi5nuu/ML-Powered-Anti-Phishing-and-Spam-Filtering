@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -99,7 +99,7 @@ services:
       ENV: ${ENV:-production}
     command: ["python", "-m", "worker.smtp_receiver"]
     ports:
-      - "${SMTP_PUBLIC_PORT:-2525}:${SMTP_PORT:-25}"
+      - "127.0.0.1:${SMTP_PUBLIC_PORT:-2525}:${SMTP_PORT:-25}"
     dns:
       - 8.8.8.8
       - 8.8.4.4

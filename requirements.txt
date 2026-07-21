@@ -63,6 +63,10 @@ slowapi>=0.1.9
 # Scientific computing
 scipy>=1.12.0
 
+# Report / Export
+reportlab>=4.0
+openpyxl>=3.1.0
+
 # Threat Intelligence
 aiohttp>=3.9.0
 
