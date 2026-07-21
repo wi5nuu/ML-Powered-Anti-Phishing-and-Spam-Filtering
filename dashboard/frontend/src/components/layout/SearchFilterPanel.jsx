@@ -1,27 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
+import { useTranslation } from '../../i18n/context'
 import styles from './SearchFilterPanel.module.css'
 
-const SEARCH_IN_OPTIONS = [
-  { value: 'all', label: 'Semua email' },
-  { value: 'spam', label: 'Spam' },
-  { value: 'phishing', label: 'Phishing' },
-  { value: 'malware', label: 'Malware' },
-]
-
-const SIZE_OPERATOR_OPTIONS = [
-  { value: 'gt', label: 'Lebih besar dari' },
-  { value: 'lt', label: 'Lebih kecil dari' },
-]
-
-const SIZE_UNIT_OPTIONS = [
-  { value: 'MB', label: 'MB' },
-  { value: 'KB', label: 'KB' },
-  { value: 'B', label: 'Byte' },
-]
-
 export default function SearchFilterPanel({ open, onClose, onSearch }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const [from, setFrom] = useState('')
@@ -37,6 +21,24 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
   const [searchIn, setSearchIn] = useState('all')
   const [hasAttachment, setHasAttachment] = useState(false)
   const [excludeChat, setExcludeChat] = useState(true)
+
+  const SEARCH_IN_OPTIONS = [
+    { value: 'all', label: t('searchFilter.all') },
+    { value: 'spam', label: t('gmail.spam') },
+    { value: 'phishing', label: t('gmail.phishing') },
+    { value: 'malware', label: t('gmail.malware') },
+  ]
+
+  const SIZE_OPERATOR_OPTIONS = [
+    { value: 'gt', label: t('searchFilter.sizeLargerThan') },
+    { value: 'lt', label: t('searchFilter.sizeSmallerThan') },
+  ]
+
+  const SIZE_UNIT_OPTIONS = [
+    { value: 'MB', label: 'MB' },
+    { value: 'KB', label: 'KB' },
+    { value: 'B', label: t('searchFilter.sizeByte') },
+  ]
 
   const handleReset = () => {
     setFrom(''); setTo(''); setSubject(''); setHasWords(''); setNoWords('')
@@ -75,12 +77,12 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Dari */}
           <div className={styles.row}>
-            <span className={styles.label}>Dari</span>
+            <span className={styles.label}>{t('searchFilter.from')}</span>
             <div className={styles.inputWrap}>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="pengirim@contoh.com"
+                placeholder={t('searchFilter.fromPlaceholder')}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 id="filter-from"
@@ -91,12 +93,12 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Kepada */}
           <div className={styles.row}>
-            <span className={styles.label}>Kepada</span>
+            <span className={styles.label}>{t('searchFilter.to')}</span>
             <div className={styles.inputWrap}>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="penerima@contoh.com"
+                placeholder={t('searchFilter.toPlaceholder')}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 id="filter-to"
@@ -107,12 +109,12 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Subjek */}
           <div className={styles.row}>
-            <span className={styles.label}>Subjek</span>
+            <span className={styles.label}>{t('common.subject')}</span>
             <div className={styles.inputWrap}>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="Subjek email"
+                placeholder={t('common.subject')}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 id="filter-subject"
@@ -123,12 +125,12 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Mengandung kata-kata */}
           <div className={styles.row}>
-            <span className={styles.label}>Mengandung kata-kata</span>
+            <span className={styles.label}>{t('searchFilter.containsWords')}</span>
             <div className={styles.inputWrap}>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="kata kunci tertentu"
+                placeholder={t('searchFilter.containsWordsPlaceholder')}
                 value={hasWords}
                 onChange={(e) => setHasWords(e.target.value)}
                 id="filter-has-words"
@@ -139,12 +141,12 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Tidak mengandung */}
           <div className={styles.row}>
-            <span className={styles.label}>Tidak mengandung</span>
+            <span className={styles.label}>{t('searchFilter.excludeWords')}</span>
             <div className={styles.inputWrap}>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="kata yang dikecualikan"
+                placeholder={t('searchFilter.excludeWordsPlaceholder')}
                 value={noWords}
                 onChange={(e) => setNoWords(e.target.value)}
                 id="filter-no-words"
@@ -155,7 +157,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Ukuran */}
           <div className={styles.row}>
-            <span className={styles.label}>Ukuran</span>
+            <span className={styles.label}>{t('searchFilter.size')}</span>
             <div className={styles.inputWrap}>
               <div className={styles.sizeRow}>
                 <select
@@ -194,7 +196,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Cakupan tanggal */}
           <div className={styles.row}>
-            <span className={styles.label}>Cakupan tanggal</span>
+            <span className={styles.label}>{t('searchFilter.dateRange')}</span>
             <div className={styles.inputWrap}>
               <div className={styles.dateRange}>
                 <input
@@ -218,7 +220,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
 
           {/* Telusuri dalam */}
           <div className={styles.row}>
-            <span className={styles.label}>Telusuri</span>
+            <span className={styles.label}>{t('searchFilter.searchIn')}</span>
             <div className={styles.inputWrap}>
               <select
                 className={styles.select}
@@ -246,7 +248,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
                     onChange={(e) => setHasAttachment(e.target.checked)}
                     id="filter-has-attachment"
                   />
-                  Memiliki lampiran
+                  {t('searchFilter.hasAttachment')}
                 </label>
                 <label className={styles.checkItem} id="filter-exclude-chat-label">
                   <input
@@ -255,7 +257,7 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
                     onChange={(e) => setExcludeChat(e.target.checked)}
                     id="filter-exclude-chat"
                   />
-                  Jangan sertakan chat
+                  {t('searchFilter.excludeChat')}
                 </label>
               </div>
             </div>
@@ -265,14 +267,14 @@ export default function SearchFilterPanel({ open, onClose, onSearch }) {
         {/* Footer */}
         <div className={styles.footer}>
           <button className={styles.btnCancel} onClick={handleReset} id="filter-reset-btn">
-            Hapus Filter
+            {t('searchFilter.clearFilter')}
           </button>
           <button className={styles.btnCancel} onClick={onClose} id="filter-cancel-btn">
-            Batal
+            {t('btn.cancel')}
           </button>
           <button className={styles.btnSearch} onClick={handleSearch} id="filter-search-btn">
             <Search size={15} />
-            Telusuri
+            {t('searchFilter.search')}
           </button>
         </div>
       </div>

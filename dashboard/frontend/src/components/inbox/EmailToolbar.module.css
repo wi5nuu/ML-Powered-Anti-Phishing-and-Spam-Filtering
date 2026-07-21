@@ -163,3 +163,14 @@
 .composeShortcut {
   margin-left: 4px;
 }
+
+@media (max-width: 600px) {
+  .toolbar {
+    padding: 0 8px;
+    min-height: 44px;
+  }
+  .paginationInfo { display: none; }
+  .selCount { margin-left: 4px; }
+  /* Hide the composer-shortcut button; the FAB/sidebar Compose covers it */
+  .composeShortcut { display: none; }
+}

@@ -4,44 +4,44 @@
   align-items: center;
   min-height: 44px;
   padding: 0 16px 0 14px;
-  border-bottom: 1px solid #e8eaed;
+  border-bottom: 1px solid var(--border-medium);
   cursor: pointer;
-  background: #fff;
-  color: #202124;
+  background: var(--row-unread-bg);
+  color: var(--text);
   font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
   column-gap: 8px;
   position: relative;
 }
 
 .row.read {
-  background: #f2f6fc;
-  color: #3c4043;
+  background: var(--row-read-bg);
+  color: var(--text-secondary);
 }
 
 [data-theme='dark'] .row {
-  background: #1f1f1f;
-  color: #e8eaed;
-  border-bottom-color: #303134;
+  background: var(--row-unread-bg-dark);
+  color: var(--text);
+  border-bottom-color: var(--border-dark);
 }
 
 [data-theme='dark'] .row.read {
-  background: #171717;
-  color: #bdc1c6;
+  background: var(--row-read-bg-dark);
+  color: var(--text-secondary);
 }
 
 .row:hover {
-  background: #f2f6fc;
-  box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px rgba(60, 64, 67, 0.2);
+  background: var(--row-hover-bg);
+  box-shadow: inset 1px 0 0 var(--border), inset -1px 0 0 var(--border), 0 1px 2px rgba(60, 64, 67, 0.2);
   z-index: 1;
 }
 
 [data-theme='dark'] .row:hover {
-  background: #2b2c2f;
-  box-shadow: inset 1px 0 0 #3c4043, inset -1px 0 0 #3c4043;
+  background: var(--row-hover-bg-dark);
+  box-shadow: inset 1px 0 0 var(--border-medium), inset -1px 0 0 var(--border-medium);
 }
 
 .selected {
-  background: #c2dbff !important;
+  background: var(--row-selected-bg) !important;
 }
 
 .actions {
@@ -65,7 +65,7 @@
 .checkbox {
   width: 16px;
   height: 16px;
-  accent-color: #1a73e8;
+  accent-color: var(--gmail-blue);
   cursor: pointer;
 }
 
@@ -76,19 +76,19 @@
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #bdc1c6;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
 }
 
 .starBtn:hover,
 .quickBtn:hover {
-  background: rgba(60, 64, 67, 0.12);
-  color: #5f6368;
+  background: var(--hover-light);
+  color: var(--text-muted);
 }
 
 .starActive {
-  color: #f4b400;
+  color: var(--star-active);
 }
 
 .starBtn svg {
@@ -134,7 +134,7 @@
 
 .separator {
   margin: 0 5px;
-  color: #5f6368;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -143,7 +143,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #5f6368;
+  color: var(--text-muted);
   flex: 1;
 }
 
@@ -155,7 +155,7 @@
 
 .read .preview,
 .read .separator {
-  color: #5f6368;
+  color: var(--text-muted);
 }
 
 .quickActions {
@@ -188,7 +188,7 @@
 
 .time {
   justify-self: end;
-  color: #202124;
+  color: var(--text);
   font-size: 0.75rem;
   line-height: 20px;
   white-space: nowrap;
@@ -198,11 +198,11 @@
 }
 
 .attachmentIcon {
-  color: #5f6368;
+  color: var(--text-muted);
 }
 
 .read .time {
-  color: #5f6368;
+  color: var(--text-muted);
 }
 
 .row:hover .time {
@@ -216,14 +216,75 @@
   }
 }
 
+/* ── Phones: two-line Gmail-app style row ── */
 @media (max-width: 640px) {
   .row {
-    grid-template-columns: 64px minmax(90px, 120px) minmax(120px, 1fr) 62px;
-    padding-right: 10px;
+    grid-template-columns: 44px 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "actions sender time"
+      "actions body   body";
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 2px;
+    min-height: 68px;
+    padding: 10px 14px 10px 8px;
+  }
+
+  .actions {
+    grid-area: actions;
+    flex-direction: column;
+    gap: 10px;
+    align-self: center;
+  }
+
+  .senderCol {
+    grid-area: sender;
+    padding-right: 6px;
+    align-self: end;
+  }
+
+  .sender { font-size: 0.9375rem; }
+
+  .time {
+    grid-area: time;
+    align-self: end;
+    justify-self: end;
+    font-size: 0.75rem;
+  }
+
+  .body {
+    grid-area: body;
+    align-self: start;
+  }
+
+  .subject {
+    flex-shrink: 0;
+    max-width: 45%;
   }
 
   .preview {
-    display: none;
+    display: block;
+  }
+
+  /* Touch devices don't hover — the desktop quick-action overlay is unreachable,
+     so keep it hidden and rely on the row tap + toolbar bulk actions. */
+  .quickActions { display: none; }
+
+  /* Time must stay visible since there is no hover state on touch */
+  .row:hover .time {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .starBtn,
+  .quickBtn {
+    width: 32px;
+    height: 32px;
+  }
+  .checkbox {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -240,15 +301,15 @@
   font-weight: 600;
   line-height: 1;
   border-radius: 8px;
-  background: #dadce0;
-  color: #3c4043;
+  background: var(--badge-bg);
+  color: var(--badge-text);
   vertical-align: middle;
   flex-shrink: 0;
 }
 
 [data-theme='dark'] .threadCountBadge {
-  background: #3c4043;
-  color: #e8eaed;
+  background: var(--surface-dark);
+  color: var(--text);
 }
 
 /* ── Draft indicator on thread rows ────────────────────────────────── */
@@ -262,16 +323,16 @@
   font-weight: 600;
   letter-spacing: 0.03em;
   border-radius: 3px;
-  background: rgba(251, 188, 4, 0.18);
-  color: #b06000;
-  border: 1px solid rgba(251, 188, 4, 0.35);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
   vertical-align: middle;
   flex-shrink: 0;
 }
 
 [data-theme='dark'] .threadDraftIndicator {
-  color: #fbbc04;
-  background: rgba(251, 188, 4, 0.15);
-  border-color: rgba(251, 188, 4, 0.3);
+  color: var(--gmail-yellow);
+  background: var(--gmail-yellow-dark-bg);
+  border-color: var(--gmail-yellow-border);
 }
 

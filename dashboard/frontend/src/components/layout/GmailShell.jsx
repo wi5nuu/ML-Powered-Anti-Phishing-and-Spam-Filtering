@@ -4,9 +4,11 @@ import { useTheme } from '../../hooks/useTheme'
 import { useMe, useLogout } from '../../api/auth'
 import { useStats } from '../../api/metrics'
 import api from '../../api/client'
+import { useTranslation } from '../../i18n/context'
+import logoImg from '../../assets/logo.png'
 import {
   Menu, Search, Settings, Sun, Moon, User,
-  Pencil, Inbox, Send, BarChart2,
+  Pencil, Inbox, Send,
   Shield, Flag,
   Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
 } from 'lucide-react'
@@ -17,11 +19,13 @@ import { avatarColor, avatarInitial, hasUploadedAvatar } from '../../utils/avata
 import styles from './GmailShell.module.css'
 
 export default function GmailShell({ children }) {
+  const { t } = useTranslation()
   const { theme, toggle } = useTheme()
   const { data: me } = useMe()
   const { data: stats } = useStats()
   const { mutate: logout } = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -68,7 +72,7 @@ export default function GmailShell({ children }) {
   const mailboxIdentity = activeMailbox || userMailboxEmail
   const mailboxId = activeMailboxId || userMailboxId
   const displayIdentity = mailboxIdentity || user?.username || ''
-  const displayRole = mailboxIdentity ? 'Mailbox perusahaan' : user?.role
+  const displayRole = mailboxIdentity ? t('gmail.mailboxRole') : user?.role
   const displayInitial = avatarInitial(displayIdentity || 'U')
   const mailboxAvatarUrl = activeMailboxSession?.avatar_url || activeMailboxDirectory?.avatar_url || ''
   const avatarUrl = mailboxIdentity ? mailboxAvatarUrl : user?.avatar_url || ''
@@ -105,7 +109,7 @@ export default function GmailShell({ children }) {
       const query = next.toString()
       navigate(query ? `${location.pathname}?${query}` : location.pathname, { replace: true })
     } catch (err) {
-      setExpiredError(err.response?.data?.detail || 'Login mailbox gagal. Periksa password mailbox.')
+      setExpiredError(err.response?.data?.detail || t('gmail.expiredError'))
     } finally {
       setExpiredLoading(false)
     }
@@ -142,6 +146,30 @@ export default function GmailShell({ children }) {
     setSearchValue(searchParams.get('q') || '')
   }, [searchParams])
 
+  // Close the mobile navigation drawer whenever the route changes.
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname, location.search])
+
+  // Lock background scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (mobileNavOpen) {
+      document.body.classList.add('no-scroll')
+    } else {
+      document.body.classList.remove('no-scroll')
+    }
+    return () => document.body.classList.remove('no-scroll')
+  }, [mobileNavOpen])
+
+  // Close the drawer if the viewport grows past the mobile breakpoint,
+  // otherwise the (now hidden) drawer would keep body scroll locked.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 769px)')
+    const handleChange = (e) => { if (e.matches) setMobileNavOpen(false) }
+    mq.addEventListener('change', handleChange)
+    return () => mq.removeEventListener('change', handleChange)
+  }, [])
+
   const handleLogoutClick = () => {
     if (mailboxIdentity) {
       const shouldReturnToMainLogin = activeMailboxSession?.login_source === 'main_login'
@@ -150,11 +178,14 @@ export default function GmailShell({ children }) {
       api.post('/mailboxes/logout').catch(() => {})
       clearMailboxSession(mailboxId || mailboxIdentity, mailboxIdentity)
       setUserMenuOpen(false)
-      const target = shouldReturnToMainLogin
-        ? '/login'
-        : mailboxId
-          ? `/mail/${encodeURIComponent(mailboxId)}/login`
-          : '/mailbox-login'
+      // Always go to main login if session was initiated from dashboard login
+      if (shouldReturnToMainLogin) {
+        navigate('/login', { replace: true })
+        return
+      }
+      const target = mailboxId
+        ? `/mail/${encodeURIComponent(mailboxId)}/login`
+        : '/mailbox-login'
       navigate(target, { replace: true })
       return
     }
@@ -164,15 +195,63 @@ export default function GmailShell({ children }) {
 
   const runSearch = () => {
     const value = searchValue.trim()
+    // Determine the current base path so search stays in context.
+    // If on an email detail page, derive from the ?from param.
+    const sourcePath = isEmailDetailPath
+      ? (searchParams.get('from') || '/inbox')
+      : `${location.pathname}${location.search}`
+    const [basePath, baseQuery = ''] = sourcePath.split('?')
+    const baseParams = new URLSearchParams(baseQuery)
+
+    // Resolve the logical route to search within
+    let searchBase = '/inbox'
+    if (basePath.startsWith('/sent')) searchBase = '/sent'
+    else if (basePath.startsWith('/draft')) searchBase = '/draft'
+    else if (/^\/mail\/[^/]+\/sent/.test(basePath)) searchBase = '/sent'
+    else if (/^\/mail\/[^/]+\/drafts/.test(basePath)) searchBase = '/draft'
+
     const params = new URLSearchParams()
     if (value) params.set('q', value)
+
+    // For inbox, carry over folder/category context
+    if (searchBase === '/inbox') {
+      const folder = baseParams.get('folder')
+      const category = baseParams.get('category')
+      if (folder) params.set('folder', folder)
+      if (category) params.set('category', category)
+    }
+
     const query = params.toString()
-    navigate(withMailbox(query ? `/inbox?${query}` : '/inbox', mailboxIdentity, mailboxId))
+    navigate(withMailbox(query ? `${searchBase}?${query}` : searchBase, mailboxIdentity, mailboxId))
   }
 
   const clearSearch = () => {
     setSearchValue('')
-    navigate(withMailbox('/inbox', mailboxIdentity, mailboxId))
+    // Return to the current folder context without the query param
+    const sourcePath = isEmailDetailPath
+      ? (searchParams.get('from') || '/inbox')
+      : `${location.pathname}${location.search}`
+    const [basePath, baseQuery = ''] = sourcePath.split('?')
+    const baseParams = new URLSearchParams(baseQuery)
+    baseParams.delete('q')
+
+    let clearBase = '/inbox'
+    if (basePath.startsWith('/sent')) clearBase = '/sent'
+    else if (basePath.startsWith('/draft')) clearBase = '/draft'
+    else if (/^\/mail\/[^/]+\/sent/.test(basePath)) clearBase = '/sent'
+    else if (/^\/mail\/[^/]+\/drafts/.test(basePath)) clearBase = '/draft'
+    else {
+      // inbox: keep folder/category
+      const folder = baseParams.get('folder')
+      const category = baseParams.get('category')
+      const keep = new URLSearchParams()
+      if (folder) keep.set('folder', folder)
+      if (category) keep.set('category', category)
+      const q = keep.toString()
+      navigate(withMailbox(q ? `/inbox?${q}` : '/inbox', mailboxIdentity, mailboxId))
+      return
+    }
+    navigate(withMailbox(clearBase, mailboxIdentity, mailboxId))
   }
 
   const handleSearch = (e) => {
@@ -274,33 +353,39 @@ export default function GmailShell({ children }) {
         <div className={styles.topbarLeft}>
           <button
             className={styles.iconRound}
-            onClick={() => setSidebarOpen((v) => !v)}
-            title="Menu utama"
+            onClick={() => {
+              // On phones the hamburger opens the off-canvas drawer;
+              // on desktop it collapses/expands the pinned sidebar.
+              if (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches) {
+                setMobileNavOpen((v) => {
+                  const next = !v
+                  if (next) setSidebarOpen(true) // ensure drawer shows full nav content
+                  return next
+                })
+              } else {
+                setSidebarOpen((v) => !v)
+              }
+            }}
+            title={t('gmail.mainMenu')}
             id="sidebar-toggle-btn"
           >
             <Menu size={20} />
           </button>
           <NavLink to={withMailbox('/inbox', mailboxIdentity, mailboxId)} className={styles.brand}>
-            {/* Shield + checkmark logo */}
-            <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-              <circle cx="20" cy="20" r="20" fill="#f6f8fc" />
-              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13 6.88-1.26 12-6.93 12-13v-9L20 6z" fill="#EA4335" />
-              <path d="M20 6L8 11v9c0 6.07 5.12 11.74 12 13V6z" fill="#c5221f" />
-              <path d="M16 20l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className={styles.brandText}>CogniMail</span>
+            <img src={logoImg} alt={t('gmail.brand')} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <span className={styles.brandText}>{t('gmail.brand')}</span>
           </NavLink>
         </div>
 
         {/* CENTER: search bar */}
         <div className={styles.searchWrap} style={{ position: 'relative' }}>
           <div className={`${styles.searchBar} ${searchFocused ? styles.searchBarFocused : ''}`}>
-            <button className={styles.searchIcon} title="Cari" onClick={runSearch}>
+            <button className={styles.searchIcon} title={t('gmail.search')} onClick={runSearch}>
               <Search size={20} />
             </button>
             <input
               type="text"
-              placeholder="Telusuri email..."
+              placeholder={t('gmail.searchPlaceholder')}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={handleSearch}
@@ -312,7 +397,7 @@ export default function GmailShell({ children }) {
               <button
                 className={styles.searchIcon}
                 onClick={clearSearch}
-                title="Hapus pencarian"
+                title={t('gmail.clearSearch')}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -327,7 +412,7 @@ export default function GmailShell({ children }) {
           <button
             className={styles.iconRound}
             onClick={toggle}
-            title={theme === 'dark' ? 'Mode terang' : 'Mode gelap'}
+            title={theme === 'dark' ? t('theme.light') : t('theme.dark')}
             id="theme-toggle-btn"
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -362,22 +447,14 @@ export default function GmailShell({ children }) {
                     id="menu-profile-btn"
                   >
                     <User size={16} />
-                    <span>Profil Saya</span>
-                  </button>
-                  <button
-                    className={styles.userMenuItem}
-                    onClick={() => { navigate(withMailbox('/metrics', mailboxIdentity, mailboxId)); setUserMenuOpen(false) }}
-                    id="menu-metrics-btn"
-                  >
-                    <BarChart2 size={16} />
-                    <span>Dashboard Metrik</span>
+                    <span>{t('gmail.profile')}</span>
                   </button>
                   <button
                     className={styles.userMenuItem}
                     onClick={() => { setReportOpen(true); setUserMenuOpen(false) }}
                   >
                     <Flag size={16} />
-                    <span>Lapor Masalah</span>
+                    <span>{t('gmail.report')}</span>
                   </button>
                   {!mailboxIdentity && (
                     <button
@@ -386,7 +463,7 @@ export default function GmailShell({ children }) {
                       id="menu-settings-btn"
                     >
                       <Settings size={16} />
-                      <span>Pengaturan</span>
+                      <span>{t('gmail.settings')}</span>
                     </button>
                   )}
                   <div className={styles.userMenuDivider} />
@@ -398,7 +475,7 @@ export default function GmailShell({ children }) {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                     </svg>
-                    <span>Keluar</span>
+                    <span>{t('gmail.logout')}</span>
                   </button>
                 </div>
               )}
@@ -409,7 +486,7 @@ export default function GmailShell({ children }) {
               onClick={() => navigate(mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/login` : '/mailbox-login')}
               id="login-btn"
             >
-              Masuk
+              {t('gmail.login')}
             </button>
           )}
         </div>
@@ -417,65 +494,86 @@ export default function GmailShell({ children }) {
 
       {/* ═══ BODY ═══ */}
       <div className={styles.body}>
-        {/* SIDEBAR */}
-        {sidebarOpen && (
-          <nav className={styles.sidebar}>
-            {/* Compose button */}
-            <button className={styles.composeBtn} id="compose-btn" onClick={() => {
-              setComposeDraft(null)
-              setComposeThreadId('')
-              setComposeParentEmailId('')
-              setComposeMode('new')
-              setComposeOpen(true)
-            }}>
-              <Pencil size={20} color="#EA4335" />
-              <span>Tulis</span>
-            </button>
-
-            {navItem('/inbox', <Inbox size={18} />, 'Kotak Masuk', 0)}
-            {navItem('/inbox?folder=starred', <Star size={18} />, 'Berbintang', 0)}
-            {navItem('/sent', <Send size={18} />, 'Terkirim', 0)}
-            {navItem('/draft', <FileText size={18} />, 'Draf', 0)}
-            {navItem('/inbox?folder=allmail', <Mail size={18} />, 'Semua Email', 0)}
-            {navItem('/inbox?folder=trash', <Trash2 size={18} />, 'Sampah', 0)}
-
-            <div className={styles.divider} />
-            <div className={styles.sidebarHeading}>Label Ancaman</div>
-            <button
-              className={`${styles.sidebarItem} ${styles.sidebarButton} ${currentCat ? styles.active : ''}`}
-              onClick={() => setThreatOpen((v) => !v)}
-            >
-              <span className={styles.itemIcon}><Shield size={18} /></span>
-              <span className={styles.itemLabel}>Karantina</span>
-              <span className={styles.expandIcon}>
-                {threatOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-              </span>
-            </button>
-            {threatOpen && (
-              <div className={styles.subNav}>
-                {catItem('phishing', 'Phishing', '#EA4335', 0)}
-                {catItem('spam', 'Spam', '#f29900', 0)}
-                {catItem('malware', 'Malware', '#8b1a10', 0)}
-              </div>
-            )}
-
-            <div className={styles.divider} />
-            <div className={styles.sidebarHeading}>Sistem</div>
-            <button className={`${styles.sidebarItem} ${styles.sidebarButton}`} onClick={() => setReportOpen(true)}>
-              <span className={styles.itemIcon}><Flag size={18} /></span>
-              <span className={styles.itemLabel}>Lapor Masalah</span>
-            </button>
-            {!mailboxIdentity && (
-              <button
-                className={`${styles.sidebarItem} ${styles.sidebarButton}`}
-                onClick={() => navigate('/settings')}
-              >
-                <span className={styles.itemIcon}><Settings size={18} /></span>
-                <span className={styles.itemLabel}>Pengaturan</span>
-              </button>
-            )}
-          </nav>
+        {/* Mobile drawer backdrop */}
+        {mobileNavOpen && (
+          <button
+            type="button"
+            className="mobileBackdrop"
+            aria-label={t('gmail.closeMenu')}
+            onClick={() => setMobileNavOpen(false)}
+          />
         )}
+        {/* SIDEBAR */}
+        <nav className={`${styles.sidebar} ${!sidebarOpen ? styles.sidebarCollapsed : ''} ${mobileNavOpen ? styles.sidebarMobileOpen : ''}`}>
+          {/* Toggle button saat collapsed */}
+          {!sidebarOpen && (
+            <button
+              className={styles.sidebarToggleBtn}
+              onClick={() => setSidebarOpen(true)}
+              title={t('gmail.openSidebar')}
+            >
+              <Menu size={20} />
+            </button>
+          )}
+          {sidebarOpen && (
+            <>
+              {/* Compose button */}
+              <button className={styles.composeBtn} id="compose-btn" onClick={() => {
+                setComposeDraft(null)
+                setComposeThreadId('')
+                setComposeParentEmailId('')
+                setComposeMode('new')
+                setComposeOpen(true)
+              }}>
+                <Pencil size={20} color="#EA4335" />
+                <span>{t('gmail.compose')}</span>
+              </button>
+
+              {navItem('/inbox', <Inbox size={18} />, t('gmail.inbox'), 0)}
+              {navItem('/inbox?folder=starred', <Star size={18} />, t('gmail.starred'), 0)}
+              {navItem('/sent', <Send size={18} />, t('gmail.sent'), 0)}
+              {navItem('/draft', <FileText size={18} />, t('gmail.drafts'), 0)}
+              {navItem('/inbox?folder=allmail', <Mail size={18} />, t('gmail.allMail'), 0)}
+              {navItem('/inbox?folder=trash', <Trash2 size={18} />, t('gmail.trash'), 0)}
+
+              <div className={styles.divider} />
+              <div className={styles.sidebarHeading}>{t('gmail.threatLabel')}</div>
+              <button
+                className={`${styles.sidebarItem} ${styles.sidebarButton} ${currentCat ? styles.active : ''}`}
+                onClick={() => setThreatOpen((v) => !v)}
+              >
+                <span className={styles.itemIcon}><Shield size={18} /></span>
+                <span className={styles.itemLabel}>{t('gmail.quarantine')}</span>
+                <span className={styles.expandIcon}>
+                  {threatOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                </span>
+              </button>
+              {threatOpen && (
+                <div className={styles.subNav}>
+                  {catItem('phishing', t('gmail.phishing'), '#EA4335', stats?.categories?.phishing || 0)}
+                  {catItem('spam', t('gmail.spam'), '#f29900', stats?.categories?.spam || 0)}
+                  {catItem('malware', t('gmail.malware'), '#8b1a10', stats?.categories?.malware || 0)}
+                </div>
+              )}
+
+              <div className={styles.divider} />
+              <div className={styles.sidebarHeading}>{t('gmail.system')}</div>
+              <button className={`${styles.sidebarItem} ${styles.sidebarButton}`} onClick={() => setReportOpen(true)}>
+                <span className={styles.itemIcon}><Flag size={18} /></span>
+                <span className={styles.itemLabel}>{t('gmail.report')}</span>
+              </button>
+              {!mailboxIdentity && (
+                <button
+                  className={`${styles.sidebarItem} ${styles.sidebarButton}`}
+                  onClick={() => navigate('/settings')}
+                >
+                  <span className={styles.itemIcon}><Settings size={18} /></span>
+                  <span className={styles.itemLabel}>{t('gmail.settings')}</span>
+                </button>
+              )}
+            </>
+          )}
+        </nav>
 
         {/* MAIN CONTENT */}
         <main className={styles.main}>{children}</main>
@@ -500,21 +598,21 @@ export default function GmailShell({ children }) {
         <div className={styles.overlay}>
           <form className={styles.sessionModal} onSubmit={handleExpiredLogin}>
             <div className={styles.sessionIcon}><Mail size={22} /></div>
-            <h3>Sesi mailbox berakhir</h3>
-            <p>Masuk kembali sebagai <strong>{mailboxIdentity}</strong> untuk melanjutkan webmail.</p>
+            <h3>{t('gmail.expiredTitle')}</h3>
+            <p>{t('gmail.expiredMessageBefore')}<strong>{mailboxIdentity}</strong>{t('gmail.expiredMessageAfter')}</p>
             {expiredError && <div className={styles.sessionError}>{expiredError}</div>}
             <input
               type="password"
               value={expiredPassword}
               onChange={(event) => setExpiredPassword(event.target.value)}
-              placeholder="Password mailbox"
+              placeholder={t('gmail.expiredPasswordPlaceholder')}
               autoComplete="current-password"
               autoFocus
               required
             />
             <div className={styles.sessionActions}>
               <button type="submit" className={styles.sessionSubmit} disabled={expiredLoading}>
-                {expiredLoading ? 'Memproses...' : 'Masuk lagi'}
+                {expiredLoading ? t('gmail.expiredProcessing') : t('gmail.expiredLoginAgain')}
               </button>
             </div>
           </form>
@@ -525,33 +623,33 @@ export default function GmailShell({ children }) {
       {reportOpen && (
         <div className={styles.overlay} onClick={() => setReportOpen(false)}>
           <div className={styles.reportModal} onClick={(e) => e.stopPropagation()}>
-            <h3>Lapor Masalah ke Admin</h3>
+            <h3>{t('gmail.reportTitle')}</h3>
             {reportMsg && <div className={styles.reportMsg}>{reportMsg}</div>}
             <select
               value={reportCategory}
               onChange={(e) => setReportCategory(e.target.value)}
               style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', fontSize: '0.8125rem', marginBottom: 8, fontFamily: 'inherit' }}
             >
-              <option value="question">Pertanyaan / Bantuan</option>
-              <option value="bug">Laporkan Bug / Error</option>
-              <option value="false_positive">False Positive (salah karantina)</option>
-              <option value="access">Permintaan Akses</option>
-              <option value="other">Lainnya</option>
+              <option value="question">{t('gmail.reportCategoryQuestion')}</option>
+              <option value="bug">{t('gmail.reportCategoryBug')}</option>
+              <option value="false_positive">{t('gmail.reportCategoryFalsePositive')}</option>
+              <option value="access">{t('gmail.reportCategoryAccess')}</option>
+              <option value="other">{t('gmail.reportCategoryOther')}</option>
             </select>
             <input
-              placeholder="Judul masalah"
+              placeholder={t('gmail.reportSubjectPlaceholder')}
               value={reportSubject}
               onChange={(e) => setReportSubject(e.target.value)}
             />
             <textarea
-              placeholder="Jelaskan masalah yang Anda alami..."
+              placeholder={t('gmail.reportMessagePlaceholder')}
               value={reportMessage}
               onChange={(e) => setReportMessage(e.target.value)}
               rows={4}
             />
             <div className={styles.reportActions}>
               <button onClick={() => { setReportOpen(false); setReportSubject(''); setReportMessage(''); setReportCategory('other'); setReportMsg('') }}>
-                Batal
+                {t('btn.cancel')}
               </button>
               <button
                 className={styles.reportSend}
@@ -559,15 +657,15 @@ export default function GmailShell({ children }) {
                 onClick={async () => {
                   try {
                     await api.post('/reports', { subject: reportSubject, message: reportMessage, category: reportCategory })
-                    setReportMsg('Laporan terkirim! Admin akan segera meninjau.')
+                    setReportMsg(t('gmail.reportSuccess'))
                     setReportSubject(''); setReportMessage(''); setReportCategory('other')
                     setTimeout(() => { setReportOpen(false); setReportMsg('') }, 2000)
                   } catch (e) {
-                    setReportMsg('Gagal mengirim. Coba lagi.')
+                    setReportMsg(t('gmail.reportError'))
                   }
                 }}
               >
-                Kirim Laporan
+                {t('gmail.reportSend')}
               </button>
             </div>
           </div>

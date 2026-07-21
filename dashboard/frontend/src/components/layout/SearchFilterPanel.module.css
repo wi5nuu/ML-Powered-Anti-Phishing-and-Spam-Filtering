@@ -68,7 +68,7 @@
   transition: border-color 0.2s;
   box-sizing: border-box;
 }
-.input:focus { border-bottom-color: #1a73e8; }
+.input:focus { border-bottom-color: var(--gmail-blue); }
 .input::placeholder { color: var(--text-muted); }
 
 /* Select dropdown */
@@ -128,7 +128,7 @@
   transition: border-color 0.2s;
   text-align: right;
 }
-.sizeInput:focus { border-bottom-color: #1a73e8; }
+.sizeInput:focus { border-bottom-color: var(--gmail-blue); }
 
 .sizeUnit {
   font-size: 0.875rem;
@@ -160,7 +160,7 @@
 .checkItem input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #1a73e8;
+  accent-color: var(--gmail-blue);
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -182,15 +182,15 @@
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1a73e8;
+  color: var(--gmail-blue);
   cursor: pointer;
   font-family: 'Google Sans', sans-serif;
   transition: background 0.15s;
 }
-.btnCancel:hover { background: #e8f0fe; }
+.btnCancel:hover { background: var(--gmail-blue-bg); }
 
 .btnSearch {
-  background: #1a73e8;
+  background: var(--gmail-blue);
   border: none;
   padding: 9px 20px;
   border-radius: 6px;
@@ -204,7 +204,7 @@
   align-items: center;
   gap: 6px;
 }
-.btnSearch:hover { background: #1557b0; box-shadow: 0 1px 4px rgba(26,115,232,.4); }
+.btnSearch:hover { background: var(--gmail-blue-dark); box-shadow: 0 1px 4px var(--input-focus-shadow); }
 
 /* ── Search chip tags ── */
 .chipRow {
@@ -218,14 +218,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #e8f0fe;
+  background: var(--gmail-blue-bg);
   border-radius: 16px;
   padding: 2px 10px 2px 8px;
   font-size: 0.75rem;
-  color: #1a73e8;
+  color: var(--gmail-blue);
   font-family: 'Google Sans', sans-serif;
 }
-[data-theme='dark'] .chip { background: #1a3a5c; color: #8ab4f8; }
+[data-theme='dark'] .chip { background: var(--gmail-blue-dark-bg); color: var(--gmail-blue-light); }
 
 .chipClose {
   background: none;
@@ -234,7 +234,25 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: #1a73e8;
+  color: var(--gmail-blue);
   margin-left: 2px;
 }
-[data-theme='dark'] .chipClose { color: #8ab4f8; }
+[data-theme='dark'] .chipClose { color: var(--gmail-blue-light); }
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .content { padding: 8px 14px 16px; }
+  /* Stack label above its field so inputs get full width */
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px 0;
+  }
+  .label {
+    width: auto;
+    text-align: left;
+  }
+  .sizeRow .select { width: auto; flex: 1; }
+  .footer { padding: 12px 14px 16px; }
+}

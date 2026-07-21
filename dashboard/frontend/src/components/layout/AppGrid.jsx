@@ -1,52 +1,55 @@
 import { useNavigate } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
+import { useTranslation } from '../../i18n/context'
 import { useStats } from '../../api/metrics'
 import styles from './AppGrid.module.css'
 
 const USER_APPS = {
   user: {
     favorite: [
-      { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: 'ðŸ“§', badgeKey: null },
-      { id: 'allmail', label: 'Semua Email', path: '/inbox?folder=allmail', bg: '#43a047', emoji: 'Mail', badgeKey: null },
-      { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: 'ðŸ”§', badgeKey: null },
+      { id: 'inbox', labelKey: 'gmail.inbox', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
+      { id: 'allmail', labelKey: 'gmail.allMail', path: '/inbox?folder=allmail', bg: '#43a047', emoji: '📬', badgeKey: null },
+      { id: 'settings', labelKey: 'nav.settings', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
     ],
     more: [
-      { id: 'sent', label: 'Terkirim', path: '/sent', bg: '#00bcd4', emoji: 'ðŸ“¤', badgeKey: null },
+      { id: 'sent', labelKey: 'gmail.sent', path: '/sent', bg: '#00bcd4', emoji: '📤', badgeKey: null },
     ],
   },
   admin: {
     favorite: [
-      { id: 'admin-panel', label: 'Admin Panel', path: '/admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
-      { id: 'metrik', label: 'Metrik', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
-      { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
-      { id: 'laporan', label: 'Laporan', path: '/admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
+      { id: 'admin-panel', labelKey: 'appGrid.adminPanel', path: '/admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
+      { id: 'metrik', labelKey: 'appGrid.metrics', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
+      { id: 'settings', labelKey: 'nav.settings', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
+      { id: 'laporan', labelKey: 'reports.title', path: '/admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
     ],
     more: [
-      { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
+      { id: 'inbox', labelKey: 'gmail.inbox', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
     ],
   },
   superadmin: {
     favorite: [
-      { id: 'admin-panel', label: 'Superadmin Panel', path: '/super-admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
-      { id: 'users', label: 'Users', path: '/super-admin/dashboard?tab=users', bg: '#0d47a1', emoji: '👥', badgeKey: null },
-      { id: 'metrik', label: 'Metrik', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
-      { id: 'settings', label: 'Pengaturan', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
+      { id: 'admin-panel', labelKey: 'appGrid.superadminPanel', path: '/super-admin/dashboard', bg: '#1a73e8', emoji: '⚙️', badgeKey: null },
+      { id: 'users', labelKey: 'appGrid.users', path: '/super-admin/dashboard?tab=users', bg: '#0d47a1', emoji: '👥', badgeKey: null },
+      { id: 'metrik', labelKey: 'appGrid.metrics', path: '/metrics', bg: '#34a853', emoji: '📊', badgeKey: null },
+      { id: 'settings', labelKey: 'nav.settings', path: '/settings', bg: '#f29900', emoji: '🔧', badgeKey: null },
     ],
     more: [
-      { id: 'laporan', label: 'Laporan', path: '/super-admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
-      { id: 'inbox', label: 'Kotak Masuk', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
+      { id: 'laporan', labelKey: 'reports.title', path: '/super-admin/dashboard?tab=reports', bg: '#9c27b0', emoji: '📄', badgeKey: null },
+      { id: 'inbox', labelKey: 'gmail.inbox', path: '/inbox', bg: '#1a73e8', emoji: '📧', badgeKey: null },
     ],
   },
 }
 
 function AppItem({ app, stats, onClick }) {
+  const { t } = useTranslation()
+  const label = t(app.labelKey)
   const badgeCount = app.badgeKey && stats ? stats[app.badgeKey] : 0
 
   return (
     <button
       className={styles.appItem}
       onClick={() => onClick(app)}
-      title={app.label}
+      title={label}
       id={`app-grid-${app.id}`}
     >
       {badgeCount > 0 && (
@@ -55,12 +58,13 @@ function AppItem({ app, stats, onClick }) {
       <div className={styles.appIconWrap} style={{ background: app.bg }}>
         <span style={{ fontSize: 26, lineHeight: 1 }}>{app.emoji}</span>
       </div>
-      <span className={styles.appLabel}>{app.label}</span>
+      <span className={styles.appLabel}>{label}</span>
     </button>
   )
 }
 
 export default function AppGrid({ open, onClose, user }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data: stats } = useStats()
 
@@ -84,8 +88,8 @@ export default function AppGrid({ open, onClose, user }) {
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <span className={styles.headerTitle}>Favorit Anda</span>
-          <button className={styles.editBtn} title="Edit pintasan">
+          <span className={styles.headerTitle}>{t('appGrid.favorites')}</span>
+          <button className={styles.editBtn} title={t('appGrid.editShortcut')}>
             <Pencil size={16} />
           </button>
         </div>
@@ -98,7 +102,7 @@ export default function AppGrid({ open, onClose, user }) {
 
         <div className={styles.dividerLine} />
 
-        <div className={styles.sectionLabel}>Lebih Banyak</div>
+        <div className={styles.sectionLabel}>{t('appGrid.more')}</div>
         <div className={styles.grid}>
           {apps.more.map((app) => (
             <AppItem key={app.id} app={app} stats={stats} onClick={handleAppClick} />
@@ -107,11 +111,10 @@ export default function AppGrid({ open, onClose, user }) {
 
         <div className={styles.footer}>
           <div className={styles.footerInfo}>
-            CogniMail Email Security System
+            {t('appGrid.footer')}
           </div>
         </div>
       </div>
     </>
   )
 }
-

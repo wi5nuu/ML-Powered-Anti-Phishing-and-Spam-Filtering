@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useEmails } from '../../api/emails'
 import { useStats } from '../../api/metrics'
 import { useMe } from '../../api/auth'
+import { useTranslation } from '../../i18n/context'
 import CategoryTabs from './CategoryTabs'
 import EmailToolbar from './EmailToolbar'
 import EmailRow from './EmailRow'
@@ -11,60 +12,72 @@ import { groupEmailsIntoThreads } from '../../utils/threadUtils'
 import styles from './EmailList.module.css'
 
 const PAGE_SIZE = 50
-const RETENTION_NOTICE_LABELS = {
-  spam: 'Spam',
-  phishing: 'Phishing',
-  malware: 'Malware',
-}
 
 export default function EmailList({ view = '' }) {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const filter = searchParams.get('filter') || 'all'
   const folder = ['starred', 'allmail', 'trash'].includes(view) ? view : (searchParams.get('folder') || '')
   const category = ['spam', 'phishing', 'malware'].includes(view) ? view : (searchParams.get('category') || '')
   const query = searchParams.get('q') || ''
-  const { data: meData } = useMe()
-  const mailbox = getActiveMailbox(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_email || meData.user.username || '' : '')
-  const mailboxId = getActiveMailboxId(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_id || '' : '')
+  const { data: meData, isLoading: meLoading } = useMe()
+  const userRole = meData?.user?.role
+  // For role 'user', always use their own email — never trust URL mailboxId
+  const mailbox = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailbox(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_email || meData?.user?.username || '' : ''))
+  const mailboxId = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailboxId(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_id || '' : ''))
   const page = parseInt(searchParams.get('page') || '1', 10)
 
   const apiFilter = category || (folder === 'starred' ? 'allmail' : folder) || filter
+  // For role 'user', wait until their email is resolved before fetching — otherwise
+  // the API fires with an empty mailbox and returns no results.
+  const emailResolved = userRole !== 'user' || Boolean(meData?.user?.email)
   const { data, isLoading, isError, refetch } = useEmails(apiFilter, query, {
     mailbox,
     mailboxId,
     page,
     pageSize: PAGE_SIZE,
+    enabled: !meLoading && emailResolved,
   })
   const { data: stats } = useStats()
-  const retentionLabel = folder === 'trash' ? 'Sampah' : RETENTION_NOTICE_LABELS[category]
+  const retentionLabel = folder === 'trash' ? t('gmail.trash') : t('gmail.' + category)
 
   const [selected, setSelected] = useState(new Set())
   const [starred, setStarred] = useState(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail.starred') || '[]'))
+      return new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]'))
     } catch {
       return new Set()
     }
   })
+
+  // Sync starred state when changed from other pages (EmailDetailPage, etc.)
+  useEffect(() => {
+    const handler = () => {
+      try {
+        setStarred(new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]')))
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('cognimail_starred_changed', handler)
+    return () => window.removeEventListener('cognimail_starred_changed', handler)
+  }, [])
 
 
   const emails = useMemo(() => {
     const list = data?.emails || []
     let next = list
     if (folder === 'starred') next = next.filter((e) => starred.has(e.email_id))
-    if (mailbox) {
-      const target = mailbox.toLowerCase()
-      next = next.filter((e) =>
-        String(e.recipient_list || '').toLowerCase().includes(target) ||
-        String(e.sender || e.sender_email || '').toLowerCase() === target
-      )
-    }
+    // Note: mailbox filtering is already handled by the API backend
+    // No need to filter again here — backend uses domain fallback for empty mailboxes
     return [...next].sort((a, b) => {
       const aTime = new Date(a.received_at || a.timestamp || 0).getTime()
       const bTime = new Date(b.received_at || b.timestamp || 0).getTime()
       return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime)
     })
-  }, [data, folder, mailbox, starred])
+  }, [data, folder, starred])
 
   // Group emails into conversation threads (Gmail-style)
   const threads = useMemo(() => {
@@ -118,15 +131,12 @@ export default function EmailList({ view = '' }) {
     refetch()
   }, [refetch])
 
-  useEffect(() => {
-    localStorage.setItem('cognimail.starred', JSON.stringify(Array.from(starred)))
-  }, [starred])
-
-
   const toggleStar = useCallback((id) => {
     setStarred((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
+      localStorage.setItem('cognimail_starred_ids', JSON.stringify(Array.from(next)))
+      window.dispatchEvent(new Event('cognimail_starred_changed'))
       return next
     })
   }, [])
@@ -140,7 +150,7 @@ export default function EmailList({ view = '' }) {
       {!folder && <CategoryTabs activeFilter={filter} />}
       {retentionLabel && (
         <div className={styles.trashNotice}>
-          Pesan yang ada di {retentionLabel} selama lebih dari 30 hari akan dihapus secara otomatis.
+          {t('emailList.retentionNotice').replace('{folder}', retentionLabel)}
         </div>
       )}
       <EmailToolbar
@@ -168,7 +178,7 @@ export default function EmailList({ view = '' }) {
             <svg width="56" height="56" viewBox="0 0 24 24" opacity="0.25">
               <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
             </svg>
-            <p>❌ Gagal memuat email. Cek koneksi server.</p>
+            <p>{t('emailList.loadError')}</p>
           </div>
         )}
         {!isLoading && !isError && filtered.length === 0 && (
@@ -176,7 +186,7 @@ export default function EmailList({ view = '' }) {
             <svg width="64" height="64" viewBox="0 0 24 24" opacity="0.2">
               <path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
-            <p>Tidak ada email ditemukan</p>
+            <p>{t('gmail.noMails')}</p>
           </div>
         )}
         {!isLoading && paginated.map((emailOrThread) => {

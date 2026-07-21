@@ -11,6 +11,7 @@
   top: 52px;
   right: 8px;
   width: 360px;
+  max-width: calc(100vw - 16px);
   max-height: 80vh;
   background: var(--surface);
   border-radius: 16px;

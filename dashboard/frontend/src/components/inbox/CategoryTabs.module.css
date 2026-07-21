@@ -35,8 +35,8 @@
 }
 
 .tab.active {
-  color: var(--tab-color, #1a73e8);
-  border-bottom-color: var(--tab-color, #1a73e8);
+  color: var(--tab-color, var(--gmail-blue));
+  border-bottom-color: var(--tab-color, var(--gmail-blue));
 }
 
 .iconWrap {
@@ -49,7 +49,7 @@
 }
 
 .tab.active .iconWrap {
-  color: var(--tab-color, #1a73e8);
+  color: var(--tab-color, var(--gmail-blue));
 }
 
 .label {
@@ -58,7 +58,7 @@
 }
 
 .badge {
-  background: #1e8e3e;
+  background: var(--gmail-green);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -70,7 +70,7 @@
 }
 
 .badgeYellow {
-  background: #f29900;
+  background: var(--gmail-yellow);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -81,7 +81,7 @@
 }
 
 .badgeGreen {
-  background: #34a853;
+  background: var(--gmail-green);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -92,7 +92,7 @@
 }
 
 .badgeRed {
-  background: #ea4335;
+  background: var(--gmail-red);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 700;

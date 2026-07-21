@@ -64,7 +64,7 @@
 .searchBar {
   display: flex;
   align-items: center;
-  background: #eaf1fb;
+  background: var(--search-bg);
   border-radius: 24px;
   height: 48px;
   padding: 0 6px 0 4px;
@@ -72,7 +72,7 @@
   transition: background 0.15s, box-shadow 0.2s;
   border: 1px solid transparent;
 }
-[data-theme='dark'] .searchBar { background: #303134; }
+[data-theme='dark'] .searchBar { background: var(--surface-dark); }
 
 .searchBarFocused {
   background: var(--surface) !important;
@@ -107,7 +107,7 @@
   flex-shrink: 0;
   transition: background 0.15s;
 }
-.searchIcon:hover { background: rgba(60,64,67,.08); }
+.searchIcon:hover { background: var(--hover-light); }
 
 /* ── Right icons ── */
 .topbarRight {
@@ -145,7 +145,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #1a73e8;
+  background: var(--gmail-blue);
   color: #fff;
   display: flex;
   align-items: center;
@@ -157,7 +157,7 @@
   transition: box-shadow 0.15s;
   overflow: hidden;
 }
-.avatar:hover { box-shadow: 0 0 0 3px rgba(26,115,232,.25); }
+.avatar:hover { box-shadow: 0 0 0 3px var(--input-focus-shadow); }
 
 .avatarImage {
   width: 100%;
@@ -195,7 +195,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #1a73e8;
+  background: var(--gmail-blue);
   color: #fff;
   display: flex;
   align-items: center;
@@ -241,9 +241,9 @@
 }
 .userMenuItem:hover { background: var(--border-light); }
 
-.logoutItem { color: #ea4335; }
-.logoutItem:hover { background: #fce8e6; }
-[data-theme='dark'] .logoutItem:hover { background: #4a0f0c; }
+.logoutItem { color: var(--gmail-red); }
+.logoutItem:hover { background: var(--gmail-red-bg); }
+[data-theme='dark'] .logoutItem:hover { background: var(--gmail-red-dark-bg); }
 
 .settingsWrap {
   position: relative;
@@ -284,7 +284,7 @@
 }
 
 .loginBtn {
-  background: #1a73e8;
+  background: var(--gmail-blue);
   color: #fff;
   border: none;
   border-radius: 20px;
@@ -296,7 +296,7 @@
   transition: background 0.15s;
   margin-left: 8px;
 }
-.loginBtn:hover { background: #1557b0; }
+.loginBtn:hover { background: var(--gmail-blue-dark); }
 
 /* ═══ BODY ═══ */
 .body {
@@ -311,14 +311,37 @@
   width: 256px;
   flex-shrink: 0;
   padding: 8px 0 16px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   position: sticky;
   top: 64px;
   height: calc(100vh - 64px);
-  scrollbar-width: none;
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar::-webkit-scrollbar { display: none; }
+
+/* Collapsed state — hanya tampilkan toggle button */
+.sidebarCollapsed {
+  width: 56px;
+  padding: 8px 0;
+  overflow: hidden;
+}
+
+/* Toggle button di collapsed sidebar */
+.sidebarToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 4px 8px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.15s;
+}
+.sidebarToggleBtn:hover { background: var(--border-light); }
 
 /* Compose button */
 .composeBtn {
@@ -341,9 +364,9 @@
 }
 .composeBtn:hover {
   box-shadow: 0 1px 3px rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
-  background: #eaf1fb;
+  background: var(--gmail-blue-bg);
 }
-[data-theme='dark'] .composeBtn:hover { background: #3c3f41; }
+[data-theme='dark'] .composeBtn:hover { background: var(--surface-dark); }
 
 /* Sidebar items */
 .sidebarItem {
@@ -351,9 +374,10 @@
   align-items: center;
   gap: 16px;
   padding: 0 16px 0 12px;
-  height: 32px;
+  height: 40px;
   border-radius: 0 16px 16px 0;
   margin-right: 16px;
+  margin-bottom: 2px;
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
@@ -376,13 +400,13 @@
 
 /* Active state */
 .sidebarItem.active {
-  background: #d3e3fd;
+  background: var(--gmail-blue-bg);
   font-weight: 700;
-  color: #041e49;
+  color: var(--gmail-blue-darker);
 }
 [data-theme='dark'] .sidebarItem.active {
-  background: #004a77;
-  color: #c2e7ff;
+  background: var(--gmail-blue-dark-bg);
+  color: var(--gmail-blue-light);
 }
 
 /* Static (non-link) items */
@@ -461,13 +485,55 @@
   .sidebar { width: 220px; }
 }
 @media (max-width: 768px) {
-  .sidebar { display: none; }
+  /* Sidebar becomes an off-canvas drawer instead of vanishing */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 280px !important;
+    max-width: 85vw;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18);
+    z-index: 200;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebarMobileOpen {
+    transform: translateX(0);
+  }
+  /* Collapsed state is irrelevant on mobile — drawer is either open or hidden */
+  .sidebarCollapsed {
+    width: 280px !important;
+  }
+  .sidebarToggleBtn { display: none; }
+
   .topbarLeft { min-width: auto; }
   .brandText { display: none; }
   .searchWrap { margin: 0 4px; }
+
+  .topbar {
+    height: 56px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .searchBar { height: 42px; }
+  .searchBar input { font-size: 0.9375rem; }
+
+  .main {
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
+    top: 56px;
+  }
 }
 @media (max-width: 480px) {
-  .topbarRight .iconRound:not(:last-child):not(:nth-last-child(2)) { display: none; }
+  .brand img { width: 28px; height: 28px; }
+  .searchIcon { width: 36px; height: 36px; }
+  /* Keep theme toggle + avatar; the rest already collapses into the menu */
+  .topbarRight { gap: 0; }
 }
 
 /* Report Modal */
@@ -511,14 +577,14 @@
 .reportModal input:focus,
 .reportModal textarea:focus {
   outline: none;
-  border-color: #1a73e8;
+  border-color: var(--gmail-blue);
 }
 .reportModal textarea { resize: vertical; }
 
 .reportMsg {
   padding: 8px 12px;
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--gmail-green-bg);
+  color: var(--gmail-green-dark);
   border-radius: 6px;
   font-size: 0.8rem;
   margin-bottom: 12px;
@@ -542,11 +608,11 @@
 .reportActions button:hover { background: var(--border-light); }
 
 .reportSend {
-  background: #1a73e8 !important;
+  background: var(--gmail-blue) !important;
   color: #fff !important;
-  border-color: #1a73e8 !important;
+  border-color: var(--gmail-blue) !important;
 }
-.reportSend:hover:not(:disabled) { background: #0b57d0 !important; }
+.reportSend:hover:not(:disabled) { background: var(--gmail-blue-dark) !important; }
 .reportSend:disabled { opacity: 0.5; cursor: not-allowed !important; }
 
 .sessionModal {
@@ -564,8 +630,8 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #e8f0fe;
-  color: #1a73e8;
+  background: var(--gmail-blue-bg);
+  color: var(--gmail-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -598,16 +664,16 @@
 
 .sessionModal input:focus {
   outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 1px #1a73e8;
+  border-color: var(--gmail-blue);
+  box-shadow: 0 0 0 1px var(--gmail-blue);
 }
 
 .sessionError {
   padding: 10px 12px;
   margin-bottom: 12px;
   border-radius: 6px;
-  background: #fce8e6;
-  color: #c5221f;
+  background: var(--gmail-red-bg);
+  color: var(--gmail-red-darker);
   font-size: 0.875rem;
 }
 
@@ -634,12 +700,41 @@
 }
 
 .sessionSubmit {
-  background: #1a73e8 !important;
+  background: var(--gmail-blue) !important;
   color: #fff !important;
-  border-color: #1a73e8 !important;
+  border-color: var(--gmail-blue) !important;
 }
 
 .sessionSubmit:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+/* ── Mobile: report & session modals become bottom sheets ── */
+@media (max-width: 600px) {
+  .overlay {
+    align-items: flex-end;
+  }
+  .reportModal,
+  .sessionModal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .reportActions,
+  .sessionActions {
+    flex-direction: column-reverse;
+  }
+  .reportActions button,
+  .sessionActions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }

@@ -3,10 +3,12 @@ import { useState } from 'react'
 import { Archive, Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2 } from 'lucide-react'
 import { useDeleteEmail, useReleaseEmail, useRestoreEmail, useToggleReadEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
+import { useTranslation } from '../../i18n/context'
 import api from '../../api/client'
 import ConfirmDialog from '../common/ConfirmDialog'
 import { APP_TIME_ZONE, formatAppDate } from '../../utils/time'
 import { getActiveMailboxId } from '../../utils/mailbox'
+import { useMe } from '../../api/auth'
 import styles from './EmailRow.module.css'
 
 function timeAgo(date) {
@@ -34,7 +36,9 @@ export default function EmailRow({
   senderLabel,
   openDraftMode = 'compose',
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
+  const { data: meData } = useMe()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { mutateAsync: deleteEmail } = useDeleteEmail()
   const { mutateAsync: releaseEmail } = useReleaseEmail()
@@ -69,7 +73,7 @@ export default function EmailRow({
     e.stopPropagation()
     const nextRead = !effectiveIsRead
     setRead(nextRead)
-    showToast(nextRead ? 'Email ditandai sudah dibaca' : 'Email ditandai belum dibaca', 'info')
+    showToast(nextRead ? t('emailRow.markAsRead') : t('emailRow.markAsUnread'), 'info')
   }
 
   const htmlToPlainText = (value) => {
@@ -114,13 +118,13 @@ export default function EmailRow({
         detail: {
           draft_id: data.email_id,
           to: data.recipient_list || '',
-          subject: data.subject === '(tanpa subjek)' ? '' : data.subject || '',
+          subject: data.subject === t('common.noSubject') ? '' : data.subject || '',
           body: htmlToPlainText(data.raw_content || ''),
           attachments: files,
         },
       }))
     } catch (err) {
-      showToast(err.response?.data?.detail || 'Gagal membuka draf', 'error')
+      showToast(err.response?.data?.detail || t('emailRow.openDraftError'), 'error')
     }
   }
 
@@ -155,7 +159,11 @@ export default function EmailRow({
     const from = `${window.location.pathname}${window.location.search}`
     const currentParams = new URLSearchParams(window.location.search)
     const detailParams = new URLSearchParams({ from })
-    const mailboxId = getActiveMailboxId(currentParams)
+    // For role 'user', always use their own email as mailboxId — never trust URL
+    const userRole = meData?.user?.role
+    const mailboxId = userRole === 'user'
+      ? (meData?.user?.email || getActiveMailboxId(currentParams))
+      : getActiveMailboxId(currentParams)
     if (mailboxId) detailParams.set('mailbox_id', mailboxId)
     navigate(mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/email/${email.email_id}?${detailParams.toString()}` : `/email/${email.email_id}?${detailParams.toString()}`)
   }
@@ -173,7 +181,7 @@ export default function EmailRow({
       await Promise.all(deleteIds.map((id) => deleteEmail(id)))
       setDeleteDialogOpen(false)
     } catch (err) {
-      showToast(err.response?.data?.detail || 'Gagal menghapus email', 'error')
+      showToast(err.response?.data?.detail || t('emailRow.deleteError'), 'error')
     }
   }
 
@@ -181,16 +189,16 @@ export default function EmailRow({
     e.stopPropagation()
     try {
       await restoreEmail(email.email_id)
-      showToast('Email dipulihkan', 'success')
-    } catch { showToast('Gagal memulihkan email', 'error') }
+      showToast(t('emailRow.restoreSuccess'), 'success')
+    } catch { showToast(t('emailRow.restoreError'), 'error') }
   }
 
   const handleQuickRelease = async (e) => {
     e.stopPropagation()
     try {
       await releaseEmail(email.email_id)
-      showToast('Email dirilis ke inbox', 'success')
-    } catch { showToast('Gagal melepas', 'error') }
+      showToast(t('emailRow.releaseSuccess'), 'success')
+    } catch { showToast(t('emailRow.releaseError'), 'error') }
   }
 
   return (
@@ -212,7 +220,7 @@ export default function EmailRow({
           <button
             className={`${styles.starBtn} ${isStarred ? styles.starActive : ''}`}
             onClick={(e) => { e.stopPropagation(); onToggleStar?.(email.email_id) }}
-            title={isStarred ? 'Batal penting' : 'Tandai penting'}
+            title={isStarred ? t('emailRow.unmarkImportant') : t('emailRow.markImportant')}
           >
             <Star size={15} fill={isStarred ? 'var(--star-color, #f2c94c)' : 'none'} />
           </button>
@@ -225,14 +233,14 @@ export default function EmailRow({
 
       <div className={styles.body}>
         <span className={styles.subject}>
-          {email.subject || '(no subject)'}
+          {email.subject || t('common.noSubject')}
           {/* Thread count badge */}
           {email._threadCount > 1 && (
             <span className={styles.threadCountBadge}>{email._threadCount}</span>
           )}
           {/* Draft indicator for threads with active draft */}
           {email._hasDraftInThread && (
-            <span className={styles.threadDraftIndicator}>Draf</span>
+            <span className={styles.threadDraftIndicator}>{t('emailRow.draftLabel')}</span>
           )}
         </span>
         <span className={styles.separator}>-</span>
@@ -243,25 +251,25 @@ export default function EmailRow({
 
       <div className={styles.quickActions}>
         {isTrash && (
-          <button className={styles.quickBtn} onClick={handleQuickRestore} title="Pulihkan">
+          <button className={styles.quickBtn} onClick={handleQuickRestore} title={t('emailRow.restore')}>
             <RotateCcw size={18} />
           </button>
         )}
         {verdict === 'quarantine' && (
-          <button className={styles.quickBtn} onClick={handleQuickRelease} title="Rilis ke inbox">
+          <button className={styles.quickBtn} onClick={handleQuickRelease} title={t('emailRow.release')}>
             <Archive size={18} />
           </button>
         )}
         <button
           className={styles.quickBtn}
           onClick={handleQuickToggleRead}
-          title={effectiveIsRead ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}
-          aria-label={effectiveIsRead ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}
+          title={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
+          aria-label={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
         >
           {effectiveIsRead ? <Mail size={18} /> : <MailOpen size={18} />}
         </button>
         {!isTrash && (
-          <button className={styles.quickBtn} onClick={handleQuickDelete} title="Hapus">
+          <button className={styles.quickBtn} onClick={handleQuickDelete} title={t('emailRow.delete')}>
             <Trash2 size={18} />
           </button>
         )}
@@ -274,10 +282,10 @@ export default function EmailRow({
       </div>
       <ConfirmDialog
         open={deleteDialogOpen}
-        title="Konfirmasi penghapusan pesan"
+        title={t('emailRow.confirmDeleteTitle')}
         message={isDraft
-          ? 'Draf ini akan dihapus permanen. Anda yakin ingin melanjutkan?'
-          : 'Email ini akan dipindahkan ke Sampah. Anda yakin ingin melanjutkan?'}
+          ? t('emailRow.confirmDeleteDraft')
+          : t('emailRow.confirmDeleteEmail')}
         onCancel={() => setDeleteDialogOpen(false)}
         onConfirm={confirmQuickDelete}
       />

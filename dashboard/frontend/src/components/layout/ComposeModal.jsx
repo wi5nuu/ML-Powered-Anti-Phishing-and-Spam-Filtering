@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Minus, Maximize2, Minimize2, X, Trash2, Paperclip } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
+import { useTranslation } from '../../i18n/context'
 import api from '../../api/client'
 import styles from './ComposeModal.module.css'
 
@@ -15,6 +16,7 @@ export default function ComposeModal({
   parentEmailId = '',
   composeMode = 'new',   // 'new' | 'reply' | 'reply_all' | 'forward'
 }) {
+  const { t } = useTranslation()
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [recipients, setRecipients] = useState([])
@@ -38,7 +40,7 @@ export default function ComposeModal({
       const parsedRecipients = parseRecipientText(initialDraft.to || '')
       setRecipients(parsedRecipients.valid)
       setRecipientInput(parsedRecipients.invalid.join(', '))
-      setRecipientError(parsedRecipients.invalid.length ? 'Ada alamat email yang belum valid.' : '')
+      setRecipientError(parsedRecipients.invalid.length ? t('compose.invalidEmail') : '')
       setSubject(initialDraft.subject || '')
       setBody(initialDraft.body || '')
       setAttachments(initialDraft.attachments || [])
@@ -119,7 +121,7 @@ export default function ComposeModal({
     }
     const parsed = parseRecipientText(raw)
     if (parsed.invalid.length > 0 || parsed.valid.length === 0) {
-      setRecipientError(`Alamat email tidak valid: ${parsed.invalid[0] || raw}`)
+      setRecipientError(t('compose.invalidEmailPrefix') + (parsed.invalid[0] || raw))
       return false
     }
     setRecipients((prev) => {
@@ -156,7 +158,7 @@ export default function ComposeModal({
     const parsed = parseRecipientText(text)
     if (parsed.invalid.length > 0) {
       setRecipientInput(parsed.invalid.join(', '))
-      setRecipientError(`Alamat email tidak valid: ${parsed.invalid[0]}`)
+      setRecipientError(t('compose.invalidEmailPrefix') + parsed.invalid[0])
       return
     }
     setRecipients((prev) => {
@@ -189,7 +191,7 @@ export default function ComposeModal({
     const pending = recipientInput.trim()
     const parsedPending = parseRecipientText(pending)
     if (pending && (parsedPending.invalid.length > 0 || parsedPending.valid.length === 0)) {
-      setRecipientError(`Alamat email tidak valid: ${parsedPending.invalid[0] || pending}`)
+      setRecipientError(t('compose.invalidEmailPrefix') + (parsedPending.invalid[0] || pending))
       return
     }
     const finalRecipientList = [...recipients]
@@ -198,7 +200,7 @@ export default function ComposeModal({
     })
     const finalRecipients = finalRecipientList.join(', ')
     if (!finalRecipients) {
-      showToast('Silakan tentukan penerima email', 'error')
+      showToast(t('compose.noRecipient'), 'error')
       return
     }
     setRecipients(finalRecipientList)
@@ -221,16 +223,16 @@ export default function ComposeModal({
       } else {
         await api.post('/emails/send', { to: finalRecipients, from_email: fromMailbox, subject, body, action: 'send', draft_id: draftId })
       }
-      showToast(`Email berhasil dikirim ke ${finalRecipients}`, 'success')
+      showToast(t('compose.sentSuccessPrefix') + finalRecipients, 'success')
       resetCompose()
       onClose()
       queryClient.invalidateQueries({ queryKey: ['emails'] })
     } catch (err) {
       const detail = err.response?.data?.detail
       const message = typeof detail === 'object'
-        ? `${detail.message || 'Email gagal terkirim.'}${detail.reason ? ` ${detail.reason}` : ''}`
+        ? `${detail.message || t('compose.sendFailed')}${detail.reason ? ` ${detail.reason}` : ''}`
         : detail || err.message
-      showToast('Gagal mengirim email: ' + message, 'error')
+      showToast(t('compose.sendErrorPrefix') + message, 'error')
       queryClient.invalidateQueries({ queryKey: ['emails'] })
     }
   }
@@ -278,12 +280,12 @@ export default function ComposeModal({
         body,
         attachments: attachments.map((file) => `${file.name}:${file.size}:${file.lastModified || ''}`),
       })
-      if (!silent) showToast('Draf berhasil disimpan', 'success')
+      if (!silent) showToast(t('compose.draftSaved'), 'success')
       queryClient.invalidateQueries({ queryKey: ['emails'] })
       if (resetAfter) resetCompose()
       if (closeAfter) onClose()
     } catch (err) {
-      if (!silent) showToast('Gagal menyimpan draf: ' + (err.response?.data?.detail || err.message), 'error')
+      if (!silent) showToast(t('compose.draftSaveErrorPrefix') + (err.response?.data?.detail || err.message), 'error')
     } finally {
       setSavingDraft(false)
     }
@@ -314,29 +316,29 @@ export default function ComposeModal({
       <div className={styles.header} onClick={() => setMinimized(!minimized)}>
         <span className={styles.title}>
             {isReplyMode && draftId
-              ? <span className={styles.draftBadge}>Draf</span>
+              ? <span className={styles.draftBadge}>{t('compose.draftBadge')}</span>
               : null}
-            {subject || (isReplyMode ? 'Balas' : 'Pesan Baru')}
+            {subject || (isReplyMode ? t('compose.reply') : t('compose.newMessage'))}
           </span>
         <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
           <button 
             className={styles.actionBtn} 
             onClick={() => setMinimized(!minimized)} 
-            title="Minimalkan"
+            title={t('compose.minimize')}
           >
             <Minus size={16} />
           </button>
           <button 
             className={styles.actionBtn} 
             onClick={() => setMaximized(!maximized)} 
-            title={maximized ? 'Pulihkan ukuran' : 'Maksimalkan'}
+            title={maximized ? t('compose.restore') : t('compose.maximize')}
           >
             {maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
               <button 
                 className={styles.actionBtn} 
                 onClick={requestClose}
-            title="Tutup"
+            title={t('btn.close')}
               >
             <X size={16} />
           </button>
@@ -347,22 +349,22 @@ export default function ComposeModal({
       {!minimized && (
         <form onSubmit={handleSend} className={styles.body}>
           <div className={styles.field}>
-            <span className={styles.label}>Dari:</span>
+            <span className={styles.label}>{t('compose.from')}:</span>
             <input
               type="text"
               className={styles.input}
-              value={fromMailbox || 'akun login'}
+              value={fromMailbox || t('compose.loginAccount')}
               readOnly
             />
           </div>
           <div className={styles.field}>
-            <span className={styles.label}>Penerima:</span>
+            <span className={styles.label}>{t('compose.to')}:</span>
             <div className={`${styles.recipientBox} ${recipientError ? styles.recipientBoxError : ''}`}>
               {recipients.map((email) => (
                 <span key={email} className={styles.recipientChip}>
                   <span className={styles.recipientAvatar}>{email[0].toUpperCase()}</span>
                   <span className={styles.recipientText}>{email}</span>
-                  <button type="button" onClick={() => removeRecipient(email)} title="Hapus penerima">
+                  <button type="button" onClick={() => removeRecipient(email)} title={t('compose.removeRecipient')}>
                     <X size={14} />
                   </button>
                 </span>
@@ -375,27 +377,27 @@ export default function ComposeModal({
                 onKeyDown={handleRecipientKeyDown}
                 onPaste={handleRecipientPaste}
                 onBlur={() => commitRecipientInput()}
-                placeholder={recipients.length ? '' : 'nama@contoh.com'}
+                placeholder={recipients.length ? '' : t('compose.recipientPlaceholder')}
                 aria-invalid={Boolean(recipientError)}
               />
             </div>
           </div>
           {recipientError && <div className={styles.recipientError}>{recipientError}</div>}
           <div className={styles.field}>
-            <span className={styles.label}>Subjek:</span>
+            <span className={styles.label}>{t('compose.subject')}:</span>
             <input 
               type="text" 
               className={styles.input} 
               value={subject} 
               onChange={(e) => setSubject(e.target.value)} 
-              placeholder="Subjek email"
+              placeholder={t('compose.placeholderSubject')}
             />
           </div>
           <textarea 
             className={styles.textarea} 
             value={body} 
             onChange={(e) => setBody(e.target.value)} 
-            placeholder="Tulis pesan Anda di sini..."
+            placeholder={t('compose.body')}
           />
           {attachments.length > 0 && (
             <div className={styles.attachmentList}>
@@ -406,7 +408,7 @@ export default function ComposeModal({
                   <button
                     type="button"
                     onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
-                    title="Hapus lampiran"
+                    title={t('compose.removeAttachment')}
                   >
                     <X size={14} />
                   </button>
@@ -417,9 +419,9 @@ export default function ComposeModal({
           
           {/* Footer controls */}
           <div className={styles.footer}>
-            <button type="submit" className={styles.sendBtn}>Kirim</button>
+            <button type="submit" className={styles.sendBtn}>{t('compose.send')}</button>
             <div className={styles.footerActions}>
-              <label className={styles.iconBtn} title="Lampirkan file">
+              <label className={styles.iconBtn} title={t('compose.attach')}>
                 <Paperclip size={18} />
                 <input
                   type="file"
@@ -431,7 +433,7 @@ export default function ComposeModal({
                 type="button"
                 className={styles.trashBtn}
                 onClick={handleDiscard}
-                title="Buang draf"
+                title={t('compose.discardDraft')}
               >
                 <Trash2 size={18} />
               </button>
@@ -440,20 +442,20 @@ export default function ComposeModal({
         </form>
       )}
     </div>
-    {false && savePromptOpen && (
+    {savePromptOpen && (
       <div className={styles.draftDialogOverlay} onClick={() => setSavePromptOpen(false)}>
         <div className={styles.draftDialog} onClick={(e) => e.stopPropagation()}>
-          <h2>Save as draft?</h2>
+          <h2>{t('compose.saveAsDraftTitle')}</h2>
           <p>
-            Pesan belum dikirim dan memiliki perubahan yang belum disimpan.
-            Anda ingin membuang perubahan atau menyimpannya sebagai draf?
+            {t('compose.saveAsDraftBody1')}
+            {t('compose.saveAsDraftBody2')}
           </p>
           <div className={styles.draftDialogActions}>
             <button type="button" className={styles.discardBtn} onClick={handleDiscard}>
-              Discard
+              {t('compose.discard')}
             </button>
             <button type="button" className={styles.primaryDraftBtn} onClick={saveDraft} disabled={savingDraft}>
-              {savingDraft ? 'Saving...' : 'Save draft'}
+              {savingDraft ? t('common.saving') : t('compose.saveAsDraft')}
             </button>
           </div>
         </div>

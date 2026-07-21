@@ -1,0 +1,94 @@
+.overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: var(--dialog-overlay);
+}
+
+.modal {
+  width: min(640px, calc(100vw - 48px));
+  max-height: 90vh; overflow-y: auto;
+  box-sizing: border-box; padding: 28px 32px;
+  border-radius: 28px; background: var(--dialog-bg);
+  color: var(--dialog-text);
+  box-shadow: 0 12px 32px rgba(60,64,67,0.26);
+  font-family: 'Google Sans','Roboto',Arial,sans-serif;
+}
+
+.modal h2 {
+  margin: 0 0 20px; font-size: 1.4rem; font-weight: 500; color: var(--text);
+}
+
+.field { margin-bottom: 18px; }
+
+.label {
+  display: block; margin-bottom: 6px;
+  font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.radioGroup { display: flex; gap: 20px; flex-wrap: wrap; }
+.radio, .check {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 0.92rem; color: var(--text);
+}
+.radio input, .check input { cursor: pointer; }
+
+.periodGrid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.periodBtn {
+  padding: 5px 14px; border: 1px solid var(--border); border-radius: 16px;
+  background: var(--card-bg); color: var(--text); font-size: 0.82rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.periodBtn:hover { background: var(--hover); }
+.periodActive { background: var(--gmail-blue-dark) !important; color: #fff; border-color: var(--gmail-blue-dark); }
+
+.dateRow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dateInput {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 0.85rem; background: var(--card-bg); color: var(--text);
+  flex: 1;
+}
+.dateSep { color: var(--text-muted); font-size: 0.85rem; }
+
+.adminList { margin-top: 8px; }
+.searchInput {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+  font-size: 0.85rem; background: var(--card-bg); color: var(--text);
+  margin-bottom: 6px;
+}
+.adminScroll {
+  max-height: 160px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 10px; padding: 4px;
+}
+.adminRow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; cursor: pointer; border-radius: 6px; font-size: 0.85rem;
+}
+.adminRow:hover { background: var(--hover); }
+.adminRow input { cursor: pointer; }
+.adminName { font-weight: 500; color: var(--text); min-width: 100px; }
+.adminRole { font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
+.adminEmail { font-size: 0.78rem; color: var(--text-secondary); }
+.noAdmin { padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+.checkGroup { display: flex; flex-direction: column; gap: 6px; }
+
+.error {
+  background: #fce8e6; color: #c5221f; padding: 8px 12px;
+  border-radius: 10px; font-size: 0.85rem; margin-bottom: 14px;
+}
+
+.actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; }
+
+.cancelBtn, .generateBtn {
+  min-width: 110px; height: 44px; border: none; border-radius: 22px;
+  padding: 0 24px; font: inherit; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.cancelBtn { background: transparent; color: var(--gmail-blue-dark); }
+.cancelBtn:hover { background: var(--button-hover-bg); }
+.generateBtn { background: var(--gmail-blue-dark); color: #fff; }
+.generateBtn:hover { background: var(--gmail-blue-darker); }
+.cancelBtn:disabled, .generateBtn:disabled { opacity: 0.6; cursor: default; }
