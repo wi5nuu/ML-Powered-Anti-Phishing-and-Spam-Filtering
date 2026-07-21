@@ -45,6 +45,7 @@ class User(Base):
     role = Column(String(16), default=UserRole.USER.value)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     is_active = Column(Boolean, default=True)
+    forward_to = Column(String(255), default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 

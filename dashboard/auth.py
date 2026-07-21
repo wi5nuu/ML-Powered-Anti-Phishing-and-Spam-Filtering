@@ -16,7 +16,7 @@ if not hasattr(bcrypt, "__about__"):
     bcrypt.__about__ = About()
 
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 
@@ -69,6 +69,21 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    payload = decode_token(token)
+    username = payload.get("sub")
+    if username is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    return user
+
+
+def get_current_user_cookie(request: Request, db: Session = Depends(get_db)) -> User:
+    """Authenticate via HttpOnly cookie 'access_token' (used by browser-facing API routes)."""
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(token)
     username = payload.get("sub")
     if username is None:

@@ -3,10 +3,13 @@ Shared database session dependency.
 
 Avoids circular imports between app.py and auth.py.
 """
+import logging
 import os
 from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
+
+log = logging.getLogger(__name__)
 
 from database.models import AdminMailbox, AdminMailboxAccess, AuditLog, Base
 
@@ -15,10 +18,20 @@ from database.models import AdminMailbox, AdminMailboxAccess, AuditLog, Base
 # an async SQLAlchemy URL while this dashboard session is synchronous.
 _project_root = Path(__file__).parent.parent
 _default_db = f"sqlite:///{_project_root / 'cognimail.db'}"
+
+# WORKER_DB_URL uses asyncpg driver — convert to sync psycopg for dashboard
+_worker_url = os.getenv("WORKER_DB_URL", "")
+_worker_sync = (
+    _worker_url
+    .replace("postgresql+asyncpg://", "postgresql+psycopg://")
+    if _worker_url else ""
+)
+
 DB_URL = (
     os.getenv("DASHBOARD_DB_URL")
     or os.getenv("DB_SYNC_URL")
     or os.getenv("DB_URL")
+    or _worker_sync
     or _default_db
 )
 engine = create_engine(DB_URL)
@@ -26,14 +39,33 @@ Base.metadata.create_all(engine)
 
 
 def _ensure_schema_compatibility():
-    inspector = inspect(engine)
     Base.metadata.create_all(engine)
+    inspector = inspect(engine)
     table_names = inspector.get_table_names()
+    is_postgres = "postgresql" in DB_URL.lower() or "postgres" in DB_URL.lower()
+
     if "users" in table_names:
         user_columns = {column["name"] for column in inspector.get_columns("users")}
+        missing = []
         if "avatar_url" not in user_columns:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''"))
+            missing.append("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''")
+        if "forward_to" not in user_columns:
+            missing.append("ALTER TABLE users ADD COLUMN forward_to VARCHAR(255) DEFAULT ''")
+        if "forward_enabled" not in user_columns:
+            missing.append("ALTER TABLE users ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
+        if "forward_keep_copy" not in user_columns:
+            missing.append("ALTER TABLE users ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
+        for stmt in missing:
+            try:
+                with engine.begin() as conn:
+                    if is_postgres:
+                        col_part = stmt.split("ADD COLUMN ", 1)[1]
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_part}"))
+                    else:
+                        conn.execute(text(stmt))
+                log.info("migration: ran: %s", stmt)
+            except Exception as exc:
+                log.warning("migration: failed (%s): %s", stmt, exc)
     if "quarantine_emails" in table_names:
         email_columns = {column["name"] for column in inspector.get_columns("quarantine_emails")}
         email_statements = []
@@ -49,31 +81,44 @@ def _ensure_schema_compatibility():
             email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''")
         if "dmarc_result" not in email_columns:
             email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''")
-        if email_statements:
-            with engine.begin() as conn:
-                for statement in email_statements:
-                    conn.execute(text(statement))
+        for stmt in email_statements:
+            try:
+                with engine.begin() as conn:
+                    if is_postgres:
+                        col_part = stmt.split("ADD COLUMN ", 1)[1]
+                        conn.execute(text(f"ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS {col_part}"))
+                    else:
+                        conn.execute(text(stmt))
+                log.info("migration: ran: %s", stmt)
+            except Exception as exc:
+                log.warning("migration: failed (%s): %s", stmt, exc)
     if "admin_mailboxes" not in inspector.get_table_names():
         return
     columns = {column["name"] for column in inspector.get_columns("admin_mailboxes")}
-    statements = []
+    mb_statements = []
     if "password_hash" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN password_hash VARCHAR(128) DEFAULT ''")
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN password_hash VARCHAR(128) DEFAULT ''")
     if "sender_name" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN sender_name VARCHAR(255) DEFAULT ''")
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN sender_name VARCHAR(255) DEFAULT ''")
     if "avatar_url" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''")
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN avatar_url VARCHAR(512) DEFAULT ''")
     if "forward_to" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''")
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''")
     if "forward_enabled" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
     if "forward_keep_copy" not in columns:
-        statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
-    if not statements:
-        return
-    with engine.begin() as conn:
-      for statement in statements:
-          conn.execute(text(statement))
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
+    for stmt in mb_statements:
+        try:
+            with engine.begin() as conn:
+                if is_postgres:
+                    col_part = stmt.split("ADD COLUMN ", 1)[1]
+                    conn.execute(text(f"ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS {col_part}"))
+                else:
+                    conn.execute(text(stmt))
+            log.info("migration: ran: %s", stmt)
+        except Exception as exc:
+            log.warning("migration: failed (%s): %s", stmt, exc)
 
 
 def _seed_mailbox_access():
