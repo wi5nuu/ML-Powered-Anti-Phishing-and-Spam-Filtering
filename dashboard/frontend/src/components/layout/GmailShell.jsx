@@ -525,16 +525,16 @@ export default function GmailShell({ children }) {
                 setComposeMode('new')
                 setComposeOpen(true)
               }}>
-                <Pencil size={20} color="#EA4335" />
+                <Pencil size={20} color="#001d35" />
                 <span>{t('gmail.compose')}</span>
               </button>
 
-              {navItem('/inbox', <Inbox size={18} />, t('gmail.inbox'), 0)}
-              {navItem('/inbox?folder=starred', <Star size={18} />, t('gmail.starred'), 0)}
-              {navItem('/sent', <Send size={18} />, t('gmail.sent'), 0)}
-              {navItem('/draft', <FileText size={18} />, t('gmail.drafts'), 0)}
-              {navItem('/inbox?folder=allmail', <Mail size={18} />, t('gmail.allMail'), 0)}
-              {navItem('/inbox?folder=trash', <Trash2 size={18} />, t('gmail.trash'), 0)}
+              {navItem('/inbox', <Inbox size={18} color="#444746" />, t('gmail.inbox'), 0)}
+              {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, t('gmail.starred'), 0)}
+              {navItem('/sent', <Send size={18} color="#444746" />, t('gmail.sent'), 0)}
+              {navItem('/draft', <FileText size={18} color="#444746" />, t('gmail.drafts'), 0)}
+              {navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, t('gmail.allMail'), 0)}
+              {navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'), 0)}
 
               <div className={styles.divider} />
               <div className={styles.sidebarHeading}>{t('gmail.threatLabel')}</div>
@@ -542,7 +542,7 @@ export default function GmailShell({ children }) {
                 className={`${styles.sidebarItem} ${styles.sidebarButton} ${currentCat ? styles.active : ''}`}
                 onClick={() => setThreatOpen((v) => !v)}
               >
-                <span className={styles.itemIcon}><Shield size={18} /></span>
+                <span className={styles.itemIcon}><Shield size={18} color="#0b57d0" /></span>
                 <span className={styles.itemLabel}>{t('gmail.quarantine')}</span>
                 <span className={styles.expandIcon}>
                   {threatOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
@@ -559,7 +559,7 @@ export default function GmailShell({ children }) {
               <div className={styles.divider} />
               <div className={styles.sidebarHeading}>{t('gmail.system')}</div>
               <button className={`${styles.sidebarItem} ${styles.sidebarButton}`} onClick={() => setReportOpen(true)}>
-                <span className={styles.itemIcon}><Flag size={18} /></span>
+                <span className={styles.itemIcon}><Flag size={18} color="#444746" /></span>
                 <span className={styles.itemLabel}>{t('gmail.report')}</span>
               </button>
               {!mailboxIdentity && (
@@ -567,7 +567,7 @@ export default function GmailShell({ children }) {
                   className={`${styles.sidebarItem} ${styles.sidebarButton}`}
                   onClick={() => navigate('/settings')}
                 >
-                  <span className={styles.itemIcon}><Settings size={18} /></span>
+                  <span className={styles.itemIcon}><Settings size={18} color="#444746" /></span>
                   <span className={styles.itemLabel}>{t('gmail.settings')}</span>
                 </button>
               )}

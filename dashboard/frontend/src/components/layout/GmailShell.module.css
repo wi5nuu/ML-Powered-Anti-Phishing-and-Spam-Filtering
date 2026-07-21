@@ -311,17 +311,21 @@
   width: 256px;
   flex-shrink: 0;
   padding: 8px 0 16px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 64px;
   height: calc(100vh - 64px);
   transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg);
 }
-.sidebar::-webkit-scrollbar { display: none; }
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
 
 /* Collapsed state — hanya tampilkan toggle button */
 .sidebarCollapsed {
-  width: 56px;
+  width: 72px;
   padding: 8px 0;
   overflow: hidden;
 }
@@ -333,7 +337,7 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  margin: 4px 8px;
+  margin: 8px auto;
   border: none;
   background: none;
   border-radius: 50%;
@@ -343,41 +347,46 @@
 }
 .sidebarToggleBtn:hover { background: var(--border-light); }
 
-/* Compose button */
+/* Compose button — pill dengan shadow seperti Gmail */
 .composeBtn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 8px 16px 16px 8px;
-  padding: 16px 24px;
-  background: var(--surface);
+  gap: 14px;
+  margin: 8px 12px 18px 12px;
+  padding: 18px 26px;
+  background: #c2e7ff;
   border: none;
   border-radius: 16px;
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #001d35;
   font-family: 'Google Sans', sans-serif;
-  box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
-  transition: box-shadow 0.15s, background 0.15s;
+  box-shadow: none;
+  transition: box-shadow 0.2s, background 0.15s;
   width: calc(100% - 24px);
+  letter-spacing: 0.01em;
 }
 .composeBtn:hover {
   box-shadow: 0 1px 3px rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
-  background: var(--gmail-blue-bg);
+  background: #a8d8f8;
 }
-[data-theme='dark'] .composeBtn:hover { background: var(--surface-dark); }
+[data-theme='dark'] .composeBtn {
+  background: #004a77;
+  color: #c2e7ff;
+}
+[data-theme='dark'] .composeBtn:hover { background: #005f9e; }
 
-/* Sidebar items */
+/* Sidebar nav items */
 .sidebarItem {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 16px 0 12px;
-  height: 40px;
-  border-radius: 0 16px 16px 0;
-  margin-right: 16px;
-  margin-bottom: 2px;
+  gap: 14px;
+  padding: 0 24px 0 16px;
+  height: 36px;
+  border-radius: 0 18px 18px 0;
+  margin-right: 14px;
+  margin-bottom: 1px;
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
@@ -386,50 +395,65 @@
   transition: background 0.15s;
   white-space: nowrap;
   overflow: hidden;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
 }
 .sidebarItem:hover { background: var(--border-light); }
 
 .sidebarButton {
-  width: calc(100% - 16px);
+  width: calc(100% - 14px);
   border: none;
   background: none;
   text-align: left;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
 }
 
-/* Active state */
+/* Active state — pill biru muda */
 .sidebarItem.active {
-  background: var(--gmail-blue-bg);
+  background: #d3e3fd;
   font-weight: 700;
-  color: var(--gmail-blue-darker);
+  color: #041e49;
 }
 [data-theme='dark'] .sidebarItem.active {
-  background: var(--gmail-blue-dark-bg);
-  color: var(--gmail-blue-light);
+  background: #004a77;
+  color: #c2e7ff;
 }
 
-/* Static (non-link) items */
-.staticItem { cursor: default; }
-.staticItem:hover { background: transparent; }
-
+/* Icon pada item */
 .itemIcon {
   width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--text-secondary, #444746);
   flex-shrink: 0;
 }
-.sidebarItem.active .itemIcon { color: inherit; }
+.sidebarItem.active .itemIcon { color: #041e49; }
+[data-theme='dark'] .sidebarItem.active .itemIcon { color: #c2e7ff; }
+
+/* Static (non-link) items */
+.staticItem { cursor: default; }
+.staticItem:hover { background: transparent; }
 
 .itemLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
+/* Badge count — bulat penuh seperti Gmail */
 .itemCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
   font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
   color: var(--text);
   margin-left: auto;
   flex-shrink: 0;
+}
+.sidebarItem.active .itemCount {
+  color: #041e49;
 }
 
 .expandIcon {
@@ -441,29 +465,42 @@
   flex-shrink: 0;
 }
 
+/* Sub-nav (Phishing, Spam, Malware) */
 .subNav .sidebarItem {
-  padding-left: 44px;
-  gap: 12px;
+  padding-left: 40px;
+  gap: 10px;
+  height: 34px;
 }
 
+/* Dot berwarna untuk kategori ancaman */
 .labelDot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Badge count pada sub-nav — berwarna sesuai kategori */
+.subNav .itemCount {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  padding: 0;
+  min-width: unset;
+  height: unset;
 }
 
 .divider {
   height: 1px;
   background: var(--border);
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .sidebarHeading {
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-muted);
-  padding: 8px 16px 4px;
+  padding: 10px 18px 4px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
