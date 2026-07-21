@@ -4,22 +4,121 @@
   --surface: #ffffff;
   --text: #202124;
   --text-muted: #5f6368;
+  --text-secondary: #3c4043;
   --border: #dadce0;
   --border-light: #f1f3f4;
+  --border-medium: #e8eaed;
 
   --gmail-blue: #1a73e8;
+  --gmail-blue-dark: #0b57d0;
+  --gmail-blue-darker: #0842a0;
+  --gmail-blue-hover: #1557b0;
   --gmail-red: #ea4335;
+  --gmail-red-dark: #c5221f;
+  --gmail-red-darker: #d93025;
   --gmail-yellow: #fbbc05;
+  --gmail-yellow-dark: #b06000;
   --gmail-green: #34a853;
+  --gmail-green-dark: #1e8e3e;
+  --gmail-green-darker: #137333;
 
   --row-unread-bg: #ffffff;
   --row-read-bg: #f2f6fc;
   --row-hover-bg: #f5f5f5;
+  --row-selected-bg: #c2dbff;
 
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
   --sidebar-active-bg: #e8f0fe;
   --sidebar-active-color: #1a73e8;
+  --sidebar-hover-bg: #f1f3f4;
+  --sidebar-text: #202124;
+  --sidebar-text-muted: #5f6368;
+
+  --hover: #f1f3f4;
+  --hover-light: rgba(60, 64, 67, 0.08);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Additional colors for components */
+  --overlay-bg: rgba(32, 33, 36, 0.38);
+  --overlay-dark: rgba(0, 0, 0, 0.4);
+  
+  --button-hover-bg: #f1f3f4;
+  --button-active-bg: #d3e3fd;
+  
+  --badge-bg: #dadce0;
+  --badge-text: #3c4043;
+  
+  --star-active: #f4b400;
+  
+  --notice-bg: #e8f0fe;
+  --notice-text: #174ea6;
+  --notice-border: #d2e3fc;
+  
+  --success-bg: #e6f4ea;
+  --success-text: #137333;
+  --success-border: #81c995;
+  
+  --warning-bg: rgba(251, 188, 4, 0.18);
+  --warning-text: #b06000;
+  --warning-border: rgba(251, 188, 4, 0.35);
+  
+  --error-bg: #fce8e6;
+  --error-text: #c5221f;
+  --error-border: #f28b82;
+  
+  --chip-bg: #e8f0fe;
+  --chip-text: #1a73e8;
+  --chip-border: #d2e3fc;
+  
+  --input-border: #9aa0a6;
+  --input-focus-border: #1a73e8;
+  --input-focus-shadow: rgba(26, 115, 232, 0.25);
+  
+  --search-bg: #eaf1fb;
+  
+  --dialog-bg: #ffffff;
+  --dialog-text: #202124;
+  --dialog-overlay: rgba(32, 33, 36, 0.38);
+  
+  /* Additional variables used by components */
+  --gmail-blue-bg: #e8f0fe;
+  --gmail-blue-light: #aecbfa;
+  --gmail-red-bg: #fce8e6;
+  --gmail-green-bg: #e6f4ea;
+  --gmail-yellow-bg: #fef7e0;
+  
+  --surface-dark: #303134;
+  --border-dark: #3c4043;
+  --input-bg: #f9fafb;
+  
+  --row-unread-bg-dark: #1f1f1f;
+  --row-read-bg-dark: #171717;
+  --row-hover-bg-dark: #2b2c2f;
 
   --font-sans: 'Google Sans', Roboto, Arial, sans-serif;
+
+  /* ═══ CONSISTENT SPACING TOKENS ═══ */
+  /* Page content spacing - consistent across all pages */
+  --page-padding-x: 32px;           /* Horizontal padding from sidebar/edges */
+  --page-padding-y: 24px;           /* Top padding from navbar/header */
+  --page-padding-bottom: 60px;      /* Bottom padding for scroll comfort */
+  
+  /* Title spacing */
+  --title-margin-bottom: 20px;      /* Space between title and content */
+  --title-font-size: 1.5rem;        /* Consistent title size */
+  
+  /* Section spacing */
+  --section-gap: 24px;               /* Gap between major sections */
+  --card-gap: 16px;                  /* Gap between cards/items */
+  
+  /* Mobile adjustments */
+  --page-padding-x-mobile: 16px;
+  --page-padding-y-mobile: 16px;
+  --page-padding-bottom-mobile: 48px;
+  --title-font-size-mobile: 1.25rem;
 }
 
 [data-theme='dark'] {
@@ -27,26 +126,111 @@
   --surface: #1e1f20;
   --text: #e3e3e3;
   --text-muted: #9e9e9e;
+  --text-secondary: #c4c7c5;
   --border: #444746;
   --border-light: #2c2d30;
+  --border-medium: #3c4043;
 
   --gmail-blue: #8ab4f8;
+  --gmail-blue-dark: #aecbfa;
+  --gmail-blue-darker: #c5d9fc;
+  --gmail-blue-hover: #669df6;
   --gmail-red: #f28b82;
+  --gmail-red-dark: #f6ada6;
+  --gmail-red-darker: #fac2be;
   --gmail-yellow: #fdd663;
+  --gmail-yellow-dark: #fdd999;
   --gmail-green: #81c995;
+  --gmail-green-dark: #a8dab5;
+  --gmail-green-darker: #c6e7d0;
 
   --row-unread-bg: #1e1f20;
   --row-read-bg: #131416;
   --row-hover-bg: #2d2e30;
+  --row-selected-bg: #1c3a5e;
 
-  --sidebar-active-bg: #002d6b;
-  --sidebar-active-color: #d2e3fc;
+  --sidebar-bg: #1e1f20;
+  --sidebar-border: #2c2d30;
+  --sidebar-active-bg: #1c3a5e;
+  --sidebar-active-color: #8ab4f8;
+  --sidebar-hover-bg: #2d2e30;
+  --sidebar-text: #e3e3e3;
+  --sidebar-text-muted: #9e9e9e;
+
+  --hover: #2d2e30;
+  --hover-light: rgba(227, 227, 227, 0.08);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+
+  /* Additional colors for components */
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --overlay-dark: rgba(0, 0, 0, 0.7);
+  
+  --button-hover-bg: #2d2e30;
+  --button-active-bg: #1c3a5e;
+  
+  --badge-bg: #444746;
+  --badge-text: #e3e3e3;
+  
+  --star-active: #fdd663;
+  
+  --notice-bg: #1c3a5e;
+  --notice-text: #aecbfa;
+  --notice-border: #3c5a92;
+  
+  --success-bg: #1e3a29;
+  --success-text: #81c995;
+  --success-border: #4a7c59;
+  
+  --warning-bg: rgba(253, 214, 99, 0.15);
+  --warning-text: #fdd663;
+  --warning-border: rgba(253, 214, 99, 0.3);
+  
+  --error-bg: #3b1f1f;
+  --error-text: #f28b82;
+  --error-border: #8b3a37;
+  
+  --chip-bg: #1c3a5e;
+  --chip-text: #8ab4f8;
+  --chip-border: #3c5a92;
+  
+  --input-border: #5f6368;
+  --input-focus-border: #8ab4f8;
+  --input-focus-shadow: rgba(138, 180, 248, 0.25);
+  
+  --search-bg: #2d2e30;
+  
+  --dialog-bg: #1e1f20;
+  --dialog-text: #e3e3e3;
+  --dialog-overlay: rgba(0, 0, 0, 0.6);
+  
+  /* Additional variables used by components */
+  --gmail-blue-bg: #1c3a5e;
+  --gmail-blue-light: #aecbfa;
+  --gmail-red-bg: #3b1f1f;
+  --gmail-green-bg: #1e3a29;
+  --gmail-yellow-bg: rgba(253, 214, 99, 0.15);
+  
+  --surface-dark: #1a1b1c;
+  --border-dark: #444746;
+  --input-bg: #2d2e30;
+  
+  --row-unread-bg-dark: #1e1f20;
+  --row-read-bg-dark: #131416;
+  --row-hover-bg-dark: #2d2e30;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  /* Honor iOS/Android safe areas (notch, home indicator) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -58,6 +242,36 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
+  /* Kill the grey flash on tap for touch devices */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent background scroll while a mobile drawer/modal is open.
+   Toggled from the layout shells via JS. */
+body.no-scroll {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Make interactive elements comfortable to tap on touch screens.
+   Only applies where the device has no fine pointer (i.e. phones/tablets). */
+@media (pointer: coarse) {
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+/* Media never forces horizontal overflow on small screens */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
 }
 
 /* Scrollbar styles */
@@ -132,3 +346,31 @@ body {
     opacity: 1;
   }
 }
+
+/* ═══ Shared mobile helpers ═══ */
+
+/* Backdrop shared by the off-canvas sidebars in every layout shell */
+.mobileBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 150;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  animation: backdropIn 0.18s ease;
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* On phones, let toasts sit above the home indicator and stretch nicely */
+@media (max-width: 600px) {
+  .toast {
+    font-size: 0.9rem;
+  }
+}
+

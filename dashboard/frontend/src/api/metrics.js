@@ -72,7 +72,7 @@ export const useTestImap = () =>
 // ── CSV export (returns download URL)
 export const downloadEmailsCsv = async (label) => {
   const params = label && label !== 'all' ? { label } : {}
-  const response = await api.get('/export/emails.csv', {
+  const response = await api.get('/emails/export-csv', {
     params,
     responseType: 'blob',
   })

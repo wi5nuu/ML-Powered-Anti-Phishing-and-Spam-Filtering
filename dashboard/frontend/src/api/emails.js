@@ -13,6 +13,7 @@ export const useEmails = (filter = 'all', searchQuery = '', options = {}) =>
       options.page || 1,
       options.pageSize || 50,
     ],
+    enabled: options.enabled !== false,
     queryFn: async () => {
       const CATEGORIES = ['transaction','customer_service','internal_document','b2b','spam','phishing','malware']
       const FOLDERS = ['allmail', 'draft', 'trash']
@@ -47,6 +48,7 @@ export const useEmail = (emailId) =>
       return data
     },
     enabled: !!emailId,
+    retry: false,
   })
 
 // ── Release email (optimistic)
@@ -65,7 +67,10 @@ export const useReleaseEmail = () => {
     onError: (_err, _id, ctx) => {
       qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+    onSettled: (_data, _err, emailId) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', emailId] })
+    },
   })
 }
 
@@ -85,7 +90,10 @@ export const useConfirmSpam = () => {
     onError: (_err, _id, ctx) => {
       qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+    onSettled: (_data, _err, emailId) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', emailId] })
+    },
   })
 }
 
@@ -95,7 +103,10 @@ export const useReportFalsePositive = () => {
   return useMutation({
     mutationFn: ({ emailId, notes }) =>
       api.post(`/emails/${emailId}/report-false-positive`, { notes }),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+    onSettled: (_data, _err, { emailId }) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', emailId] })
+    },
   })
 }
 
@@ -115,7 +126,10 @@ export const useDeleteEmail = () => {
     onError: (_err, _id, ctx) => {
       if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+    onSettled: (_data, _err, emailId) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', emailId] })
+    },
   })
 }
 
