@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Archive, Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2 } from 'lucide-react'
+import { Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2, GripVertical, Archive } from 'lucide-react'
 import { useDeleteEmail, useReleaseEmail, useRestoreEmail, useToggleReadEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
 import { useTranslation } from '../../i18n/context'
@@ -35,6 +35,7 @@ export default function EmailRow({
   onSetRead,
   senderLabel,
   openDraftMode = 'compose',
+  activeEmailId = null,
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -59,9 +60,7 @@ export default function EmailRow({
 
   const setRead = (shouldRead) => {
     if (effectiveIsRead === shouldRead) return
-    toggleRead({ emailId: email.email_id, isRead: shouldRead }).catch(() => {
-      // Revert or show error if needed, but react-query will handle most
-    })
+    toggleRead({ emailId: email.email_id, isRead: shouldRead }).catch(() => {})
     onSetRead?.(email.email_id, shouldRead)
   }
 
@@ -76,109 +75,54 @@ export default function EmailRow({
     showToast(nextRead ? t('emailRow.markAsRead') : t('emailRow.markAsUnread'), 'info')
   }
 
-  const htmlToPlainText = (value) => {
-    const original = String(value || '')
-    const normalizedText = original.replace(/\r\n/g, '\n')
-    const splitAt = normalizedText.indexOf('\n\n')
-    const firstBlock = splitAt === -1 ? '' : normalizedText.slice(0, splitAt)
-    const looksLikeHeader = firstBlock
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .some((line) => /^(from|to|subject|date|message-id|reply-to|cc|bcc|spf|dkim|dmarc):\s*/i.test(line))
-    const withoutHeaders = splitAt !== -1 && looksLikeHeader
-      ? normalizedText.slice(splitAt + 2)
-      : original
-    const normalized = withoutHeaders
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<\/div>/gi, '\n')
-    const element = document.createElement('div')
-    element.innerHTML = normalized
-    return (element.textContent || element.innerText || '').replace(/\n{3,}/g, '\n\n').trim()
-  }
+  const handleRowClick = () => {
+    markAsRead()
+    const search = window.location.search || ''
+    const params = new URLSearchParams(search)
 
-  const fileFromAttachment = async (attachment) => {
-    if (!attachment?.stored) return null
-    const response = await api.get(`/emails/${email.email_id}/attachments/${attachment.index}`, {
-      responseType: 'blob',
-    })
-    return new File(
-      [response.data],
-      attachment.filename || `attachment-${attachment.index + 1}`,
-      { type: attachment.content_type || response.data.type || 'application/octet-stream' }
-    )
-  }
-
-  const openDraftCompose = async () => {
-    try {
-      const { data } = await api.get(`/emails/${email.email_id}`)
-      const files = (await Promise.all((data.attachments || []).map(fileFromAttachment))).filter(Boolean)
+    if (isDraft) {
       window.dispatchEvent(new CustomEvent('open-compose', {
         detail: {
-          draft_id: data.email_id,
-          to: data.recipient_list || '',
-          subject: data.subject === t('common.noSubject') ? '' : data.subject || '',
-          body: htmlToPlainText(data.raw_content || ''),
-          attachments: files,
+          draft_id: email.email_id,
+          to: email.recipient_list || '',
+          subject: email.subject === '(tanpa subjek)' ? '' : email.subject || '',
+          body: email.raw_content || email.body_text || '',
+          attachments: (email.attachments || []).map((file) => ({
+            name: file.filename,
+            size: file.size,
+            type: file.content_type,
+            index: file.index,
+            stored: file.stored,
+            existing: true,
+          })),
+          thread_id: email.thread_id || '',
+          parent_email_id: email.parent_email_id || '',
+          compose_mode: openDraftMode,
         },
       }))
-    } catch (err) {
-      showToast(err.response?.data?.detail || t('emailRow.openDraftError'), 'error')
-    }
-  }
-
-  const handleRowClick = (e) => {
-    if (e.target.closest(`.${styles.checkboxWrap}, .${styles.starBtn}, .${styles.quickBtn}`)) return
-    if (isDraft) {
-      if (openDraftMode === 'detail') {
-        // For reply drafts: navigate to the PARENT thread, not the draft itself.
-        // The target email is parent_email_id → original_email_id → fallback to email_id
-        const targetEmailId = email.parent_email_id || email.original_email_id || email.email_id
-        markAsRead()
-        const from = `${window.location.pathname}${window.location.search}`
-        const currentParams = new URLSearchParams(window.location.search)
-        const detailParams = new URLSearchParams({ from })
-        const mailboxId = getActiveMailboxId(currentParams)
-        if (mailboxId) detailParams.set('mailbox_id', mailboxId)
-        // Attach draft context so EmailDetailPage can pre-load the draft in reply composer
-        if (email.email_id !== targetEmailId) {
-          detailParams.set('open_draft_id', email.email_id)
-        }
-        navigate(
-          mailboxId
-            ? `/mail/${encodeURIComponent(mailboxId)}/email/${targetEmailId}?${detailParams.toString()}`
-            : `/email/${targetEmailId}?${detailParams.toString()}`
-        )
-        return
-      }
-      openDraftCompose()
       return
     }
-    markAsRead()
-    const from = `${window.location.pathname}${window.location.search}`
-    const currentParams = new URLSearchParams(window.location.search)
-    const detailParams = new URLSearchParams({ from })
-    // For role 'user', always use their own email as mailboxId — never trust URL
-    const userRole = meData?.user?.role
-    const mailboxId = userRole === 'user'
-      ? (meData?.user?.email || getActiveMailboxId(currentParams))
-      : getActiveMailboxId(currentParams)
-    if (mailboxId) detailParams.set('mailbox_id', mailboxId)
-    navigate(mailboxId ? `/mail/${encodeURIComponent(mailboxId)}/email/${email.email_id}?${detailParams.toString()}` : `/email/${email.email_id}?${detailParams.toString()}`)
+
+    const fromPath = `${window.location.pathname}${window.location.search}`
+    params.set('from', fromPath)
+    const activeMId = getActiveMailboxId(params)
+    if (activeMId) params.set('mailbox_id', activeMId)
+
+    const targetUrl = activeMId
+      ? `/mail/${encodeURIComponent(activeMId)}/email/${email.email_id}?${params.toString()}`
+      : `/email/${email.email_id}?${params.toString()}`
+    navigate(targetUrl)
   }
 
-  const handleQuickDelete = async (e) => {
+  const handleQuickDelete = (e) => {
     e.stopPropagation()
     setDeleteDialogOpen(true)
   }
 
   const confirmQuickDelete = async () => {
     try {
-      const deleteIds = Array.isArray(email.thread_email_ids) && email.thread_email_ids.length > 0
-        ? email.thread_email_ids
-        : [email.email_id]
-      await Promise.all(deleteIds.map((id) => deleteEmail(id)))
+      await deleteEmail(email.email_id)
+      showToast(isTrash ? t('emailRow.deletedPermanent') : t('emailRow.movedToTrash'), 'success')
       setDeleteDialogOpen(false)
     } catch (err) {
       showToast(err.response?.data?.detail || t('emailRow.deleteError'), 'error')
@@ -204,81 +148,80 @@ export default function EmailRow({
   return (
     <>
       <div
-        className={`${styles.row} ${effectiveIsRead ? styles.read : ''} ${isSelected ? styles.selected : ''}`}
+        className={`${styles.row} ${effectiveIsRead ? styles.read : ''} ${isSelected ? styles.selected : ''} ${activeEmailId && (email.email_id === activeEmailId || (email.thread_email_ids || []).includes(activeEmailId)) ? styles.activeRow : ''}`}
         onClick={handleRowClick}
       >
-      <div className={styles.actions}>
-        <div className={styles.checkboxWrap}>
+        <div className={styles.actions}>
+          <span className={styles.dragHandle} title="Geser">
+            <GripVertical size={14} color="#9aa0a6" />
+          </span>
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onToggleSelect(email.email_id)}
+            onChange={(e) => { e.stopPropagation(); onToggleSelect(email.email_id) }}
             className={styles.checkbox}
           />
+          {!isTrash && (
+            <button
+              className={`${styles.starBtn} ${isStarred ? styles.starActive : ''}`}
+              onClick={(e) => { e.stopPropagation(); onToggleStar?.(email.email_id) }}
+              title={isStarred ? t('emailRow.unmarkImportant') : t('emailRow.markImportant')}
+            >
+              <Star size={15} fill={isStarred ? '#f2c94c' : 'none'} color={isStarred ? '#f2c94c' : '#5f6368'} />
+            </button>
+          )}
         </div>
-        {!isTrash && (
+
+        <div className={styles.senderCol}>
+          <span className={styles.sender}>{displaySender}</span>
+        </div>
+
+        <div className={styles.body}>
+          <span className={styles.subject}>
+            {email.subject || t('common.noSubject')}
+            {email._threadCount > 1 && (
+              <span className={styles.threadCountBadge}>{email._threadCount}</span>
+            )}
+            {email._hasDraftInThread && (
+              <span className={styles.threadDraftIndicator}>{t('emailRow.draftLabel')}</span>
+            )}
+          </span>
+          <span className={styles.separator}>-</span>
+          <span className={styles.preview}>
+            {email.body_preview || email.body_text?.slice(0, 120) || ''}
+          </span>
+        </div>
+
+        <div className={styles.quickActions}>
+          {isTrash && (
+            <button className={styles.quickBtn} onClick={handleQuickRestore} title={t('emailRow.restore')}>
+              <RotateCcw size={18} />
+            </button>
+          )}
+          {verdict === 'quarantine' && (
+            <button className={styles.quickBtn} onClick={handleQuickRelease} title={t('emailRow.release')}>
+              <Archive size={18} />
+            </button>
+          )}
           <button
-            className={`${styles.starBtn} ${isStarred ? styles.starActive : ''}`}
-            onClick={(e) => { e.stopPropagation(); onToggleStar?.(email.email_id) }}
-            title={isStarred ? t('emailRow.unmarkImportant') : t('emailRow.markImportant')}
+            className={styles.quickBtn}
+            onClick={handleQuickToggleRead}
+            title={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
+            aria-label={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
           >
-            <Star size={15} fill={isStarred ? 'var(--star-color, #f2c94c)' : 'none'} />
+            {effectiveIsRead ? <Mail size={18} /> : <MailOpen size={18} />}
           </button>
-        )}
-      </div>
-
-      <div className={styles.senderCol}>
-        <span className={styles.sender}>{displaySender}</span>
-      </div>
-
-      <div className={styles.body}>
-        <span className={styles.subject}>
-          {email.subject || t('common.noSubject')}
-          {/* Thread count badge */}
-          {email._threadCount > 1 && (
-            <span className={styles.threadCountBadge}>{email._threadCount}</span>
+          {!isTrash && (
+            <button className={styles.quickBtn} onClick={handleQuickDelete} title={t('emailRow.delete')}>
+              <Trash2 size={18} />
+            </button>
           )}
-          {/* Draft indicator for threads with active draft */}
-          {email._hasDraftInThread && (
-            <span className={styles.threadDraftIndicator}>{t('emailRow.draftLabel')}</span>
-          )}
-        </span>
-        <span className={styles.separator}>-</span>
-        <span className={styles.preview}>
-          {email.body_preview || email.body_text?.slice(0, 120) || ''}
-        </span>
-      </div>
+        </div>
 
-      <div className={styles.quickActions}>
-        {isTrash && (
-          <button className={styles.quickBtn} onClick={handleQuickRestore} title={t('emailRow.restore')}>
-            <RotateCcw size={18} />
-          </button>
-        )}
-        {verdict === 'quarantine' && (
-          <button className={styles.quickBtn} onClick={handleQuickRelease} title={t('emailRow.release')}>
-            <Archive size={18} />
-          </button>
-        )}
-        <button
-          className={styles.quickBtn}
-          onClick={handleQuickToggleRead}
-          title={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
-          aria-label={effectiveIsRead ? t('emailRow.markAsUnreadBtn') : t('emailRow.markAsReadBtn')}
-        >
-          {effectiveIsRead ? <Mail size={18} /> : <MailOpen size={18} />}
-        </button>
-        {!isTrash && (
-          <button className={styles.quickBtn} onClick={handleQuickDelete} title={t('emailRow.delete')}>
-            <Trash2 size={18} />
-          </button>
-        )}
-      </div>
-
-      <span className={styles.time}>
-        {email.has_attachments && <Paperclip size={14} className={styles.attachmentIcon} />}
-        {timeAgo(email.timestamp || email.received_at)}
-      </span>
+        <span className={styles.time}>
+          {email.has_attachments && <Paperclip size={14} className={styles.attachmentIcon} />}
+          {timeAgo(email.timestamp || email.received_at)}
+        </span>
       </div>
       <ConfirmDialog
         open={deleteDialogOpen}
