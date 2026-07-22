@@ -81,7 +81,8 @@ export default function UserMailboxPage() {
     }
     setError('')
     try {
-      await api.post('/mailboxes/claim', {
+      await api.post('/mailboxes/login', {
+        mailbox_id: email,
         email,
         password: addEmailPassword,
       })
