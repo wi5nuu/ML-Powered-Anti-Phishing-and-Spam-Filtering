@@ -506,7 +506,12 @@
     box-shadow: none;
   }
   .page { background: var(--surface); }
-  .rightBrand { display: none; }
+  .rightBrand {
+    position: static;
+    justify-content: center;
+    margin-bottom: 24px;
+    width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
@@ -528,21 +533,40 @@
     justify-content: center;
   }
   .right {
-    padding: 24px 20px;
-    justify-content: center;
+    padding: 32px 20px 40px;
+    justify-content: flex-start;
     min-height: 100vh;
     min-height: 100dvh;
     flex: none;
     width: 100%;
   }
+  .rightBrand {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .rightBrand img {
+    width: 40px;
+    height: 40px;
+  }
+  .rightBrandName {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+  .rightBrandSub {
+    font-size: 0.65rem;
+    text-align: center;
+  }
   .rightInner {
     width: 100%;
     max-width: 360px;
-    margin: auto;
+    margin: 0 auto;
   }
   .title { font-size: 1.375rem; margin-bottom: 6px; text-align: center; }
   .subtitle { font-size: 0.8rem; text-align: center; }
-  .titleBlock { margin-bottom: 24px; }
+  .titleBlock { margin-bottom: 20px; }
   .field { margin-bottom: 16px; }
   .fieldLabel { font-size: 0.8rem; }
   .input { 
@@ -557,7 +581,7 @@
     margin-top: 8px;
   }
   .backBtn { padding: 12px 20px; margin-top: 12px; }
-  .footer { margin-top: 24px; padding-top: 16px; }
+  .footer { margin-top: 20px; padding-top: 14px; }
   .footerBadge { font-size: 0.65rem; padding: 4px 9px; }
   .footerNote { font-size: 0.7rem; }
   .alert, .alertSuccess { 
