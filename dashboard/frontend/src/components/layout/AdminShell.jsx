@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
 import logoImg from '../../assets/logo.png'
-import styles from './UserDashboardShell.module.css'
+import styles from './AdminShell.module.css'
 
 // Admin nav structure - similar to User but with tab parameter
 const SUPERADMIN_NAV_ITEMS = [
