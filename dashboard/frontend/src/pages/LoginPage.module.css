@@ -524,17 +524,24 @@
     overflow: auto; 
     min-height: 100vh;
     min-height: 100dvh;
+    align-items: center;
+    justify-content: center;
   }
   .right {
-    padding: calc(20px + env(safe-area-inset-top, 0px)) 16px
-             calc(20px + env(safe-area-inset-bottom, 0px));
-    justify-content: flex-start;
+    padding: 24px 20px;
+    justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
+    flex: none;
+    width: 100%;
   }
-  .rightInner { width: 100%; }
-  .title { font-size: 1.375rem; margin-bottom: 6px; }
-  .subtitle { font-size: 0.8rem; }
+  .rightInner {
+    width: 100%;
+    max-width: 360px;
+    margin: auto;
+  }
+  .title { font-size: 1.375rem; margin-bottom: 6px; text-align: center; }
+  .subtitle { font-size: 0.8rem; text-align: center; }
   .titleBlock { margin-bottom: 24px; }
   .field { margin-bottom: 16px; }
   .fieldLabel { font-size: 0.8rem; }
@@ -550,7 +557,7 @@
     margin-top: 8px;
   }
   .backBtn { padding: 12px 20px; margin-top: 12px; }
-  .footer { margin-top: 28px; padding-top: 16px; }
+  .footer { margin-top: 24px; padding-top: 16px; }
   .footerBadge { font-size: 0.65rem; padding: 4px 9px; }
   .footerNote { font-size: 0.7rem; }
   .alert, .alertSuccess { 
