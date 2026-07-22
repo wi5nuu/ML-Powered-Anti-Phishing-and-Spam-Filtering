@@ -2,22 +2,17 @@
 Shared database session dependency.
 
 Avoids circular imports between app.py and auth.py.
+Production: hanya PostgreSQL. SQLite tidak didukung.
+Testing: set ENV=testing to allow SQLite in-memory databases.
 """
 import logging
 import os
-from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 
 log = logging.getLogger(__name__)
 
 from database.models import AdminMailbox, AdminMailboxAccess, AuditLog, Base
-
-# Use absolute path to project root so worker & dashboard share the same DB.
-# For production, prefer DASHBOARD_DB_URL/DB_SYNC_URL because the worker uses
-# an async SQLAlchemy URL while this dashboard session is synchronous.
-_project_root = Path(__file__).parent.parent
-_default_db = f"sqlite:///{_project_root / 'cognimail.db'}"
 
 # WORKER_DB_URL uses asyncpg driver — convert to sync psycopg for dashboard
 _worker_url = os.getenv("WORKER_DB_URL", "")
@@ -32,13 +27,31 @@ DB_URL = (
     or os.getenv("DB_SYNC_URL")
     or os.getenv("DB_URL")
     or _worker_sync
-    or _default_db
 )
-engine = create_engine(DB_URL)
-Base.metadata.create_all(engine)
+
+_ENV = os.getenv("ENV", "production").lower()
+_is_testing = _ENV in ("testing", "test")
+
+if not DB_URL:
+    raise RuntimeError(
+        "Database URL tidak ditemukan. "
+        "Set DASHBOARD_DB_URL atau DB_SYNC_URL di environment. "
+        "Contoh: postgresql+psycopg://cogniuser:password@postgres:5432/cognimail"
+    )
+
+if "sqlite" in DB_URL.lower() and not _is_testing:
+    raise RuntimeError(
+        "SQLite tidak didukung di production. "
+        "Gunakan PostgreSQL: postgresql+psycopg://cogniuser:password@postgres:5432/cognimail"
+    )
+
+# SQLite needs check_same_thread=False for multi-threaded test runners
+_connect_args = {"check_same_thread": False} if "sqlite" in DB_URL.lower() else {}
+engine = create_engine(DB_URL, connect_args=_connect_args)
 
 
 def _ensure_schema_compatibility():
+    # Single authoritative create_all — called once below after all helpers
     Base.metadata.create_all(engine)
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
@@ -108,6 +121,8 @@ def _ensure_schema_compatibility():
         mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE")
     if "forward_keep_copy" not in columns:
         mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE")
+    if "assigned_to" not in columns:
+        mb_statements.append("ALTER TABLE admin_mailboxes ADD COLUMN assigned_to VARCHAR(64) DEFAULT ''")
     for stmt in mb_statements:
         try:
             with engine.begin() as conn:
@@ -148,12 +163,12 @@ def _seed_mailbox_access():
         logs = db.query(AuditLog).filter(
             AuditLog.action.in_(("create_mailbox", "add_existing_email"))
         ).all()
-        for log in logs:
-            email = (log.details or "").strip().lower()
+        for audit_entry in logs:
+            email = (audit_entry.details or "").strip().lower()
             mailbox = mailbox_by_email.get(email)
             if not mailbox:
                 continue
-            add_access(mailbox.id, log.user)
+            add_access(mailbox.id, audit_entry.user)
 
         if changed:
             db.commit()
