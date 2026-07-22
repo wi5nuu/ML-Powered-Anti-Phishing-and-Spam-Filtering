@@ -23,8 +23,14 @@ export default function DraftPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: meData } = useMe()
   const { t } = useTranslation()
-  const mailbox = getActiveMailbox(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_email || meData.user.username || '' : '')
-  const mailboxId = getActiveMailboxId(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_id || '' : '')
+  const userRole = meData?.user?.role
+  // For role 'user', always use their own email — never trust URL mailboxId
+  const mailbox = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailbox(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_email || meData?.user?.username || '' : ''))
+  const mailboxId = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailboxId(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_id || '' : ''))
   const query = searchParams.get('q') || ''
   const page = parseInt(searchParams.get('page') || '1', 10)
   const [selected, setSelected] = useState(new Set())
