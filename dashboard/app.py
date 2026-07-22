@@ -60,7 +60,7 @@ from sqlalchemy import func, case, text, or_, and_
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox, AdminMailboxAccess, UserRole
+from database.models import QuarantineEmail, Feedback, User, AuditLog, Organization, PipelineMetrics, Report, AdminMailbox, AdminMailboxAccess, UserRole, TrainingSample, _utcnow
 from dashboard.database import get_db, SessionLocal
 from dashboard.auth import (
     hash_password, verify_password, create_access_token, decode_token, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -112,11 +112,28 @@ if not DASHBOARD_SECRET_KEY:
 
 static_dir = Path(__file__).parent / "static"
 
-app = FastAPI(title="CogniMail Dashboard", version="3.0.0")
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle."""
+    # ── Startup ──────────────────────────────────────────────────────────────
+    app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge())
+    yield
+    # ── Shutdown ─────────────────────────────────────────────────────────────
+    task = getattr(app.state, "pubsub_task", None)
+    if task:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="CogniMail Dashboard", version="3.0.0", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app)
 
 csrf_secret = os.getenv("DASHBOARD_SECRET_KEY") or _secrets.token_hex(32)
-app.add_middleware(SessionMiddleware, secret_key=csrf_secret, same_site="lax", https_only=False)
+# SECURITY FIX: Enable secure flag for cookies in production
+is_production = os.getenv("ENV", "development") == "production"
+app.add_middleware(SessionMiddleware, secret_key=csrf_secret, same_site="lax", https_only=is_production)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
 # Default CORS origins — includes Vite dev (5173), production build (8081), and configurable extras
 _default_cors = "http://localhost:5173,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8081"
@@ -124,8 +141,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", _default_cors).split(","),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    # SECURITY FIX: Restrict CORS headers to specific list instead of wildcard
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-API-Key"],
 )
 
 limiter = Limiter(key_func=get_remote_address)
@@ -144,8 +162,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        
+        # SECURITY FIX: Add Content-Security-Policy headers
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # unsafe-eval needed for React DevTools
+            "style-src 'self' 'unsafe-inline'",  # unsafe-inline needed for styled-components
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' ws: wss:",  # WebSocket connections
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ]
+        response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+        
         if os.getenv("ENV", "development") == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
         return response
 
 
@@ -163,21 +196,37 @@ app.include_router(admin_routes.router)
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        # REALTIME FIX: Store connections with user context for org-scoped broadcasting
+        self.active_connections: dict[WebSocket, dict] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, user_context: dict):
+        """Connect websocket with user context (username, role, organization_id)"""
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[websocket] = user_context
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+            del self.active_connections[websocket]
 
     async def broadcast(self, message: dict):
+        """Broadcast to all connections, filtering by organization if email has org_id"""
+        email_org_id = message.get("organization_id")
         dead = []
-        for connection in self.active_connections:
+        for connection, user_ctx in self.active_connections.items():
             try:
-                await connection.send_json(message)
+                # REALTIME FIX: Only broadcast to users in the same org (or superadmin sees all)
+                user_org_id = user_ctx.get("organization_id")
+                user_role = user_ctx.get("role")
+                
+                # Superadmin sees all broadcasts
+                if user_role == "superadmin":
+                    await connection.send_json(message)
+                # Admin/user only see broadcasts from their own org
+                elif email_org_id and user_org_id and email_org_id == user_org_id:
+                    await connection.send_json(message)
+                # If email has no org_id (legacy), only superadmin can see it
+                elif not email_org_id and user_role == "superadmin":
+                    await connection.send_json(message)
             except Exception:
                 dead.append(connection)
         for conn in dead:
@@ -188,42 +237,81 @@ PUBSUB_CHANNEL = os.getenv("PUBSUB_CHANNEL", "email:processed")
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query("")):
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(""), db: Session = Depends(get_db)):
     token = token or websocket.cookies.get("access_token", "")
     if not token:
         await websocket.close(code=4001)
         return
     try:
         payload = decode_token(token)
-        if not payload.get("sub"):
+        username = payload.get("sub")
+        if not username:
             await websocket.close(code=4001)
             return
+        
+        # REALTIME FIX: Fetch user context for org-scoped broadcasting
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            await websocket.close(code=4001)
+            return
+        
+        user_context = {
+            "username": username,
+            "role": user.role,
+            "organization_id": user.organization_id,
+        }
     except Exception:
         await websocket.close(code=4001)
         return
-    await manager.connect(websocket)
+    
+    await manager.connect(websocket, user_context)
     try:
         while True:
-            await websocket.receive_text()
+            try:
+                # SECURITY: Consume incoming messages with timeout for keep-alive
+                # Timeout is intentional — client should send periodic pings
+                await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+            except asyncio.TimeoutError:
+                # No message from client for 60s — send ping to check if alive
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception:
+                    break  # Connection is dead
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        pass
     except Exception:
+        pass
+    finally:
         manager.disconnect(websocket)
 
 
 # ─── Redis Pub/Sub → WebSocket Bridge (background task) ────────────────────────
 
-REDIS_URL_WS = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL_WS = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
 async def redis_pubsub_bridge():
-    """Listen for Redis pub/sub messages and broadcast to WebSocket clients."""
+    """Listen for Redis pub/sub messages and broadcast to WebSocket clients.
+    
+    Uses exponential backoff (5s → 10s → 20s → 40s → max 60s) on reconnect
+    so a prolonged Redis outage doesn't spam logs at full speed.
+    """
+    _backoff = 5.0
+    _backoff_max = 60.0
+
     while True:
         r = None
         try:
-            r = aio_redis.from_url(REDIS_URL_WS, socket_timeout=15, socket_connect_timeout=10, protocol=2)
+            r = aio_redis.from_url(
+                REDIS_URL_WS,
+                socket_timeout=15,
+                socket_connect_timeout=10,
+                socket_keepalive=True,
+                protocol=2,
+            )
             async with r.pubsub() as pubsub:
                 await pubsub.subscribe(PUBSUB_CHANNEL)
                 logger.info("Redis pub/sub bridge started on channel: %s", PUBSUB_CHANNEL)
+                _backoff = 5.0  # reset backoff on successful connection
                 while True:
                     message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                     if not message:
@@ -237,26 +325,16 @@ async def redis_pubsub_bridge():
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            logger.error("pubsub_bridge_error: %s, reconnecting in 5s...", e)
-            await asyncio.sleep(5)
+            logger.error(
+                "pubsub_bridge_error: %s — reconnecting in %.0fs...", e, _backoff
+            )
+            await asyncio.sleep(_backoff)
+            _backoff = min(_backoff * 2, _backoff_max)  # exponential backoff
         finally:
             if r is not None:
                 with contextlib.suppress(Exception):
                     await r.aclose()
 
-
-@app.on_event("startup")
-async def start_pubsub_bridge():
-    app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge())
-
-
-@app.on_event("shutdown")
-async def stop_pubsub_bridge():
-    task = getattr(app.state, "pubsub_task", None)
-    if task:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
 
 
 # ─── Seed Admin User ────────────────────────────────────────────────────────────
@@ -264,8 +342,37 @@ async def stop_pubsub_bridge():
 ALLOWED_ROLES = {"superadmin", "admin", "user"}
 
 
-def _upsert_seed_user(db, username: str, password: str, role: str, email: str = None, legacy_usernames=None):
+def _upsert_seed_user(
+    db,
+    username: str,
+    password: str,
+    role: str,
+    email: str = None,
+    legacy_usernames=None,
+    insecure_passwords=None,
+):
+    """
+    Create or update a seed user.
+
+    Password update policy:
+      - New user  → always set password from env.
+      - Existing user with a known-insecure password (e.g. still "admin") →
+        upgrade to the env-provided password so default credentials are
+        rotated automatically on first real deployment.
+      - Existing user with a custom password → leave it alone; the operator
+        has already changed it and we must not overwrite their choice on
+        every container restart.
+
+    Args:
+        insecure_passwords: List of plaintext passwords considered insecure
+            (e.g. ["admin", "password"]).  If the existing user's stored hash
+            matches any of these, the password is replaced with ``password``.
+    """
+    from dashboard.auth import verify_password  # local import avoids circular dep at module level
+
     legacy_usernames = legacy_usernames or []
+    insecure_passwords = insecure_passwords or []
+
     user = db.query(User).filter(User.username == username).first()
     if not user:
         for old_username in legacy_usernames:
@@ -277,9 +384,22 @@ def _upsert_seed_user(db, username: str, password: str, role: str, email: str = 
     if not user:
         user = User(username=username)
         db.add(user)
+        # Brand-new user — always set the env password
+        user.hashed_password = hash_password(password)
+    else:
+        # Existing user — only overwrite password if it is still one of the
+        # known-insecure defaults.  A custom password must never be touched.
+        is_still_insecure = any(
+            verify_password(insecure, user.hashed_password)
+            for insecure in insecure_passwords
+        )
+        if is_still_insecure:
+            user.hashed_password = hash_password(password)
+        # else: leave the user's custom password intact
 
-    user.email = email
-    user.hashed_password = hash_password(password)
+    # Only set email if provided — never overwrite an existing email with None
+    if email is not None:
+        user.email = email
     user.role = role
     user.is_active = True
     return user
@@ -287,25 +407,18 @@ def _upsert_seed_user(db, username: str, password: str, role: str, email: str = 
 
 def seed_admin():
     db = SessionLocal()
-    dialect = db.bind.dialect.name
+    from dashboard.database import engine as _sync_engine
+    dialect = _sync_engine.dialect.name
     if dialect == "postgresql":
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS attachments_json TEXT"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
         db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
-    elif dialect == "sqlite":
-        columns = [row[1] for row in db.execute(text("PRAGMA table_info(quarantine_emails)")).fetchall()]
-        if "deleted_at" not in columns:
-            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN deleted_at TIMESTAMP"))
-        if "attachments_json" not in columns:
-            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN attachments_json TEXT"))
-        if "spf_result" not in columns:
-            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN spf_result VARCHAR(32) DEFAULT ''"))
-        if "dkim_result" not in columns:
-            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''"))
-        if "dmarc_result" not in columns:
-            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''"))
+        db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT FALSE"))
+        db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP"))
+    else:
+        logger.warning("seed_admin: dialect bukan postgresql (%s), skip schema migration", dialect)
     purge_expired_emails(db)
     db.query(QuarantineEmail).filter(
         QuarantineEmail.status == "released",
@@ -328,12 +441,14 @@ def seed_admin():
         os.getenv("ADMIN_USERNAME", "admin"),
         os.getenv("ADMIN_PASSWORD", "admin"),
         "admin",
+        os.getenv("ADMIN_EMAIL") or None,
     )
     _upsert_seed_user(
         db,
         os.getenv("USER_USERNAME", "user"),
         os.getenv("USER_PASSWORD", "user"),
         "user",
+        os.getenv("USER_EMAIL") or None,
     )
 
     db.commit()
@@ -432,11 +547,12 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
 
 @app.post("/api/auth/logout")
 async def auth_logout():
-    # Clear only the dashboard session cookie.
-    # The mailbox_token (webmail) is intentionally NOT cleared here.
+    # P3 FIX: Clear both dashboard and mailbox session cookies on logout
     response = JSONResponse({"ok": True})
     response.delete_cookie("access_token")
     response.delete_cookie("access_token", path="/")
+    response.delete_cookie("mailbox_token")
+    response.delete_cookie("mailbox_token", path="/")
     return response
 
 
@@ -626,8 +742,8 @@ async def update_profile(request: Request, data: dict, db: Session = Depends(get
         existing = db.query(User).filter(User.username == new_username).first()
         if existing:
             raise HTTPException(400, "Username already exists")
-    if new_password and len(new_password) < 4:
-        raise HTTPException(400, "New password must be at least 4 characters")
+    if new_password and len(new_password) < 8:
+        raise HTTPException(400, "New password must be at least 8 characters")
 
     old_username = user.username
     user.username = new_username
@@ -658,6 +774,9 @@ async def list_api_keys(request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
+    # P0 FIX: Only admin and superadmin can manage API keys
+    if user.role not in ("admin", "superadmin"):
+        raise HTTPException(403, "Only admin or superadmin can manage API keys")
     keys = db.query(ApiKey).filter(
         ApiKey.organization_id == user.organization_id
     ).all() if user.organization_id else []
@@ -676,6 +795,9 @@ async def create_api_key(request: Request, data: dict, db: Session = Depends(get
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
+    # P0 FIX: Only admin and superadmin can create API keys
+    if user.role not in ("admin", "superadmin"):
+        raise HTTPException(403, "Only admin or superadmin can create API keys")
     name = data.get("name", "Untitled Key")
     import secrets, hashlib
     raw_key = f"cm_{secrets.token_hex(24)}"
@@ -700,9 +822,15 @@ async def delete_api_key(key_id: int, request: Request, db: Session = Depends(ge
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
+    # P0 FIX: Only admin and superadmin can delete API keys
+    if user.role not in ("admin", "superadmin"):
+        raise HTTPException(403, "Only admin or superadmin can delete API keys")
     api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
     if not api_key:
         raise HTTPException(404, "API key not found")
+    # P0 FIX: Validate org ownership - admin can only delete keys from their org
+    if user.role == "admin" and api_key.organization_id != user.organization_id:
+        raise HTTPException(403, "You can only delete API keys from your organization")
     db.delete(api_key)
     db.commit()
     log_audit(db, user.username, "delete_api_key", details=f"Deleted API key ID: {key_id}")
@@ -760,56 +888,122 @@ async def security_txt():
 
 @app.get("/api/health")
 async def api_health(db: Session = Depends(get_db)):
+    # Database check
     try:
         db.execute(func.count(QuarantineEmail.id))
         db_status = "connected"
     except Exception:
         db_status = "error"
+
+    # Redis check
+    redis_status = False
+    try:
+        _redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        _rc = aio_redis.from_url(_redis_url, socket_connect_timeout=2, protocol=2)
+        await _rc.ping()
+        await _rc.aclose()
+        redis_status = True
+    except Exception:
+        redis_status = False
+
+    # Classifier check
+    classifier_status = False
+    try:
+        _classifier_url = os.getenv("CLASSIFIER_URL", "http://classifier:8001").rstrip("/")
+        async with httpx.AsyncClient(timeout=3) as _client:
+            _r = await _client.get(f"{_classifier_url}/health")
+            classifier_status = _r.status_code == 200
+    except Exception:
+        classifier_status = False
+
+    overall = "healthy" if db_status == "connected" else "degraded"
     return {
-        "status": "healthy",
+        "status": overall,
         "version": "3.0.0",
         "database": db_status,
+        "redis": redis_status,
+        "classifier": classifier_status,
         "websocket_connections": len(manager.active_connections),
         "uptime": "N/A",
     }
 
 
 @app.get("/api/stats")
-async def api_stats(db: Session = Depends(get_db)):
-    active_query = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+async def api_stats(request: Request, db: Session = Depends(get_db)):
+    # Determine scope: role=user sees only their own emails; admin/superadmin see all
+    user_email_filter = None
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            payload = decode_token(token)
+            role = payload.get("role")
+            if role == "user":
+                u = db.query(User).filter(User.username == payload.get("sub")).first()
+                if u and u.email:
+                    user_email_filter = u.email.lower()
+        except Exception:
+            pass
+
+    def scoped(q):
+        if user_email_filter:
+            return q.filter(QuarantineEmail.recipient_list.ilike(f"%{user_email_filter}%"))
+        return q
+
+    active_query = scoped(db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash"))
     total = active_query.count() or 0
-    trash_count = db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.status == "trash").scalar() or 0
-    quarantine_count = db.query(func.count(QuarantineEmail.id)).filter(
+    trash_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.status == "trash")).scalar() or 0
+    quarantine_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
         QuarantineEmail.label == "QUARANTINE",
         QuarantineEmail.status != "trash",
         QuarantineEmail.status != "released",
-    ).scalar() or 0
-    warn_count = db.query(func.count(QuarantineEmail.id)).filter(
+    )).scalar() or 0
+    warn_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
         QuarantineEmail.label == "WARN",
         QuarantineEmail.status != "trash",
         QuarantineEmail.status != "released",
-    ).scalar() or 0
-    clean_count = db.query(func.count(QuarantineEmail.id)).filter(
+    )).scalar() or 0
+    clean_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
         QuarantineEmail.label == "CLEAN",
         QuarantineEmail.status != "trash",
-    ).scalar() or 0
+    )).scalar() or 0
+    unread_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
+        QuarantineEmail.label == "CLEAN",
+        QuarantineEmail.status != "trash",
+        QuarantineEmail.is_read == False,
+    )).scalar() or 0
+    draft_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
+        QuarantineEmail.label == "DRAFT",
+    )).scalar() or 0
+    sent_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
+        QuarantineEmail.label == "SENT",
+        QuarantineEmail.status != "trash",
+    )).scalar() or 0
+    starred_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
+        QuarantineEmail.is_starred == True,
+        QuarantineEmail.status != "trash",
+    )).scalar() or 0
     avg_anomaly = db.query(func.avg(QuarantineEmail.anomaly_score)).scalar() or 0
     avg_fused = db.query(func.avg(QuarantineEmail.fused_score)).scalar() or 0
     # Per-category breakdown
-    cat_rows = db.query(
+    cat_q = scoped(db.query(
         QuarantineEmail.category, func.count(QuarantineEmail.id)
     ).filter(
         QuarantineEmail.category != "",
         QuarantineEmail.status != "trash",
         QuarantineEmail.status != "released",
-    ).group_by(QuarantineEmail.category).all()
-    categories = {row[0]: row[1] for row in cat_rows}
+    )).group_by(QuarantineEmail.category).all()
+    categories = {row[0]: row[1] for row in cat_q}
+    categories["draft"] = draft_count
     return {
         "total": total,
         "trash": trash_count,
         "quarantine": quarantine_count,
         "warn": warn_count,
         "clean": clean_count,
+        "unread": unread_count,
+        "draft": draft_count,
+        "sent": sent_count,
+        "starred": starred_count,
         "avg_anomaly_score": round(float(avg_anomaly), 4),
         "avg_fused_score": round(float(avg_fused), 4),
         "categories": categories,
@@ -849,7 +1043,7 @@ def get_authenticated_api_user(request: Request, db: Session = Depends(get_db), 
         if not user or not user.is_active:
             logger.warning(f"get_authenticated_api_user: user {payload.get('sub')} not found or inactive")
             raise HTTPException(status_code=401, detail="Account is disabled or inactive")
-        return {"username": user.username, "role": user.role, "mailbox_email": user.email.lower() if user.email else None}
+        return {"username": user.username, "role": user.role, "mailbox_email": user.email.lower() if user.email else ""}
     except HTTPException:
         raise
     except Exception:
@@ -1337,6 +1531,22 @@ async def api_get_emails(
 
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
+    elif folder == "starred":
+        # STARRED folder: filter by is_starred = True
+        query = query.filter(QuarantineEmail.is_starred == True)
+        query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
+    elif folder == "snoozed":
+        # SNOOZED folder: filter by snoozed_until in the future
+        query = query.filter(QuarantineEmail.snoozed_until != None)
+        query = query.filter(QuarantineEmail.snoozed_until > datetime.now(timezone.utc))
+    elif folder == "sent":
+        # SENT folder: filter by sender matching mailbox
+        query = query.filter(QuarantineEmail.label == "SENT")
+        if mailbox:
+            if mailbox_record:
+                query = query.filter(*_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email))
+            else:
+                query = query.filter(QuarantineEmail.sender.ilike(f"%{mailbox}%"))
     elif folder == "draft":
         query = query.filter(QuarantineEmail.label == "DRAFT")
     elif category and category in CATEGORY_LABEL_MAP:
@@ -1535,6 +1745,46 @@ async def api_toggle_read(email_id: str, payload: dict, request: Request, db: Se
     email_record.is_read = bool(is_read)
     db.commit()
     return {"ok": True, "is_read": email_record.is_read}
+
+
+@app.put("/api/emails/{email_id}/starred")
+async def api_toggle_starred(email_id: str, payload: dict, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    ensure_email_access(email_record, user_info)
+    
+    is_starred = payload.get("is_starred", True)
+    email_record.is_starred = bool(is_starred)
+    log_audit(db, user_info["username"], "toggle_starred", email_id,
+              request.client.host if request.client else None)
+    db.commit()
+    return {"ok": True, "is_starred": email_record.is_starred}
+
+
+@app.put("/api/emails/{email_id}/snooze")
+async def api_snooze_email(email_id: str, payload: dict, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    email_record = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == email_id).first()
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    ensure_email_access(email_record, user_info)
+    
+    snoozed_until = payload.get("snoozed_until")
+    if snoozed_until:
+        try:
+            from datetime import datetime
+            email_record.snoozed_until = datetime.fromisoformat(snoozed_until.replace('Z', '+00:00'))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid datetime format")
+    else:
+        email_record.snoozed_until = None
+    
+    log_audit(db, user_info["username"], "snooze_email", email_id,
+              request.client.host if request.client else None)
+    db.commit()
+    return {"ok": True, "snoozed_until": email_record.snoozed_until.isoformat() if email_record.snoozed_until else None}
 
 
 @app.get("/api/emails/{email_id}/attachments/{attachment_index}")
@@ -1912,11 +2162,19 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             smtp_from = sender_address or os.getenv("FORWARDER_FROM", "cognimail@lodaya.id")
             smtp_starttls = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
 
-            msg = MIMEMultipart()
+            msg = MIMEMultipart("alternative")
             msg["From"] = smtp_from
             msg["To"] = ", ".join(dest_recipients)
             msg["Subject"] = final_subject
-            msg.attach(MIMEText(final_body, "plain", "utf-8"))
+            
+            # Detect if body is HTML or plain text
+            body_is_html = bool(re.search(r'<(html|body|div|p|br|span|a|table|tr|td)\b', final_body, re.IGNORECASE))
+            if body_is_html:
+                # Send as HTML (for reply/forward with formatting)
+                msg.attach(MIMEText(final_body, "html", "utf-8"))
+            else:
+                # Send as plain text
+                msg.attach(MIMEText(final_body, "plain", "utf-8"))
             for attachment in stored_attachments:
                 maintype, subtype = (attachment["content_type"].split("/", 1) + ["octet-stream"])[:2]
                 part = MIMEBase(maintype, subtype)
@@ -2002,14 +2260,11 @@ async def api_get_metrics(
     mailbox_id: str = Query(None),
     db: Session = Depends(get_db),
 ):
+    # P0 FIX: Require authentication for all metrics access
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    
     mailbox = (mailbox or "").strip().lower()
     mailbox_id = (mailbox_id or "").strip()
-    user_info = None
-    try:
-        user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
-    except HTTPException:
-        if not mailbox:
-            raise
 
     scope_label = "global"
     account_filters = []
@@ -2079,7 +2334,7 @@ async def api_get_metrics(
     
     top_senders = [{"sender": s, "count": c} for s, c in top_senders_db]
 
-    feedback_count = db.query(func.count(Feedback.id)).scalar() or 0
+    feedback_count = scoped(db.query(func.count(Feedback.id))).scalar() or 0
 
     daily_stats_db = base_query.with_entities(
         func.date(QuarantineEmail.created_at).label("day"),
@@ -2130,6 +2385,19 @@ async def api_get_audit_log(
         query = query.filter(AuditLog.action == event_type)
     if username:
         query = query.filter(AuditLog.user.ilike(f"%{username}%"))
+
+    # P1 FIX: Admin sees only audit logs from users in their own organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            org_usernames = [
+                u.username for u in db.query(User.username).filter(
+                    User.organization_id == current_user.organization_id
+                ).all()
+            ]
+            query = query.filter(AuditLog.user.in_(org_usernames))
+        else:
+            return {"total": 0, "page": page, "page_size": page_size, "pages": 0, "items": []}
 
     total = query.count()
     offset = (page - 1) * page_size
@@ -2371,10 +2639,22 @@ async def api_get_users(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can manage users")
+    
+    # P1 FIX: Admin sees only users from their own organization
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
-        users = db.query(User).filter(User.role == "user").all()
+        # Admin role: filter by organization
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            users = []
+        else:
+            users = db.query(User).filter(
+                User.organization_id == current_user.organization_id,
+                User.role == "user"
+            ).all()
     else:
+        # Superadmin role: see all users
         users = db.query(User).all()
+    
     orgs = {o.id: o.name for o in db.query(Organization).all()}
     return [{
         "id": u.id,
@@ -2395,9 +2675,21 @@ async def api_search_users(request: Request, q: str = "", db: Session = Depends(
     query = q.strip()
     if not query:
         return []
-    users = db.query(User).filter(
+    
+    # P1 FIX: Admin can only search users in their own organization
+    user_query = db.query(User).filter(
         or_(User.username.ilike(f"%{query}%"), User.email.ilike(f"%{query}%"))
-    ).limit(10).all()
+    )
+    
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        # Admin role: filter by organization
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            user_query = user_query.filter(User.organization_id == current_user.organization_id)
+        else:
+            return []
+    
+    users = user_query.limit(10).all()
     return [{"username": u.username, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
 
 
@@ -2429,6 +2721,14 @@ async def api_create_user(request: Request, payload: dict, db: Session = Depends
             raise HTTPException(status_code=400, detail="Email already registered")
     # Superadmin must not have organization; admin/user must have one
     org_id = payload.get("organization_id")
+    
+    # P1 FIX: Admin must create users in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        org_id = current_user.organization_id  # Force admin's own org, ignore payload
+    
     if role == "superadmin" and org_id is not None:
         raise HTTPException(status_code=400, detail="Superadmin tidak boleh memiliki organisasi")
     if role in ("admin", "user") and not org_id:
@@ -2459,6 +2759,16 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
 
     if not company_name or not admin_username or not admin_email or not admin_password:
         raise HTTPException(status_code=400, detail="Company name, admin username, email, and password are required")
+    
+    # Password strength validation
+    if len(admin_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if not any(c.isupper() for c in admin_password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not any(c.islower() for c in admin_password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
+    if not any(c.isdigit() for c in admin_password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one digit")
 
     domain = admin_email.split("@")[1] if "@" in admin_email else None
     if not domain:
@@ -2798,6 +3108,18 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    # P1 FIX: Admin can only delete mailboxes from their own organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        org_usernames = [
+            u.username for u in db.query(User.username).filter(
+                User.organization_id == current_user.organization_id
+            ).all()
+        ]
+        if mailbox.created_by not in org_usernames:
+            raise HTTPException(status_code=403, detail="Admin can only delete mailboxes from their own organization")
     # Delete related access records first to avoid FK violation
     db.query(AdminMailboxAccess).filter(AdminMailboxAccess.mailbox_id == mailbox_id).delete()
     mailbox.is_active = False  # Soft delete
@@ -2815,6 +3137,18 @@ async def api_change_mailbox_password(mailbox_id: int, request: Request, payload
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    # P1 FIX: Admin can only change password for mailboxes in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        org_usernames = [
+            u.username for u in db.query(User.username).filter(
+                User.organization_id == current_user.organization_id
+            ).all()
+        ]
+        if mailbox.created_by not in org_usernames:
+            raise HTTPException(status_code=403, detail="Admin can only manage mailboxes from their own organization")
     new_password = str(payload.get("password", ""))
     import re as _re
     if len(new_password) < 8:
@@ -2847,14 +3181,26 @@ async def api_generate_autologin_token(mailbox_id: int, request: Request, db: Se
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    # P1 FIX: Admin can only generate tokens for mailboxes in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        org_usernames = [
+            u.username for u in db.query(User.username).filter(
+                User.organization_id == current_user.organization_id
+            ).all()
+        ]
+        if mailbox.created_by not in org_usernames:
+            raise HTTPException(status_code=403, detail="Admin can only access mailboxes from their own organization")
     import secrets as _secrets
-    # Clean expired tokens
     now = _time.time()
-    expired = [k for k, v in _autologin_tokens.items() if v["expires"] < now]
+    expired = [k for k, v in _autologin_tokens.items() if v.get("expires", 0) < now]
     for k in expired:
         del _autologin_tokens[k]
     token = _secrets.token_urlsafe(32)
     _autologin_tokens[token] = {"mailbox_id": mailbox_id, "expires": now + 60}
+    log_audit(db, user_info["username"], "generate_autologin_token", None, request.client.host if request.client else None, mailbox.email)
     return {"token": token}
 
 
@@ -2973,6 +3319,18 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    # P1 FIX: Admin can only update forwarders for mailboxes in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        org_usernames = [
+            u.username for u in db.query(User.username).filter(
+                User.organization_id == current_user.organization_id
+            ).all()
+        ]
+        if mailbox.created_by not in org_usernames:
+            raise HTTPException(status_code=403, detail="Admin can only manage mailboxes from their own organization")
     target = str(payload.get("target", "")).strip().lower()
     enabled = bool(payload.get("enabled", True))
     keep_copy = bool(payload.get("keep_copy", True))
@@ -3046,6 +3404,15 @@ async def api_update_admin_mailbox_password(mailbox_id: int, request: Request, p
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
+    # Org isolation: admin can only change password for mailboxes in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin tidak memiliki organisasi.")
+        # AdminMailbox doesn't have organization_id; check via creator's org instead
+        _creator = db.query(User).filter(User.username == mailbox.created_by).first() if mailbox.created_by else None
+        if _creator and _creator.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin hanya dapat mengubah password mailbox dalam organisasi sendiri.")
     mailbox.password_hash = hash_password(password)
     log_audit(db, user_info["username"], "update_mailbox_password", None, request.client.host if request.client else None, mailbox.email)
     db.commit()
@@ -3084,8 +3451,13 @@ async def api_update_user(username: str, request: Request, payload: dict, db: Se
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Enforce update role checks
+    # P1 FIX: Admin can only edit users within their own organization
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        if user.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin can only edit users within their own organization")
         if user.role != "user":
             raise HTTPException(status_code=403, detail="Admin can only edit users with 'user' role")
         if "role" in payload and payload["role"] != "user":
@@ -3204,7 +3576,13 @@ async def api_list_admins_with_stats(request: Request, db: Session = Depends(get
     user_info = get_authenticated_api_user(request, db)
     if user_info["role"] not in ("superadmin", "admin"):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view admins")
-    admins = db.query(User).filter(User.role == "admin").order_by(User.username).all()
+    q = db.query(User).filter(User.role == "admin")
+    # Org isolation: admin only sees other admins in their own organization
+    if user_info["role"] == "admin":
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            q = q.filter(User.organization_id == current_user.organization_id)
+    admins = q.order_by(User.username).all()
     orgs = {o.id: o.name for o in db.query(Organization).all()}
     result = []
     for a in admins:
@@ -3269,7 +3647,23 @@ async def api_get_audit_logs(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.ACCESS_AUDIT_LOG):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view audit logs")
-    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
+    
+    log_query = db.query(AuditLog)
+    
+    # P1 FIX: Admin sees only audit logs from users in their own organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            org_usernames = [
+                u.username for u in db.query(User.username).filter(
+                    User.organization_id == current_user.organization_id
+                ).all()
+            ]
+            log_query = log_query.filter(AuditLog.user.in_(org_usernames))
+        else:
+            return []
+    
+    logs = log_query.order_by(AuditLog.created_at.desc()).limit(100).all()
     return [
         {"user": l.user, "action": l.action, "email_id": l.email_id, "details": l.details, "created_at": str(l.created_at)}
         for l in logs
@@ -3281,7 +3675,15 @@ async def api_list_organizations(request: Request, db: Session = Depends(get_db)
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Permission denied")
-    orgs = db.query(Organization).order_by(Organization.name).all()
+    # P2 FIX: Admin sees only their own organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            orgs = db.query(Organization).filter(Organization.id == current_user.organization_id).all()
+        else:
+            orgs = []
+    else:
+        orgs = db.query(Organization).order_by(Organization.name).all()
     return [{"id": o.id, "name": o.name} for o in orgs]
 
 
@@ -3290,26 +3692,44 @@ async def api_admin_stats(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Only superadmin/admin can view stats")
-    total_users = db.query(User).count()
-    active_users = db.query(User).filter(User.is_active == True).count()
-    total_admins = db.query(User).filter(User.role == "admin").count()
-    total_superadmins = db.query(User).filter(User.role == "superadmin").count()
-    total_regular_users = db.query(User).filter(User.role == "user").count()
-    total_organizations = db.query(Organization).count()
-    total_emails = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash").count()
-    clean_count = db.query(QuarantineEmail).filter(
+
+    # P1 FIX: Admin sees only stats scoped to their organization
+    is_superadmin = has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS)
+    org_id = None
+    if not is_superadmin:
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        org_id = current_user.organization_id if current_user else None
+
+    user_q = db.query(User)
+    email_q = db.query(QuarantineEmail)
+    if org_id:
+        user_q = user_q.filter(User.organization_id == org_id)
+        email_q = email_q.filter(QuarantineEmail.organization_id == org_id)
+
+    total_users = user_q.count()
+    active_users = user_q.filter(User.is_active == True).count()
+    total_admins = user_q.filter(User.role == "admin").count()
+    total_superadmins = user_q.filter(User.role == "superadmin").count() if is_superadmin else 0
+    total_regular_users = user_q.filter(User.role == "user").count()
+    total_organizations = db.query(Organization).count() if is_superadmin else (1 if org_id else 0)
+    total_emails = email_q.filter(QuarantineEmail.status != "trash").count()
+    clean_count = email_q.filter(
         QuarantineEmail.label == "CLEAN",
         QuarantineEmail.status != "trash",
     ).count()
-    warn_count = db.query(QuarantineEmail).filter(
+    warn_count = email_q.filter(
         QuarantineEmail.label == "WARN",
         QuarantineEmail.status != "trash",
     ).count()
-    quarantine_count = db.query(QuarantineEmail).filter(
+    quarantine_count = email_q.filter(
         QuarantineEmail.label == "QUARANTINE",
         QuarantineEmail.status != "trash",
     ).count()
-    audit_count = db.query(AuditLog).count()
+    audit_q = db.query(AuditLog)
+    if org_id:
+        org_usernames = [u.username for u in user_q.all()]
+        audit_q = audit_q.filter(AuditLog.user.in_(org_usernames))
+    audit_count = audit_q.count()
     return {
         "total_users": total_users,
         "active_users": active_users,
@@ -3740,7 +4160,18 @@ async def get_reports(request: Request, db: Session = Depends(get_db)):
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and not has_permission_dict(user_info, Permission.VIEW_ORG_REPORTS):
         raise HTTPException(status_code=403, detail="Access denied")
-    reports = db.query(Report).order_by(Report.created_at.desc()).limit(100).all()
+    q = db.query(Report).order_by(Report.created_at.desc())
+    # Org isolation: admin only sees reports from users in their own organization
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            org_usernames = [
+                u.username for u in db.query(User.username).filter(
+                    User.organization_id == current_user.organization_id
+                ).all()
+            ]
+            q = q.filter(Report.username.in_(org_usernames))
+    reports = q.limit(100).all()
     return [
         {"id": r.id, "username": r.username, "subject": r.subject, "message": r.message,
          "category": r.category, "priority": r.priority,
@@ -3758,6 +4189,13 @@ async def update_report(report_id: int, request: Request, payload: dict, db: Ses
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(404, "Report not found")
+    # Org isolation: admin can only update reports from users in their own organization
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            report_user = db.query(User).filter(User.username == report.username).first()
+            if not report_user or report_user.organization_id != current_user.organization_id:
+                raise HTTPException(status_code=403, detail="Admin hanya dapat mengelola laporan dari organisasi sendiri.")
     if "status" in payload:
         report.status = payload["status"]
         if payload["status"] == "resolved":
@@ -3796,6 +4234,12 @@ async def api_threat_breakdown(
         raise HTTPException(status_code=403, detail="Access denied")
 
     base = db.query(QuarantineEmail).filter(QuarantineEmail.status != "trash")
+
+    # Org isolation: admin only sees data from their own organization
+    if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            base = base.filter(QuarantineEmail.organization_id == current_user.organization_id)
 
     # ── Date range filter ────────────────────────────────────────────────
     import datetime as _dt
@@ -3932,7 +4376,16 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    users = db.query(User).filter(User.is_active == True).all()
+    # P1 FIX: Admin sees only users from their own organization
+    user_query = db.query(User).filter(User.is_active == True)
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if current_user and current_user.organization_id:
+            user_query = user_query.filter(User.organization_id == current_user.organization_id)
+        else:
+            return []
+
+    users = user_query.all()
     result = []
     for u in users:
         identifiers = [u.username.lower()]
@@ -3974,6 +4427,13 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(404, "User not found")
+    # P1 FIX: Admin can only view emails for users in their own organization
+    if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
+        current_user = db.query(User).filter(User.username == user_info["username"]).first()
+        if not current_user or not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin does not belong to an organization")
+        if user.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="Admin can only view emails for users in their own organization")
     identifiers = [user.username.lower()]
     if user.email:
         identifiers.append(user.email.lower())
@@ -4107,7 +4567,7 @@ async def api_system_health(request: Request, db: Session = Depends(get_db)):
 
     # 2. Redis
     try:
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         redis_client = aio_redis.from_url(redis_url, protocol=2)
         await redis_client.ping()
         await redis_client.aclose()
@@ -4381,8 +4841,7 @@ async def api_user_detail(username: str, request: Request, db: Session = Depends
     ).order_by(QuarantineEmail.received_at.desc()).limit(20).all()
 
     # Daily trend — last 30 days
-    from datetime import datetime, timedelta
-    cutoff = datetime.utcnow() - timedelta(days=30)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     trend_rows = db.query(
         func.date(QuarantineEmail.received_at).label("date"),
         func.count(QuarantineEmail.id).label("total"),
@@ -4454,6 +4913,394 @@ async def api_user_detail(username: str, request: Request, db: Session = Depends
             }
             for r in sender_rows
         ],
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ML TRAINING & FALSE NEGATIVE FEEDBACK ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+class FalseNegativeRequest(BaseModel):
+    corrected_label: str  # "spam", "phishing", "malware"
+    notes: str = ""
+
+
+class UpdateTrainingSampleRequest(BaseModel):
+    corrected_label: str = None
+    status: str = None
+    notes: str = None
+
+
+@app.post("/api/emails/{email_id}/report-false-negative")
+async def api_report_false_negative(
+    email_id: str,
+    payload: FalseNegativeRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Report an email that was classified as safe but is actually dangerous (false negative)."""
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    
+    # Fetch the email record
+    email_record = db.query(QuarantineEmail).filter(
+        QuarantineEmail.email_id == email_id
+    ).first()
+    
+    if not email_record:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    # Check if user has permission (admins/superadmins can report any, users only their own)
+    is_privileged = has_permission_dict(user_info, Permission.REVIEW_QUARANTINE)
+    if not is_privileged:
+        owner = user_info.get("email") or f"{user_info.get('username', '')}@"
+        if not email_belongs_to_identity(email_record, owner):
+            raise HTTPException(status_code=403, detail="You do not have permission to report this email")
+    
+    # Validate corrected label
+    valid_labels = ["spam", "phishing", "malware", "suspicious"]
+    if payload.corrected_label.lower() not in valid_labels:
+        raise HTTPException(status_code=400, detail=f"Invalid corrected_label. Must be one of: {valid_labels}")
+    
+    # Check if already reported
+    existing = db.query(TrainingSample).filter(
+        TrainingSample.email_id == email_id,
+        TrainingSample.feedback_type == "false_negative"
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=409, detail="This email has already been reported as false negative")
+    
+    # Create training sample
+    training_sample = TrainingSample(
+        email_id=email_id,
+        raw_email=email_record.raw_content or "",
+        original_label=email_record.label,
+        corrected_label=payload.corrected_label.lower(),
+        feedback_type="false_negative",
+        original_scores={
+            "fused_score": email_record.fused_score,
+            "ml_probability": email_record.ml_probability,
+            "anomaly_score": email_record.anomaly_score,
+            "sa_score": email_record.sa_score,
+        },
+        subject=email_record.subject,
+        sender=email_record.sender,
+        recipient_list=email_record.recipient_list,
+        status="pending",
+        notes=payload.notes,
+        reported_by=user_info["username"],
+        organization_id=email_record.organization_id,
+    )
+    
+    db.add(training_sample)
+    
+    # Also add to feedback table for compatibility
+    feedback = Feedback(
+        email_id=email_id,
+        feedback_type="false_negative",
+        notes=f"Corrected label: {payload.corrected_label}. {payload.notes}",
+    )
+    db.add(feedback)
+    
+    # Mark the email as confirmed spam/phishing
+    email_record.status = "confirmed_spam"
+    
+    log_audit(db, user_info["username"], "report_false_negative", email_id,
+              request.client.host if request.client else None, 
+              f"Corrected to: {payload.corrected_label}")
+    
+    db.commit()
+    
+    return {"ok": True, "training_sample_id": training_sample.id, "status": "pending_review"}
+
+
+@app.get("/api/admin/training-samples")
+async def api_get_training_samples(
+    request: Request,
+    status: str = Query(None),
+    feedback_type: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """Get all training samples for review (superadmin only)."""
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    query = db.query(TrainingSample)
+    
+    if status:
+        query = query.filter(TrainingSample.status == status)
+    
+    if feedback_type:
+        query = query.filter(TrainingSample.feedback_type == feedback_type)
+    
+    total = query.count()
+    
+    samples = query.order_by(TrainingSample.created_at.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "samples": [
+            {
+                "id": s.id,
+                "email_id": s.email_id,
+                "original_label": s.original_label,
+                "corrected_label": s.corrected_label,
+                "feedback_type": s.feedback_type,
+                "original_scores": s.original_scores,
+                "subject": s.subject,
+                "sender": s.sender,
+                "recipient_list": s.recipient_list,
+                "status": s.status,
+                "notes": s.notes,
+                "reported_by": s.reported_by,
+                "reviewed_by": s.reviewed_by,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "reviewed_at": s.reviewed_at.isoformat() if s.reviewed_at else None,
+                "used_in_training_at": s.used_in_training_at.isoformat() if s.used_in_training_at else None,
+            }
+            for s in samples
+        ]
+    }
+
+
+@app.put("/api/admin/training-samples/{sample_id}")
+async def api_update_training_sample(
+    sample_id: int,
+    payload: UpdateTrainingSampleRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update training sample status/label (superadmin only)."""
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    sample = db.query(TrainingSample).filter(TrainingSample.id == sample_id).first()
+    
+    if not sample:
+        raise HTTPException(status_code=404, detail="Training sample not found")
+    
+    if payload.corrected_label:
+        sample.corrected_label = payload.corrected_label.lower()
+    
+    if payload.status:
+        sample.status = payload.status
+        if payload.status in ["approved", "rejected"]:
+            sample.reviewed_by = user_info["username"]
+            sample.reviewed_at = _utcnow()
+    
+    if payload.notes is not None:
+        sample.notes = payload.notes
+    
+    log_audit(db, user_info["username"], "update_training_sample", str(sample_id),
+              request.client.host if request.client else None, 
+              f"Status: {payload.status}, Label: {payload.corrected_label}")
+    
+    db.commit()
+    
+    return {"ok": True, "sample": {
+        "id": sample.id,
+        "status": sample.status,
+        "corrected_label": sample.corrected_label,
+        "reviewed_by": sample.reviewed_by,
+    }}
+
+
+@app.delete("/api/admin/training-samples/{sample_id}")
+async def api_delete_training_sample(
+    sample_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Delete a training sample (superadmin only)."""
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    sample = db.query(TrainingSample).filter(TrainingSample.id == sample_id).first()
+    
+    if not sample:
+        raise HTTPException(status_code=404, detail="Training sample not found")
+    
+    db.delete(sample)
+    log_audit(db, user_info["username"], "delete_training_sample", str(sample_id),
+              request.client.host if request.client else None)
+    db.commit()
+    
+    return {"ok": True}
+
+
+@app.post("/api/admin/training/export-dataset")
+async def api_export_training_dataset(
+    request: Request,
+    status: str = Query("approved"),
+    db: Session = Depends(get_db)
+):
+    """Export training samples to CSV format for retraining (superadmin only)."""
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    import csv
+    from io import StringIO
+    
+    query = db.query(TrainingSample).filter(TrainingSample.status == status)
+    samples = query.all()
+    
+    if not samples:
+        raise HTTPException(status_code=404, detail=f"No training samples with status='{status}'")
+    
+    # Create CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow([
+        "email_id", "label", "subject", "sender", "recipient_list", 
+        "raw_email", "feedback_type", "original_label", "notes", "created_at"
+    ])
+    
+    # Rows
+    for s in samples:
+        writer.writerow([
+            s.email_id,
+            s.corrected_label,
+            s.subject,
+            s.sender,
+            s.recipient_list,
+            s.raw_email,
+            s.feedback_type,
+            s.original_label,
+            s.notes,
+            s.created_at.isoformat() if s.created_at else "",
+        ])
+    
+    csv_content = output.getvalue()
+    
+    log_audit(db, user_info["username"], "export_training_dataset", "",
+              request.client.host if request.client else None, 
+              f"Exported {len(samples)} samples with status={status}")
+    db.commit()
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=training_samples_{status}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    )
+
+
+@app.get("/api/admin/training/stats")
+async def api_get_training_stats(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Get training dataset statistics (superadmin only)."""
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    from sqlalchemy import func
+    
+    total = db.query(func.count(TrainingSample.id)).scalar() or 0
+    pending = db.query(func.count(TrainingSample.id)).filter(TrainingSample.status == "pending").scalar() or 0
+    approved = db.query(func.count(TrainingSample.id)).filter(TrainingSample.status == "approved").scalar() or 0
+    rejected = db.query(func.count(TrainingSample.id)).filter(TrainingSample.status == "rejected").scalar() or 0
+    used = db.query(func.count(TrainingSample.id)).filter(TrainingSample.status == "used_in_training").scalar() or 0
+    
+    # By feedback type
+    false_negative_count = db.query(func.count(TrainingSample.id)).filter(
+        TrainingSample.feedback_type == "false_negative"
+    ).scalar() or 0
+    
+    false_positive_count = db.query(func.count(TrainingSample.id)).filter(
+        TrainingSample.feedback_type == "false_positive"
+    ).scalar() or 0
+    
+    # By corrected label
+    label_dist = db.query(
+        TrainingSample.corrected_label,
+        func.count(TrainingSample.id)
+    ).filter(
+        TrainingSample.status == "approved"
+    ).group_by(TrainingSample.corrected_label).all()
+    
+    return {
+        "total": total,
+        "by_status": {
+            "pending": pending,
+            "approved": approved,
+            "rejected": rejected,
+            "used_in_training": used,
+        },
+        "by_feedback_type": {
+            "false_negative": false_negative_count,
+            "false_positive": false_positive_count,
+        },
+        "by_label": {row[0]: row[1] for row in label_dist},
+    }
+
+
+@app.post("/api/admin/training/retrain")
+async def api_trigger_retrain(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Trigger model retraining with approved samples (superadmin only).
+    
+    NOTE: This endpoint currently returns a placeholder. In production, this should:
+    1. Export approved training samples to a training dataset
+    2. Trigger a background job (Celery, RQ, or Kubernetes Job) to retrain the model
+    3. Return a job ID for status tracking
+    
+    For now, it marks approved samples as 'used_in_training' and returns success.
+    """
+    user_info = get_authenticated_api_user(request, db)
+    
+    if user_info["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    
+    # Count approved samples
+    approved_samples = db.query(TrainingSample).filter(
+        TrainingSample.status == "approved"
+    ).all()
+    
+    if not approved_samples:
+        raise HTTPException(status_code=400, detail="No approved training samples available")
+    
+    # Mark samples as used
+    for sample in approved_samples:
+        sample.status = "used_in_training"
+        sample.used_in_training_at = _utcnow()
+    
+    log_audit(db, user_info["username"], "trigger_retrain", "",
+              request.client.host if request.client else None, 
+              f"Retraining triggered with {len(approved_samples)} samples")
+    db.commit()
+    
+    # TODO: In production, trigger actual retraining job here
+    # Example:
+    # job_id = celery_app.send_task('tasks.retrain_model', args=[sample_ids])
+    # return {"ok": True, "job_id": job_id, "samples_count": len(approved_samples)}
+    
+    return {
+        "ok": True,
+        "message": "Retraining trigger placeholder - integrate with your ML training pipeline",
+        "samples_count": len(approved_samples),
+        "note": "Samples marked as 'used_in_training'. Implement actual training job in production."
     }
 
 
