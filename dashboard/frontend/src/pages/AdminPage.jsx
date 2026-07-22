@@ -69,10 +69,6 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null)
   const [reports, setReports] = useState([])
   const [trackData, setTrackData] = useState(null)
-  const [analyticsData, setAnalyticsData] = useState(null)
-  const [analyticsLoading, setAnalyticsLoading] = useState(false)
-  const [analyticsDetail, setAnalyticsDetail] = useState(null)
-  const [analyticsDetailLoading, setAnalyticsDetailLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [expandedReport, setExpandedReport] = useState(null)
   const [replyText, setReplyText] = useState('')
@@ -102,9 +98,6 @@ export default function AdminPage() {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
     api.get('/admin/audit-logs').then((r) => setLogs(r.data)).catch(() => {})
     api.get('/admin/reports').then((r) => setReports(r.data)).catch(() => {})
-    if (isSuper) {
-      api.get('/admin/track').then((r) => setTrackData(r.data)).catch(() => setTrackData(null))
-    }
   }
 
   const fetchMailboxes = async () => {
@@ -123,28 +116,15 @@ export default function AdminPage() {
     }
   }
 
+  // Fetch static data on mount
   useEffect(() => { fetchData(); fetchMailboxes() }, [])
 
-  const fetchAnalytics = () => {
-    setAnalyticsLoading(true)
-    api.get('/admin/user-analytics')
-      .then((r) => setAnalyticsData(r.data))
-      .catch(() => setAnalyticsData(null))
-      .finally(() => setAnalyticsLoading(false))
-  }
-
-  const fetchAnalyticsDetail = (username) => {
-    setAnalyticsDetailLoading(true)
-    api.get(`/admin/user-detail/${username}`)
-      .then((r) => setAnalyticsDetail(r.data))
-      .catch(() => setAnalyticsDetail(null))
-      .finally(() => setAnalyticsDetailLoading(false))
-  }
-
+  // Fetch superadmin-only track data once role is known
   useEffect(() => {
-    const currentTab = searchParams.get('tab') || 'overview'
-    if (currentTab === 'analytics' && isSuper && !analyticsData) fetchAnalytics()
-  }, [searchParams])
+    if (isSuper) {
+      api.get('/admin/track').then((r) => setTrackData(r.data)).catch(() => setTrackData(null))
+    }
+  }, [isSuper])
 
   const handleResolveReport = async (id) => {
     try {
@@ -734,6 +714,12 @@ export default function AdminPage() {
                       <Users size={16} />
                       <span>{isSuper ? t('qa.manageUsers') : t('qa.addWhitelist')}</span>
                     </button>
+                    {isSuper && (
+                      <button className={styles.qaBtn} onClick={() => navigate('/super-admin/training')}>
+                        <Database size={16} />
+                        <span>ML Training</span>
+                      </button>
+                    )}
                     <button className={styles.qaBtn} onClick={() => setSearchParams({ tab: 'reports' })}>
                       <FileText size={16} />
                       <span>{isSuper ? t('qa.viewReports') : t('qa.exportReport')}</span>

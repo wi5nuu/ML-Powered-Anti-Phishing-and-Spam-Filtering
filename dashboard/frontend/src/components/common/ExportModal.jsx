@@ -21,8 +21,8 @@ export default function ExportModal({ open, onClose, userRole }) {
 
   useEffect(() => {
     if (!open) return
-    api.get('/admin/admins/list').then((r) => {
-      setAdmins(r.data || [])
+    api.get('/admin/list-admins-with-stats').then((r) => {
+      setAdmins(Array.isArray(r.data) ? r.data : (r.data?.admins || []))
     }).catch(() => setAdmins([]))
     setFormat('pdf')
     setPeriod('all')

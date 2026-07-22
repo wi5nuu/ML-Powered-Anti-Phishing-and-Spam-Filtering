@@ -14,11 +14,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Only copy what the classifier service actually needs at runtime.
+# worker/ and ingestion/ are NOT imported by classifier.predict and
+# adding them bloats the image and creates misleading dependency surface.
 COPY classifier/ classifier/
 COPY decision_engine/ decision_engine/
 COPY database/ database/
-COPY worker/ worker/
-COPY ingestion/ ingestion/
+COPY analysis/ analysis/
 
 EXPOSE 8001
 

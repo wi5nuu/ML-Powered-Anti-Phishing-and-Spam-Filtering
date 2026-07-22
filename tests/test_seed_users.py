@@ -1,22 +1,26 @@
 import os
 import unittest
 
+# Must be set BEFORE any project imports so dashboard.database uses SQLite
 os.environ["ENV"] = "testing"
 os.environ["DASHBOARD_DB_URL"] = "sqlite:///:memory:"
 
 from dashboard.app import _upsert_seed_user  # noqa: E402
 from dashboard.auth import hash_password, verify_password  # noqa: E402
-from dashboard.database import SessionLocal  # noqa: E402
-from database.models import User  # noqa: E402
+from dashboard.database import engine, SessionLocal  # noqa: E402
+from database.models import Base, User  # noqa: E402
 
 
 class SeedUserTests(unittest.TestCase):
     def setUp(self):
+        # Each test gets a fresh in-memory schema so rows don't bleed between tests
+        Base.metadata.create_all(engine)
         self.db = SessionLocal()
 
     def tearDown(self):
-        self.db.rollback()
         self.db.close()
+        # Drop all tables so the next setUp starts clean
+        Base.metadata.drop_all(engine)
 
     def test_custom_password_survives_restart_seed(self):
         user = User(

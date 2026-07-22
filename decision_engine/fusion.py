@@ -71,7 +71,11 @@ def fuse(sa_score: float, ml_probability: float,
         FusionResult dengan label routing dan penjelasan.
     """
     # Normalisasi SA score ke [0, 1]
-    sa_clamped = max(0.0, min(sa_score, SA_MAX_SCORE))
+    # sa_score == -1.0 adalah sentinel dari pipeline_worker yang berarti
+    # SpamAssassin timeout atau error — perlakukan sebagai skor netral (0.0),
+    # bukan CLEAN, agar tidak mempengaruhi keputusan fusion ke arah aman.
+    effective_sa = 0.0 if sa_score < 0 else sa_score
+    sa_clamped = max(0.0, min(effective_sa, SA_MAX_SCORE))
     sa_normalized = sa_clamped / SA_MAX_SCORE
 
     # Hard overrides — langsung QUARANTINE tanpa fusion

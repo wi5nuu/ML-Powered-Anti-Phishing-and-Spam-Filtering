@@ -2,7 +2,12 @@
 XAI module — membangun X-Spam-Reason header string dari hasil fusion dan fitur.
 """
 
-from classifier.features import EmailFeatures
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from classifier.features import EmailFeatures
 
 
 XAI_HUMAN_LABELS = {

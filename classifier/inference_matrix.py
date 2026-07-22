@@ -1,28 +1,9 @@
 from scipy.sparse import csr_matrix, hstack
 
-
-MODEL_STRUCTURED_FEATURES = [
-    "num_urls",
-    "num_unique_domains",
-    "has_url_shortener",
-    "has_lookalike_domain",
-    "min_levenshtein_to_protected",
-    "num_attachments",
-    "has_executable_attachment",
-    "urgency_score",
-    "html_text_ratio",
-    "num_images",
-    "spf_pass",
-    "dkim_pass",
-    "dmarc_pass",
-    "display_name_mismatch",
-    "subject_has_re_fwd_fake",
-    "num_recipients",
-    "is_bulk_sender",
-    "entropy_of_links",
-    "num_forms",
-    "javascript_present",
-]
+# Single source-of-truth: import from features so inference_matrix and
+# classifier/predict always use the identical feature list in the exact
+# same order as the model was trained with.
+from classifier.features import STRUCTURED_FEATURES as MODEL_STRUCTURED_FEATURES  # noqa: F401
 
 
 def build_feature_matrix(df, tfidf, scaler, fit: bool = False):

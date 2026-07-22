@@ -102,7 +102,9 @@ export default function SuperadminDashboardOverview() {
     }
   }, [])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  // BUGFIX: fetchAll wrapped in useCallback but used as useEffect dependency creates infinite loop
+  // Solution: Remove fetchAll from dependency array, run only on mount
+  useEffect(() => { fetchAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const allOk = health && (health.status === 'ok' || health.status === 'healthy')
 

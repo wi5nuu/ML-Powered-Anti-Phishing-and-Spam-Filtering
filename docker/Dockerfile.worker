@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Metrics/health port used by Prometheus scraping and docker-compose healthcheck
+EXPOSE 8002
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -c "import aiohttp, aiosmtpd, aiosmtplib, httpx, redis, sqlalchemy, structlog"

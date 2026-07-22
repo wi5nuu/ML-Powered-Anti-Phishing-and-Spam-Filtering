@@ -110,7 +110,7 @@ export default function AnalyzerPage() {
   const [rawEmail, setRawEmail] = useState('')
   const [result, setResult] = useState(null)
   const fileInputRef = useRef(null)
-  const { addToast } = useToast()
+  const { showToast: addToast } = useToast()
   const { t } = useTranslation()
 
   const { mutate: analyze, isPending } = useAnalyzeEmail()

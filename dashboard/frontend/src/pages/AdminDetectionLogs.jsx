@@ -43,6 +43,7 @@ export default function AdminDetectionLogs() {
       .finally(() => setLoading(false))
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchLogs(page) }, [page])
 
   const handleSearch = (e) => { e.preventDefault(); setPage(1); setSearch(searchInput); fetchLogs(1, searchInput, labelFilter) }

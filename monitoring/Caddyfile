@@ -1,15 +1,81 @@
 {
     email {$CADDY_TLS_EMAIL}
+    # Global hardening
+    servers {
+        protocols h1 h2 h3
+    }
 }
 
+# ── Dashboard ─────────────────────────────────────────────────────────────────
 {$DASHBOARD_DOMAIN:dashboard.localhost} {
-    reverse_proxy dashboard:8080
+    # WebSocket support for realtime updates
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websocket dashboard:8080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    reverse_proxy dashboard:8080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Security headers added at proxy layer (defence-in-depth)
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # Remove server fingerprinting headers
+        -Server
+        -X-Powered-By
+    }
+
+    # Block access to sensitive internal paths from outside
+    @blocked path /metrics /api/admin/metrics
+    respond @blocked 403
+
+    log {
+        output file /var/log/caddy/dashboard-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
 }
 
+# ── Grafana ───────────────────────────────────────────────────────────────────
 {$GRAFANA_DOMAIN:grafana.localhost} {
-    reverse_proxy grafana:3000
+    reverse_proxy grafana:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
 }
 
+# ── Prometheus (internal only — restrict to trusted IPs in production) ────────
 {$PROMETHEUS_DOMAIN:prometheus.localhost} {
-    reverse_proxy prometheus:9090
+    # SECURITY: Restrict Prometheus UI to trusted IPs only
+    @allowed remote_ip {$PROMETHEUS_ALLOWED_IPS:127.0.0.1}
+    handle @allowed {
+        reverse_proxy prometheus:9090 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    respond 403
 }

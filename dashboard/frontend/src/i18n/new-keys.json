@@ -1,0 +1,402 @@
+{
+  "common.add": {
+    "en": "Add",
+    "id": "Tambah"
+  },
+  "profile.title": {
+    "en": "Account Settings",
+    "id": "Pengaturan Akun"
+  },
+  "profile.subtitle": {
+    "en": "Manage your profile",
+    "id": "Kelola Profil"
+  },
+  "profile.loading": {
+    "en": "Loading profile...",
+    "id": "Memuat profil..."
+  },
+  "profile.uploadAvatar": {
+    "en": "Upload avatar",
+    "id": "Unggah avatar"
+  },
+  "profile.activeEmail": {
+    "en": "Active Email",
+    "id": "Email Aktif"
+  },
+  "profile.operatorLogin": {
+    "en": "Operator Login",
+    "id": "Operator Login"
+  },
+  "profile.memberSince": {
+    "en": "Member since",
+    "id": "Member sejak"
+  },
+  "profile.view": {
+    "en": "View Profile",
+    "id": "Lihat Profil"
+  },
+  "profile.avatarTypeError": {
+    "en": "File must be JPG, PNG, GIF, or WEBP.",
+    "id": "File harus berupa gambar JPG, PNG, GIF, atau WEBP."
+  },
+  "profile.avatarSizeError": {
+    "en": "Max avatar size is 1 MB.",
+    "id": "Ukuran avatar maksimal 1 MB."
+  },
+  "profile.avatarRatioError": {
+    "en": "Avatar ratio must be 1:1.",
+    "id": "Rasio avatar harus 1:1."
+  },
+  "profile.avatarDimError": {
+    "en": "Image dimensions could not be read.",
+    "id": "Dimensi gambar tidak dapat dibaca."
+  },
+  "profile.avatarUploadError": {
+    "en": "Avatar upload failed.",
+    "id": "Upload avatar gagal."
+  },
+  "pembelian.title": {
+    "en": "Purchases",
+    "id": "Pembelian"
+  },
+  "pembelian.loading": {
+    "en": "Loading purchase emails...",
+    "id": "Memuat email pembelian..."
+  },
+  "pembelian.empty": {
+    "en": "No purchase emails",
+    "id": "Tidak ada email pembelian"
+  },
+  "pembelian.emptyHint": {
+    "en": "Receipts and purchase notifications will appear here.",
+    "id": "Struk dan notifikasi pembelian akan muncul di sini."
+  },
+  "settings.accountTitle": {
+    "en": "Account Settings",
+    "id": "Pengaturan Akun"
+  },
+  "settings.accountSubtitle": {
+    "en": "Manage notification preferences and your account information.",
+    "id": "Kelola preferensi notifikasi dan informasi akun Anda."
+  },
+  "settings.accountLogin": {
+    "en": "Login Account",
+    "id": "Akun Login"
+  },
+  "settings.usernameHint": {
+    "en": "Username used for login.",
+    "id": "Username yang digunakan saat login."
+  },
+  "settings.currentPassword": {
+    "en": "Current Password",
+    "id": "Password Saat Ini"
+  },
+  "settings.currentPasswordHint": {
+    "en": "Required to change username or password.",
+    "id": "Wajib diisi untuk mengganti username atau password."
+  },
+  "settings.newPassword": {
+    "en": "New Password",
+    "id": "Password Baru"
+  },
+  "settings.newPasswordHint": {
+    "en": "Leave blank if you don't want to change password.",
+    "id": "Kosongkan jika tidak ingin mengganti password."
+  },
+  "settings.confirmPassword": {
+    "en": "Confirm Password",
+    "id": "Konfirmasi Password"
+  },
+  "settings.confirmPasswordHint": {
+    "en": "Repeat new password.",
+    "id": "Ulangi password baru."
+  },
+  "settings.saveAccount": {
+    "en": "Save Account",
+    "id": "Simpan Akun"
+  },
+  "settings.systemTitle": {
+    "en": "System Settings",
+    "id": "Pengaturan Sistem"
+  },
+  "settings.systemSubtitle": {
+    "en": "Configure thresholds, model weights, and email connection parameters.",
+    "id": "Konfigurasi threshold, bobot model, dan parameter koneksi email."
+  },
+  "settings.loading": {
+    "en": "Loading settings...",
+    "id": "Memuat pengaturan..."
+  },
+  "settings.loadError": {
+    "en": "Failed to load system settings.",
+    "id": "Gagal memuat pengaturan sistem."
+  },
+  "settings.unsavedChanges": {
+    "en": "There are unsaved changes.",
+    "id": "Ada perubahan yang belum disimpan."
+  },
+  "settings.resetDefault": {
+    "en": "Reset Default",
+    "id": "Reset Default"
+  },
+  "settings.saveSettings": {
+    "en": "Save Settings",
+    "id": "Simpan Pengaturan"
+  },
+  "settings.activeMailbox": {
+    "en": "Active Mailbox",
+    "id": "Mailbox Aktif"
+  },
+  "settings.activeEmailHint": {
+    "en": "Settings opened from this mailbox dashboard.",
+    "id": "Pengaturan sedang dibuka dari dashboard mailbox ini."
+  },
+  "settings.mailboxDomain": {
+    "en": "Mailbox Domain",
+    "id": "Domain mailbox"
+  },
+  "settings.mailboxDomainHint": {
+    "en": "Company domain used by this mailbox.",
+    "id": "Domain perusahaan yang dipakai mailbox ini."
+  },
+  "settings.accessAccount": {
+    "en": "Account Access",
+    "id": "Akses akun"
+  },
+  "settings.accessAccountHint": {
+    "en": "Mailbox uses credentials managed by administrator.",
+    "id": "Mailbox menggunakan kredensial yang dikelola administrator."
+  },
+  "settings.profileInfo": {
+    "en": "Profile Information",
+    "id": "Informasi Profil"
+  },
+  "settings.notifPreferences": {
+    "en": "Notification Preferences",
+    "id": "Preferensi Notifikasi"
+  },
+  "settings.notifEmail": {
+    "en": "Email Notifications",
+    "id": "Notifikasi Email"
+  },
+  "settings.notifEmailHint": {
+    "en": "Get notified when incoming emails are quarantined",
+    "id": "Dapatkan pemberitahuan saat ada email masuk dikarantina"
+  },
+  "settings.notifDaily": {
+    "en": "Daily Summary",
+    "id": "Ringkasan Harian"
+  },
+  "settings.notifDailyHint": {
+    "en": "Receive daily summary reports",
+    "id": "Terima laporan ringkasan setiap hari"
+  },
+  "settings.footerNote": {
+    "en": "System settings can only be changed by Admin and Super Admin.",
+    "id": "Pengaturan sistem hanya dapat diubah oleh Admin dan Super Admin."
+  },
+  "settings.roleAccess": {
+    "en": "Role & Access",
+    "id": "Role & Akses"
+  },
+  "settings.detectionThresholds": {
+    "en": "Detection Thresholds",
+    "id": "Ambang Deteksi"
+  },
+  "settings.quarantineThreshold": {
+    "en": "Quarantine Threshold (QUARANTINE)",
+    "id": "Ambang Karantina (QUARANTINE)"
+  },
+  "settings.warnThreshold": {
+    "en": "Warn Threshold (WARN)",
+    "id": "Ambang Peringatan (WARN)"
+  },
+  "settings.thresholdHint": {
+    "en": "Score \u2265 Quarantine \u2192 QUARANTINE | Score \u2265 Warn \u2192 WARN | Lower score \u2192 CLEAN",
+    "id": "Skor \u2265 Karantina \u2192 QUARANTINE | Skor \u2265 Peringatan \u2192 WARN | Skor lebih rendah \u2192 CLEAN"
+  },
+  "settings.fusionWeights": {
+    "en": "Model Fusion Weights (Total must = 100%)",
+    "id": "Bobot Fusi Model (Total harus = 100%)"
+  },
+  "settings.fusionMlLabel": {
+    "en": "ML Supervised (XGBoost) \u2014",
+    "id": "ML Supervised (XGBoost) \u2014 saat ini"
+  },
+  "settings.fusionSaLabel": {
+    "en": "SpamAssassin \u2014",
+    "id": "SpamAssassin \u2014 saat ini"
+  },
+  "settings.fusionAnomalyLabel": {
+    "en": "Anomaly Unsupervised \u2014",
+    "id": "Anomali Unsupervised \u2014 saat ini"
+  },
+  "settings.fusionTotal": {
+    "en": "Total:",
+    "id": "Total:"
+  },
+  "settings.fusionMustBe100": {
+    "en": "Must be exactly 100%",
+    "id": "Harus tepat 100%"
+  },
+  "settings.imapConnection": {
+    "en": "IMAP Connection",
+    "id": "Koneksi IMAP"
+  },
+  "settings.imapHost": {
+    "en": "IMAP Host",
+    "id": "IMAP Host"
+  },
+  "settings.imapHostHint": {
+    "en": "Email server to poll",
+    "id": "Server email yang akan di-poll"
+  },
+  "settings.imapPort": {
+    "en": "Port",
+    "id": "Port"
+  },
+  "settings.imapPortHint": {
+    "en": "993 for SSL, 143 for STARTTLS",
+    "id": "993 untuk SSL, 143 untuk STARTTLS"
+  },
+  "settings.imapUsername": {
+    "en": "Username",
+    "id": "Username"
+  },
+  "settings.imapUsernameHint": {
+    "en": "Monitor account email address",
+    "id": "Alamat email akun monitor"
+  },
+  "settings.imapPollInterval": {
+    "en": "Poll Interval",
+    "id": "Poll Interval"
+  },
+  "settings.imapPollIntervalHint": {
+    "en": "How often emails are polled (seconds)",
+    "id": "Seberapa sering email di-poll (detik)"
+  },
+  "settings.testConnection": {
+    "en": "Test Connection",
+    "id": "Uji Koneksi"
+  },
+  "settings.testing": {
+    "en": "Testing...",
+    "id": "Menguji..."
+  },
+  "settings.protectedDomains": {
+    "en": "Protected Domains",
+    "id": "Domain Terlindungi"
+  },
+  "settings.protectedDomainsHint": {
+    "en": "The following domains will be monitored for lookalike/typosquatting attacks.",
+    "id": "Domain-domain berikut akan dimonitor untuk serangan lookalike/typosquatting."
+  },
+  "settings.whitelistSenders": {
+    "en": "Trusted Sender Whitelist",
+    "id": "Whitelist Pengirim Terpercaya"
+  },
+  "settings.whitelistSendersHint": {
+    "en": "Emails from senders on this list will not be quarantined (excluded from filter).",
+    "id": "Email dari pengirim di daftar ini tidak akan dikarantina (dikecualikan dari filter)."
+  },
+  "settings.domainPlaceholder": {
+    "en": "example: lodaya.id",
+    "id": "contoh: lodaya.id"
+  },
+  "settings.whitelistPlaceholder": {
+    "en": "example: noreply@trusted-bank.co.id",
+    "id": "contoh: noreply@trusted-bank.co.id"
+  },
+  "settings.otherSettings": {
+    "en": "Other Settings",
+    "id": "Pengaturan Lainnya"
+  },
+  "settings.adminNotifEmail": {
+    "en": "Admin Notification Email",
+    "id": "Email Notifikasi Admin"
+  },
+  "settings.adminNotifEmailHint": {
+    "en": "Alert sent to this address when a threat is detected",
+    "id": "Alert dikirim ke alamat ini saat ada ancaman"
+  },
+  "settings.quarantineRetention": {
+    "en": "Quarantine Retention (days)",
+    "id": "Retensi Karantina (hari)"
+  },
+  "settings.quarantineRetentionHint": {
+    "en": "Quarantined emails automatically deleted after N days",
+    "id": "Email karantina dihapus otomatis setelah N hari"
+  },
+  "settings.superadminManagement": {
+    "en": "Super Admin Management",
+    "id": "Manajemen Super Admin"
+  },
+  "settings.superadminHint": {
+    "en": "Manage users, security policies, and other system-level configuration.",
+    "id": "Kelola pengguna, kebijakan keamanan, dan konfigurasi tingkat sistem lainnya."
+  },
+  "settings.adminPanel": {
+    "en": "Admin Panel",
+    "id": "Panel Admin"
+  },
+  "settings.adminPanelHint": {
+    "en": "Manage users, reports, and system activity",
+    "id": "Kelola user, laporan, dan aktivitas sistem"
+  },
+  "settings.openAdminPanel": {
+    "en": "Open Admin Panel",
+    "id": "Buka Admin Panel"
+  },
+  "settings.noItems": {
+    "en": "No items yet.",
+    "id": "Belum ada item."
+  },
+  "msg.settings.weightSum": {
+    "en": "Total fusion weight must equal 100% (currently",
+    "id": "Total bobot fusi harus = 100% (sekarang"
+  },
+  "msg.settings.quarantineGtWarn": {
+    "en": "Quarantine threshold must be greater than warn threshold.",
+    "id": "Ambang karantina harus lebih besar dari ambang peringatan."
+  },
+  "msg.settings.saved": {
+    "en": "Settings saved successfully.",
+    "id": "Pengaturan berhasil disimpan."
+  },
+  "msg.settings.saveError": {
+    "en": "Failed to save settings.",
+    "id": "Gagal menyimpan pengaturan."
+  },
+  "msg.settings.resetConfirm": {
+    "en": "Reset all settings to default values? Unsaved changes will be lost.",
+    "id": "Reset semua pengaturan ke nilai default? Perubahan yang belum disimpan akan hilang."
+  },
+  "msg.settings.resetDone": {
+    "en": "Settings reset to default.",
+    "id": "Pengaturan direset ke default."
+  },
+  "msg.settings.imapTestFail": {
+    "en": "Connection failed.",
+    "id": "Koneksi gagal."
+  },
+  "msg.settings.imapTestError": {
+    "en": "Failed to test IMAP connection.",
+    "id": "Gagal menguji koneksi IMAP."
+  },
+  "msg.settings.accountPasswordRequired": {
+    "en": "Enter current password to save account changes.",
+    "id": "Masukkan password saat ini untuk menyimpan perubahan akun."
+  },
+  "msg.settings.accountPasswordMismatch": {
+    "en": "New password confirmation does not match.",
+    "id": "Konfirmasi password baru tidak cocok."
+  },
+  "msg.settings.accountUpdated": {
+    "en": "Account updated successfully.",
+    "id": "Akun berhasil diperbarui."
+  },
+  "msg.settings.accountUpdateError": {
+    "en": "Failed to update account.",
+    "id": "Gagal memperbarui akun."
+  }
+}

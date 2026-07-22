@@ -33,10 +33,40 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = Path("classifier/models")
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-# Fitur yang dipakai untuk unsupervised (subset dari STRUCTURED_FEATURES, tanpa TF-IDF)
-# Gunakan 20 fitur asli (exclude 8 business context features)
-ORIGINAL_FEATURES = STRUCTURED_FEATURES[:20]
-UNSUPERVISED_FEATURES = ORIGINAL_FEATURES  # 20 fitur
+# Fitur yang dipakai untuk unsupervised (subset dari STRUCTURED_FEATURES, tanpa TF-IDF).
+# Defined explicitly instead of a fragile positional slice so that adding new
+# features to STRUCTURED_FEATURES never silently shifts this list.
+UNSUPERVISED_FEATURES = [
+    "num_urls",
+    "num_unique_domains",
+    "has_url_shortener",
+    "has_lookalike_domain",
+    "min_levenshtein_to_protected",
+    "num_attachments",
+    "has_executable_attachment",
+    "urgency_score",
+    "html_text_ratio",
+    "num_images",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "display_name_mismatch",
+    "subject_has_re_fwd_fake",
+    "num_recipients",
+    "is_bulk_sender",
+    "entropy_of_links",
+    "num_forms",
+    "javascript_present",
+]
+
+# Sanity-check: every unsupervised feature must exist in the master list.
+_missing_unsupervised = [f for f in UNSUPERVISED_FEATURES if f not in STRUCTURED_FEATURES]
+if _missing_unsupervised:
+    raise RuntimeError(
+        f"UNSUPERVISED_FEATURES references features not in STRUCTURED_FEATURES: "
+        f"{_missing_unsupervised}. Update classifier/unsupervised.py to match "
+        f"classifier/features.py STRUCTURED_FEATURES."
+    )
 
 # Kolom boolean yang perlu dikonversi float (untuk StandardScaler)
 BOOL_FEATURES = [

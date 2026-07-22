@@ -100,7 +100,7 @@ function Pagination({ page, pages, onPageChange, t }) {
 
 export default function AuditPage() {
   const { t } = useTranslation()
-  const { addToast } = useToast()
+  const { showToast: addToast } = useToast()
   const [page, setPage] = useState(1)
   const [eventType, setEventType] = useState('')
   const [usernameFilter, setUsernameFilter] = useState('')

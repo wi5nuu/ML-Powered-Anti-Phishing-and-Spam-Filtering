@@ -5,8 +5,31 @@ import {
   Loader2, Search, RefreshCw, Shield, Eye, Trash2, LogOut,
   AlertTriangle, Settings, Activity, Mail
 } from 'lucide-react'
-import { useAuditLog, downloadEmailsCsv } from '../api/metrics'
+import { useAuditLog } from '../api/metrics'
 import styles from './AuditPage.module.css'
+
+// Download audit log as CSV (separate from email CSV export)
+// DISABLED: Backend endpoint /audit-log/export-csv does not exist yet
+// TODO: Implement backend endpoint GET /api/audit-log/export-csv if CSV export is needed
+async function downloadAuditLogCsv() {
+  console.warn('Audit log CSV export not yet implemented on backend')
+  alert('CSV export untuk audit log belum tersedia. Silakan hubungi administrator.')
+  return
+  /* Uncomment when backend endpoint is ready:
+  const { default: api } = await import('../api/client')
+  const { APP_TIME_ZONE } = await import('../utils/time')
+  const response = await api.get('/audit-log/export-csv', { responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: APP_TIME_ZONE })
+  link.setAttribute('download', `cognimail_audit_log_${date}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+  */
+}
 
 const ACTION_CFG = {
   release:               { icon: LogOut,       color: '#34A853' },
@@ -122,7 +145,7 @@ export default function AuditLogEmbed() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      await downloadEmailsCsv()
+      await downloadAuditLogCsv()
       setExportMsg(t('audit.exportSuccess', 'Ekspor CSV berhasil.'))
       setTimeout(() => setExportMsg(''), 3000)
     } catch {

@@ -85,7 +85,7 @@ services:
       postgres:
         condition: service_healthy
       classifier:
-        condition: service_started
+        condition: service_healthy
       spamassassin:
         condition: service_healthy
 
@@ -99,7 +99,16 @@ services:
       ENV: ${ENV:-production}
     command: ["python", "-m", "worker.smtp_receiver"]
     ports:
-      - "127.0.0.1:${SMTP_PUBLIC_PORT:-2525}:${SMTP_PORT:-25}"
+      # PRODUCTION FIX: Expose port 25 publicly for inbound MX email delivery.
+      # Port 25 must be reachable from the internet for other mail servers to
+      # deliver email to your domain (required for MX DNS record to work).
+      # Ensure your VPS/cloud firewall allows inbound TCP port 25.
+      # For STARTTLS support also expose port 587 (submission) and/or 465 (SMTPS).
+      - "0.0.0.0:${SMTP_PORT:-25}:25"
+      - "0.0.0.0:${SMTP_SUBMISSION_PORT:-587}:587"
+    volumes:
+      # Mount TLS certs for STARTTLS — set SMTP_TLS_CERT / SMTP_TLS_KEY in .env
+      - ${SMTP_TLS_CERT_DIR:-/etc/letsencrypt/live}:/certs:ro
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -108,6 +117,22 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+      args:
+        VITE_MAIL_DOMAIN: ${VITE_MAIL_DOMAIN:-zenime.my.id}
+    restart: "no"
+    env_file: .env
+    environment:
+      ENV: ${ENV:-production}
+    command: ["python", "/app/seed_data.py"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["seed"]
 
   dashboard:
     build:

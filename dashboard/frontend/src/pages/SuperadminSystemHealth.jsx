@@ -1,32 +1,96 @@
 import { useEffect, useState } from 'react'
 import api from '../api/client'
-import { Server, RefreshCw, CheckCircle, XCircle, Database, Zap, ShieldCheck, Wifi } from 'lucide-react'
+import { Server, RefreshCw, CheckCircle, XCircle, Database, Zap, ShieldCheck, Wifi, AlertTriangle } from 'lucide-react'
 import styles from './AdminPage.module.css'
 import { useTranslation } from '../i18n/context'
+
+const AUTO_REFRESH_MS = 60000
 
 export default function SuperadminSystemHealth() {
   const { t } = useTranslation()
   const [health, setHealth]           = useState(null)
   const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
   const [lastUpdated, setLastUpdated] = useState(null)
 
   const fetchHealth = () => {
     setLoading(true)
-    api.get('/health')
+    setError('')
+    // Gunakan /admin/system-health untuk data lengkap (redis, classifier, smtp, worker)
+    // Fallback ke /health jika gagal (misal user bukan superadmin)
+    api.get('/admin/system-health')
       .then(({ data }) => { setHealth(data); setLastUpdated(new Date()) })
-      .catch(() => setHealth({ status: 'error' }))
+      .catch(() =>
+        api.get('/health')
+          .then(({ data }) => { setHealth(data); setLastUpdated(new Date()) })
+          .catch((err) => {
+            setHealth({ status: 'error' })
+            setError(err.response?.data?.detail || t('health.loadError', 'Gagal memuat status sistem.'))
+          })
+      )
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchHealth() }, [])
+  useEffect(() => {
+    fetchHealth()
+    const interval = setInterval(fetchHealth, AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const allOk = health && (health.status === 'ok' || health.status === 'healthy')
 
+  // /admin/system-health returns { services: { postgresql, redis, classifier_api, smtp_receiver, worker_pipeline } }
+  // /health (fallback) returns { database, redis, classifier }
+  const svcMap = health?.services || {}
+  const isOk = (key, fallback) => {
+    if (svcMap[key]) return svcMap[key].status === 'healthy'
+    return fallback
+  }
+
   const services = health ? [
-    { name: t('health.service.api'), desc: t('health.service.apiDesc'),  ok: allOk,                                         icon: <Wifi size={14} /> },
-    { name: t('health.service.db'), desc: t('health.service.dbDesc'),    ok: health.database !== false && health.db !== false, icon: <Database size={14} /> },
-    { name: t('health.service.redis'), desc: t('health.service.redisDesc'), ok: health.redis !== false,                         icon: <Zap size={14} /> },
-    { name: t('health.service.classifier'), desc: t('health.service.classifierDesc'), ok: health.classifier !== false,          icon: <ShieldCheck size={14} /> },
+    {
+      name: t('health.service.api'),
+      desc: t('health.service.apiDesc'),
+      ok: allOk,
+      detail: `v${health.version || '—'}`,
+      icon: <Wifi size={14} />,
+    },
+    {
+      name: t('health.service.db'),
+      desc: t('health.service.dbDesc'),
+      ok: isOk('postgresql', health.database === 'connected' || health.database === true),
+      detail: svcMap.postgresql?.detail || (health.database === 'connected' ? 'Connected' : health.database),
+      icon: <Database size={14} />,
+    },
+    {
+      name: t('health.service.redis'),
+      desc: t('health.service.redisDesc'),
+      ok: isOk('redis', health.redis === true || health.redis === 'connected'),
+      detail: svcMap.redis?.detail || (health.redis === true ? 'Connected' : 'Unavailable'),
+      icon: <Zap size={14} />,
+    },
+    {
+      name: t('health.service.classifier'),
+      desc: t('health.service.classifierDesc'),
+      ok: isOk('classifier_api', health.classifier === true || health.classifier === 'ok'),
+      detail: svcMap.classifier_api?.detail || (health.classifier === true ? 'Responding' : 'Unavailable'),
+      icon: <ShieldCheck size={14} />,
+    },
+    ...(svcMap.smtp_receiver ? [{
+      name: 'SMTP Receiver',
+      desc: 'Menerima email masuk',
+      ok: svcMap.smtp_receiver.status === 'healthy',
+      detail: svcMap.smtp_receiver.detail || '',
+      icon: <Server size={14} />,
+    }] : []),
+    ...(svcMap.worker_pipeline ? [{
+      name: 'Worker Pipeline',
+      desc: 'Memproses antrian email',
+      ok: svcMap.worker_pipeline.status === 'healthy',
+      detail: svcMap.worker_pipeline.detail || '',
+      icon: <Wifi size={14} />,
+    }] : []),
   ] : []
 
   return (
@@ -66,6 +130,12 @@ export default function SuperadminSystemHealth() {
       {loading ? (
         <div className={styles.emptySmall}>{t('health.loading')}</div>
       ) : (
+        <>
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginBottom: 12, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', fontSize: '0.85rem' }}>
+              <AlertTriangle size={14} /> {error}
+            </div>
+          )}
         <div className={styles.sectionCard}>
           <div className={styles.sectionCardHeader}>
             <Server size={15} className={styles.sectionCardIcon} />
@@ -97,6 +167,7 @@ export default function SuperadminSystemHealth() {
             ))}
           </div>
         </div>
+        </>
       )}
     </div>
   )

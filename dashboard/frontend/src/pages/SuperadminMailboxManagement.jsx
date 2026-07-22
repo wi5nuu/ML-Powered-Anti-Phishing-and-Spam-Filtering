@@ -131,7 +131,7 @@ export default function SuperadminMailboxManagement() {
       .then(() => {
         navigator.clipboard.writeText(pwdForm.password).catch(() => {})
         closeModal()
-        flash(`Password berhasil diubah & disalin ke clipboard: ${pwdForm.password}`)
+        flash('Password berhasil diubah dan disalin ke clipboard.')
       })
       .catch((e) => setError(e.response?.data?.detail || 'Gagal mengubah password.'))
       .finally(() => setSaving(false))

@@ -5,15 +5,29 @@ from mail_delivery import direct_mx
 
 
 class FakeDirectSMTP:
-    attempts = []
-    accepted = []
-    failing_hosts = set()
+    """
+    Async SMTP stub for unit tests.
+
+    State is stored as instance-level lists/sets so tests never share
+    mutable data across test-method boundaries.  The asyncSetUp helper
+    resets them explicitly, but instance isolation prevents accidental
+    cross-contamination when tests run concurrently.
+    """
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        self.__class__.attempts.append(kwargs["hostname"])
+        # Instance-level state — not class-level, to avoid cross-test pollution
+        self.__class__._instances.append(self)
+
+    # Registry used only so asyncSetUp can find & reset all instances
+    _instances: list = []
+    # These are reset in asyncSetUp; kept as class attrs for the patch to work
+    attempts: list = []
+    accepted: list = []
+    failing_hosts: set = set()
 
     async def __aenter__(self):
+        self.__class__.attempts.append(self.kwargs["hostname"])
         if self.kwargs["hostname"] in self.failing_hosts:
             raise OSError("connection refused")
         return self
@@ -27,9 +41,11 @@ class FakeDirectSMTP:
 
 class DirectMxDeliveryTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        FakeDirectSMTP.attempts.clear()
-        FakeDirectSMTP.accepted.clear()
-        FakeDirectSMTP.failing_hosts.clear()
+        # Reset all mutable class-level state before every test
+        FakeDirectSMTP.attempts = []
+        FakeDirectSMTP.accepted = []
+        FakeDirectSMTP.failing_hosts = set()
+        FakeDirectSMTP._instances = []
 
     async def test_uses_next_mx_when_preferred_host_fails(self):
         FakeDirectSMTP.failing_hosts.add("mx1.example.net")

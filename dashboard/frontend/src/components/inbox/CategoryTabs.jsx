@@ -1,24 +1,28 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Inbox, Tag, Users, Info, MessageSquare } from 'lucide-react'
 import styles from './CategoryTabs.module.css'
 
-const IconInbox = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5v-3h3.56c.69 1.19 1.97 2 3.45 2s2.75-.81 3.45-2H19v3zm0-5h-4.99c0 1.1-.9 2-2.01 2s-2.01-.9-2.01-2H5V5h14v9z"/>
-  </svg>
-)
-
 const TABS = [
-  { key: 'all',        label: 'Utama',      Icon: IconInbox,  color: '#1a73e8' },
+  { key: 'all',        label: 'Utama',        Icon: Inbox,          color: '#0b57d0' },
+  { key: 'promotions', label: 'Promosi',      Icon: Tag,            color: '#1e8e3e', badge: '6 baru', badgeColor: '#1e8e3e' },
+  { key: 'social',     label: 'Sosial',       Icon: Users,          color: '#0b57d0', badge: '8 baru', badgeColor: '#0b57d0' },
+  { key: 'updates',    label: 'Info Terbaru', Icon: Info,           color: '#e37400', badge: '18 baru', badgeColor: '#e37400' },
+  { key: 'forums',     label: 'Forum',        Icon: MessageSquare,  color: '#444746' },
 ]
 
 export default function CategoryTabs({ activeFilter = 'all' }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const currentTab = searchParams.get('category') || searchParams.get('filter') || 'all'
 
   const handleTab = (key) => {
     const params = new URLSearchParams(searchParams)
-    if (key === 'all') params.delete('filter')
-    else params.set('filter', key)
+    if (key === 'all') {
+      params.delete('filter')
+      params.delete('category')
+    } else {
+      params.set('category', key)
+    }
     params.delete('page')
     navigate(`/inbox?${params.toString()}`)
   }
@@ -26,7 +30,8 @@ export default function CategoryTabs({ activeFilter = 'all' }) {
   return (
     <div className={styles.tabs}>
       {TABS.map((tab) => {
-        const isActive = activeFilter === tab.key
+        const isActive = currentTab === tab.key
+        const Icon = tab.Icon
         return (
           <button
             key={tab.key}
@@ -34,13 +39,19 @@ export default function CategoryTabs({ activeFilter = 'all' }) {
             onClick={() => handleTab(tab.key)}
             style={isActive ? { '--tab-color': tab.color } : {}}
           >
-            <span className={styles.iconWrap} style={isActive ? { color: tab.color } : {}}>
-              <tab.Icon />
+            <span className={styles.iconWrap} style={{ color: isActive ? tab.color : 'inherit' }}>
+              <Icon size={18} />
             </span>
             <span className={styles.label}>{tab.label}</span>
+            {tab.badge && (
+              <span className={styles.badge} style={{ backgroundColor: tab.badgeColor }}>
+                {tab.badge}
+              </span>
+            )}
           </button>
         )
       })}
     </div>
   )
 }
+

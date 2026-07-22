@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import GmailShell from '../components/layout/GmailShell'
 import { useTranslation } from '../i18n/context'
-import { useEmails } from '../api/emails'
+import { useEmails, useToggleStarred } from '../api/emails'
 import { useMe } from '../api/auth'
 import EmailRow from '../components/inbox/EmailRow'
 import EmailToolbar from '../components/inbox/EmailToolbar'
@@ -32,8 +32,14 @@ export default function SentPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: meData } = useMe()
-  const mailbox = getActiveMailbox(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_email || meData.user.username || '' : '')
-  const mailboxId = getActiveMailboxId(searchParams) || (meData?.user?.role === 'mailbox' ? meData.user.mailbox_id || '' : '')
+  const userRole = meData?.user?.role
+  // For role 'user', always use their own email — never trust URL mailboxId
+  const mailbox = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailbox(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_email || meData?.user?.username || '' : ''))
+  const mailboxId = userRole === 'user'
+    ? (meData?.user?.email || '')
+    : (getActiveMailboxId(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_id || '' : ''))
   const query = searchParams.get('q') || ''
   const page = parseInt(searchParams.get('page') || '1', 10)
   const { data, isLoading, isError, refetch } = useEmails('sent', query, {
@@ -44,13 +50,7 @@ export default function SentPage() {
   })
 
   const [selected, setSelected] = useState(new Set())
-  const [starred, setStarred] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]'))
-    } catch {
-      return new Set()
-    }
-  })
+  const { mutate: toggleStarredMutate } = useToggleStarred()
   const [readIds, setReadIds] = useState(() => {
     try {
       return new Set(JSON.parse(localStorage.getItem('cognimail_read_ids') || '[]'))
@@ -58,11 +58,6 @@ export default function SentPage() {
       return new Set()
     }
   })
-
-  useEffect(() => {
-    localStorage.setItem('cognimail_starred_ids', JSON.stringify(Array.from(starred)))
-    window.dispatchEvent(new Event('cognimail_starred_changed'))
-  }, [starred])
 
   useEffect(() => {
     localStorage.setItem('cognimail_read_ids', JSON.stringify(Array.from(readIds)))
@@ -139,12 +134,10 @@ export default function SentPage() {
   )
 
   const toggleStar = useCallback((id) => {
-    setStarred((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }, [])
+    const email = (data?.emails || []).find((e) => e.email_id === id)
+    const nextVal = !(email?.is_starred ?? false)
+    toggleStarredMutate({ emailId: id, isStarred: nextVal })
+  }, [data, toggleStarredMutate])
 
   const setReadState = useCallback((id, shouldRead = true) => {
     setReadIds((prev) => {
@@ -200,7 +193,7 @@ export default function SentPage() {
               isRead={readIds.has(email.email_id)}
               isSelected={isThreadSelected(email)}
               onToggleSelect={() => toggleSelectThread(email)}
-              isStarred={starred.has(email.email_id)}
+              isStarred={email.is_starred ?? false}
               onToggleStar={toggleStar}
               onSetRead={setReadState}
             />

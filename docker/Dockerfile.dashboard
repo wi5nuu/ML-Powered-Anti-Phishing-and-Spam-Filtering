@@ -6,7 +6,10 @@ COPY dashboard/frontend/package*.json ./
 RUN npm ci
 
 COPY dashboard/frontend/ ./
-ARG VITE_MAIL_DOMAIN=zenime.my.id
+# No default — the build-time value MUST be supplied via --build-arg or
+# docker-compose build.args so a production domain is never accidentally
+# baked into an image destined for a different environment.
+ARG VITE_MAIL_DOMAIN
 ENV VITE_MAIL_DOMAIN=${VITE_MAIL_DOMAIN}
 RUN npm run build
 
@@ -23,11 +26,13 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy, reportlab, openpyxl"
+RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy, reportlab, openpyxl, psycopg"
 
 COPY dashboard/ dashboard/
 COPY database/ database/
 COPY mail_delivery/ mail_delivery/
+COPY seed_data.py seed_data.py
+COPY scripts/ scripts/
 COPY --from=frontend-builder /app/dashboard/static/dist dashboard/static/dist
 
 EXPOSE 8080

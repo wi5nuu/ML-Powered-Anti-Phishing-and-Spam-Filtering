@@ -14,6 +14,7 @@ export default function AdminQuarantineReview() {
   const { t } = useTranslation()
   const [emails,         setEmails]         = useState([])
   const [loading,        setLoading]        = useState(true)
+  const [actionLoading,  setActionLoading]  = useState(null)
   const [error,          setError]          = useState('')
   const [success,        setSuccess]        = useState('')
   const [page,           setPage]           = useState(1)
@@ -37,6 +38,7 @@ export default function AdminQuarantineReview() {
       .finally(() => setLoading(false))
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchEmails(page) }, [page])
 
   const flash      = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3500) }
@@ -45,17 +47,21 @@ export default function AdminQuarantineReview() {
   const handleClear  = () => { setSearchInput(''); setSearch(''); setCategoryFilter(''); setPage(1); fetchEmails(1, '', '') }
 
   const handleRelease = (id) => {
+    setActionLoading(id + '-release')
     api.post(`/emails/${id}/release`)
       .then(() => { fetchEmails(page); flash(t('quarantine.releaseSuccess', 'Email dilepas dari karantina.')) })
       .catch((e) => setError(e.response?.data?.detail || t('quarantine.releaseError', 'Gagal melepas email.')))
+      .finally(() => setActionLoading(null))
   }
 
   const handleDelete = (id, subject) => {
     const label = subject ? `"${subject.slice(0, 60)}"` : t('quarantine.thisEmail', 'email ini')
     if (!window.confirm(`${t('quarantine.confirmDelete', 'Hapus permanen')} ${label}? ${t('quarantine.confirmDeleteSuffix', 'Tindakan ini tidak dapat dibatalkan.')}`)) return
+    setActionLoading(id + '-delete')
     api.delete(`/emails/${id}`)
       .then(() => { fetchEmails(page); flash(t('quarantine.deleteSuccess', 'Email dihapus.')) })
       .catch((e) => setError(e.response?.data?.detail || t('quarantine.deleteError', 'Gagal menghapus email.')))
+      .finally(() => setActionLoading(null))
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -147,10 +153,21 @@ export default function AdminQuarantineReview() {
                       </td>
                       <td>
                         <div className={styles.actionGroup} style={{ justifyContent: 'flex-end' }}>
-                          <button onClick={() => handleRelease(e.email_id || e.id)} className={styles.actionBtn} title={t('quarantine.releaseTitle', 'Lepas dari karantina')} style={{ color: '#16a34a' }}>
+                          <button 
+                            onClick={() => handleRelease(e.email_id || e.id)} 
+                            className={styles.actionBtn} 
+                            title={t('quarantine.releaseTitle', 'Lepas dari karantina')} 
+                            style={{ color: '#16a34a' }}
+                            disabled={actionLoading === `${e.email_id || e.id}-release`}
+                          >
                             <Check size={13} />
                           </button>
-                          <button onClick={() => handleDelete(e.email_id || e.id, e.subject)} className={`${styles.actionBtn} ${styles.dangerActionBtn}`} title={t('quarantine.deleteTitle', 'Hapus permanen')}>
+                          <button 
+                            onClick={() => handleDelete(e.email_id || e.id, e.subject)} 
+                            className={`${styles.actionBtn} ${styles.dangerActionBtn}`} 
+                            title={t('quarantine.deleteTitle', 'Hapus permanen')}
+                            disabled={actionLoading === `${e.email_id || e.id}-delete`}
+                          >
                             <X size={13} />
                           </button>
                         </div>

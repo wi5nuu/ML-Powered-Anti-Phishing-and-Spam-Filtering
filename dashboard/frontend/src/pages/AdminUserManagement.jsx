@@ -51,8 +51,8 @@ export default function AdminUserManagement() {
     const payload = {}
     if (form.email     !== modal.user.email)     payload.email     = form.email
     if (form.is_active !== modal.user.is_active) payload.is_active = form.is_active
-    if (!Object.keys(payload).length) { closeModal(); setSaving(false); return }
-    api.patch(`/admin/users/${modal.user.id}`, payload)
+    if (!Object.keys(payload).length) { setSaving(false); closeModal(); return }
+    api.put(`/admin/users/${modal.user.username}`, payload)
       .then(() => { closeModal(); fetchUsers(); flash(t('users.updated')) })
       .catch((e) => setError(e.response?.data?.detail || t('users.updateError')))
       .finally(() => setSaving(false))

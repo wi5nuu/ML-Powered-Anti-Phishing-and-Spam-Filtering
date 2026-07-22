@@ -1,9 +1,9 @@
 .row {
   display: grid;
-  grid-template-columns: 72px minmax(150px, 224px) minmax(260px, 1fr) 82px;
+  grid-template-columns: 76px minmax(130px, 190px) minmax(200px, 1fr) 76px;
   align-items: center;
-  min-height: 44px;
-  padding: 0 16px 0 14px;
+  min-height: 40px;
+  padding: 0 16px 0 10px;
   border-bottom: 1px solid var(--border-medium);
   cursor: pointer;
   background: var(--row-unread-bg);
@@ -41,15 +41,51 @@
 }
 
 .selected {
-  background: var(--row-selected-bg) !important;
+  background: #c2e7ff !important;
+}
+
+/* Active row — the email currently open in the read pane */
+.activeRow {
+  background: #c2e7ff !important;
+  border-left: 3px solid #0b57d0 !important;
+}
+[data-theme='dark'] .activeRow {
+  background: #004a77 !important;
+  border-left: 3px solid #7cacf8 !important;
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
+  flex-shrink: 0;
 }
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 24px;
+  opacity: 0.4;
+  cursor: grab;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.row:hover .dragHandle {
+  opacity: 0.9;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #0b57d0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 
 .checkboxWrap,
 .starBtn,
@@ -60,13 +96,6 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--gmail-blue);
-  cursor: pointer;
 }
 
 .starBtn,

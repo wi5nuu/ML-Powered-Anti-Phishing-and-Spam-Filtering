@@ -3,6 +3,8 @@ import api from './client'
 import { APP_TIME_ZONE } from '../utils/time'
 
 // ── Quick stats (header ribbon, sidebar counts)
+// PERFORMANCE FIX: Disabled aggressive auto-refetch to prevent server overload
+// Stats now only refetch on manual action (compose, delete, etc) via React Query invalidation
 export const useStats = () =>
   useQuery({
     queryKey: ['stats'],
@@ -10,8 +12,8 @@ export const useStats = () =>
       const { data } = await api.get('/stats')
       return data
     },
-    refetchInterval: 10000,
-    staleTime: 3000,
+    refetchInterval: false, // Disabled - only refetch on invalidation
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
 // ── Full metrics panel (charts, top senders, daily stats)
@@ -25,8 +27,8 @@ export const useMetrics = ({ mailbox, mailboxId } = {}) =>
       const { data } = await api.get('/metrics', { params })
       return data
     },
-    refetchInterval: 30000,
-    staleTime: 10000,
+    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
 // ── Audit log (paginated)
@@ -40,8 +42,8 @@ export const useAuditLog = ({ page = 1, pageSize = 50, eventType, username } = {
       const { data } = await api.get('/audit-log', { params })
       return data
     },
-    refetchInterval: 30000,
-    staleTime: 10000,
+    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch
+    staleTime: 3 * 60 * 1000, // 3 minutes
   })
 
 // ── System settings

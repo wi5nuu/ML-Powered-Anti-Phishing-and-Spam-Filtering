@@ -109,7 +109,7 @@ export default function ThreatReportPage() {
           )}
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.btnRefresh} onClick={() => fetchData(activeDays)} disabled={loading}>
+          <button className={styles.btnRefresh} onClick={() => showCustom ? fetchData(null, customFrom, customTo) : fetchData(activeDays)} disabled={loading}>
             <RefreshCw size={14} className={loading ? styles.spin : ''} /> {t('report.refresh', 'Refresh')}
           </button>
         </div>

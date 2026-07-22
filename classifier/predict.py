@@ -9,7 +9,6 @@ Endpoint:
   GET  /model-info
 """
 
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -63,8 +62,32 @@ async def lifespan(app: FastAPI):
         # Cache feature names (jangan panggil get_feature_names_out() per-request)
         state.tfidf_feature_names = state.tfidf.get_feature_names_out().tolist()
         state.all_feature_names = state.tfidf_feature_names + STRUCTURED_FEATURES
-        logger.info("Supervised (XGBoost) model loaded. TF-IDF vocab: %d words",
-                     len(state.tfidf_feature_names))
+
+        # ── BUG-007: Validate model input dimension matches feature pipeline ──
+        # The XGBoost model was trained with a fixed number of input columns.
+        # If STRUCTURED_FEATURES drifted (feature added/removed/reordered) but
+        # the model artifact was not retrained, every prediction will be silently
+        # wrong or crash with a cryptic XGBoost error at inference time.
+        # Catch this at startup instead of at request time.
+        expected_n_features = len(state.all_feature_names)
+        model_n_features = state.model.n_features_in_
+        if model_n_features != expected_n_features:
+            raise RuntimeError(
+                f"Feature count mismatch: model was trained with "
+                f"{model_n_features} features but the current pipeline produces "
+                f"{expected_n_features} features "
+                f"(tfidf={len(state.tfidf_feature_names)} + "
+                f"structured={len(STRUCTURED_FEATURES)}). "
+                f"Retrain the model or revert the STRUCTURED_FEATURES change."
+            )
+
+        logger.info(
+            "Supervised (XGBoost) model loaded. TF-IDF vocab: %d words, "
+            "structured: %d, total features: %d",
+            len(state.tfidf_feature_names),
+            len(STRUCTURED_FEATURES),
+            expected_n_features,
+        )
     except FileNotFoundError as e:
         logger.critical("Supervised model tidak ditemukan: %s", e)
         raise

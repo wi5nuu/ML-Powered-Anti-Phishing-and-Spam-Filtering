@@ -16,6 +16,11 @@ export function useWebSocket() {
 
   useEffect(() => {
     function connect() {
+      // Close any existing socket before creating a new one to prevent duplicates
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        wsRef.current.close()
+      }
+
       // The access_token is an HttpOnly cookie — the browser sends it automatically.
       // No need to pass it manually in the URL.
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

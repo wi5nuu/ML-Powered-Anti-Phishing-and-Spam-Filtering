@@ -206,8 +206,8 @@ export default function SuperadminUserAnalytics() {
   const fetchUsers = () => {
     setLoading(true); setError('')
     api.get('/admin/user-analytics')
-      .then(({ data }) => { console.log('[UserAnalytics] data:', data); setUsers(Array.isArray(data) ? data : []) })
-      .catch((e) => { console.error('[UserAnalytics] error:', e.response?.status, e.response?.data, e); setError(e.response?.data?.detail || t('analytics.loadError')) })
+      .then(({ data }) => { setUsers(Array.isArray(data) ? data : []) })
+      .catch((e) => { setError(e.response?.data?.detail || t('analytics.loadError')) }) // BUGFIX: Removed console.error from production
       .finally(() => setLoading(false))
   }
 
@@ -221,7 +221,7 @@ export default function SuperadminUserAnalytics() {
   const filtered = users
     .filter((u) => {
       const q = search.toLowerCase()
-      if (q && !u.username.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false
+      if (q && !u.username.toLowerCase().includes(q) && !(u.email || '').toLowerCase().includes(q)) return false
       if (roleFilter !== 'all' && u.role !== roleFilter) return false
       return true
     })

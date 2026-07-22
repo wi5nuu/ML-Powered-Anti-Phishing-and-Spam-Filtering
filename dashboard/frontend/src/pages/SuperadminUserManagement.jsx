@@ -89,7 +89,7 @@ export default function SuperadminUserManagement() {
 
   const handleDelete = () => {
     setSaving(true); setError('')
-    api.delete(`/admin/users/${modal.user.id}`)
+    api.delete(`/admin/users/${modal.user.username}`)
       .then(() => { closeModal(); fetchUsers(); flash(t('users.deleted')) })
       .catch((e) => setError(e.response?.data?.detail || t('users.deleteError')))
       .finally(() => setSaving(false))

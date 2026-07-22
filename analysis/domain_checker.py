@@ -283,12 +283,33 @@ def get_domain_age_days(domain: str) -> Optional[int]:
 
 
 def is_domain_resolvable(domain: str) -> bool:
-    """Check if domain resolves (basic DNS check)."""
+    """
+    Check if domain resolves via a blocking DNS lookup.
+
+    IMPORTANT: This function performs a BLOCKING network call via
+    socket.getaddrinfo().  It is safe to call from synchronous code or
+    from a thread-pool executor, but must NOT be awaited directly on the
+    asyncio event loop.  Use ``is_domain_resolvable_async`` when you need
+    a non-blocking version inside an async pipeline.
+    """
     try:
         socket.getaddrinfo(domain, None, proto=socket.IPPROTO_TCP)
         return True
     except socket.gaierror:
         return False
+
+
+async def is_domain_resolvable_async(domain: str) -> bool:
+    """
+    Async-safe wrapper around is_domain_resolvable.
+
+    Runs the blocking socket.getaddrinfo call in the default thread-pool
+    executor so it never stalls the asyncio event loop.  Use this version
+    inside any async feature-extraction or analysis pipeline.
+    """
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, is_domain_resolvable, domain)
 
 
 # ─── Main DomainChecker class ────────────────────────────────────────────────────
