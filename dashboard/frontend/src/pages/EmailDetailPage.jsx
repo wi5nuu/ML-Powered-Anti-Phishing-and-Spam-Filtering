@@ -2,7 +2,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Reply, MoreVertical, Trash2, Mail,
-  Printer, ExternalLink, Star, ShieldAlert,
+  Printer, ExternalLink, Star, ShieldAlert, ThumbsUp, ThumbsDown, Smile,
   ChevronLeft, ChevronRight, CornerUpRight, ChevronDown, ChevronRight as ChevronRightIcon, X, Paperclip, Download,
   Ban, Code2, Link, Image
 } from 'lucide-react'
@@ -10,15 +10,17 @@ import { useTranslation } from '../i18n/context'
 import api from '../api/client'
 import GmailShell from '../components/layout/GmailShell'
 import ConfirmDialog from '../components/common/ConfirmDialog'
-import { toggleStarred, isStarred as getIsStarred } from './StarredPage'
 import {
   useEmail,
   useEmails,
   useReleaseEmail,
   useConfirmSpam,
   useReportFalsePositive,
+  useReportFalseNegative,
   useDeleteEmail,
-  useToggleReadEmail
+  useToggleReadEmail,
+  useToggleStarred,
+  useSnoozeEmail,
 } from '../api/emails'
 import { useMe } from '../api/auth'
 import { useToast } from '../hooks/useToast'
@@ -261,12 +263,14 @@ function SecurityPanelWrapper({ onClose, children, t }) {
   )
 }
 
-export default function EmailDetailPage() {
+export default function EmailDetailPage({ overrideEmailId = null }) {
   const { t } = useTranslation()
-  const { emailId } = useParams()
+  const { emailId: paramEmailId } = useParams()
+  const emailId = overrideEmailId || paramEmailId || 'gdg-event-1'
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
+
   const { showToast } = useToast()
   const fromPath = searchParams.get('from') || ''
   const originalView = searchParams.get('original') === '1'
@@ -310,9 +314,14 @@ export default function EmailDetailPage() {
   const { mutateAsync: releaseEmail, isPending: releasing } = useReleaseEmail()
   const { mutateAsync: confirmSpam, isPending: spamming } = useConfirmSpam()
   const { mutateAsync: reportFP, isPending: reporting } = useReportFalsePositive()
+  const { mutateAsync: reportFN, isPending: reportingFN } = useReportFalseNegative()
   const { mutateAsync: toggleRead } = useToggleReadEmail()
+  const { mutate: toggleStarredMutate } = useToggleStarred()
+  const { mutate: snoozeEmailMutate } = useSnoozeEmail()
 
   const [fpNotes, setFpNotes] = useState('')
+  const [fnNotes, setFnNotes] = useState('')
+  const [fnLabel, setFnLabel] = useState('phishing')
   const [threadRecipientDetailId, setThreadRecipientDetailId] = useState(null)
   const [replyMode, setReplyMode] = useState(null)
   const [replyTargetMessage, setReplyTargetMessage] = useState(null)
@@ -338,7 +347,6 @@ export default function EmailDetailPage() {
   const [securityPanelOpen, setSecurityPanelOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [openPanels, setOpenPanels] = useState({ actions: true, scores: true, xai: true, metadata: false })
-  const [localStarred, setLocalStarred] = useState(() => getIsStarred(emailId))
   const [isUnread, setIsUnread] = useState(false)
 
   useEffect(() => {
@@ -767,12 +775,11 @@ export default function EmailDetailPage() {
     ? `${currentIndex + 1} ${t('email.of')} ${emailList.length}`
     : `1 ${t('email.of')} 1`
 
-  const isStarred = localStarred !== null ? localStarred : getIsStarred(email.email_id)
+  const isStarred = email?.is_starred ?? false
 
   const handleToggleStar = () => {
     const nextVal = !isStarred
-    setLocalStarred(nextVal)
-    toggleStarred(email.email_id)
+    toggleStarredMutate({ emailId: email.email_id, isStarred: nextVal })
     showToast(nextVal ? t('email.addedToStarred') : t('email.removedFromStarred'), 'info')
   }
 
@@ -781,7 +788,7 @@ export default function EmailDetailPage() {
       showToast(t('msg.actionDenied'), 'error')
       return
     }
-    release(emailId, {
+    releaseEmail(emailId, {
       onSuccess: () => {
         showToast(t('email.releasedToInbox'), 'success')
         navigate(backPath)
@@ -828,15 +835,46 @@ export default function EmailDetailPage() {
   }
 
   const handleSnooze = () => {
-    showToast(t('email.simulatedSnooze'), 'info')
+    const input = document.createElement('input')
+    input.type = 'datetime-local'
+    const now = new Date()
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+    input.min = now.toISOString().slice(0, 16)
+    input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;'
+    document.body.appendChild(input)
+    input.focus()
+    input.click()
+    input.addEventListener('change', () => {
+      const val = input.value
+      document.body.removeChild(input)
+      if (!val) return
+      const snoozedUntil = new Date(val).toISOString()
+      snoozeEmailMutate({ emailId: email.email_id, snoozedUntil }, {
+        onSuccess: () => showToast(t('email.snoozed') || 'Email di-snooze hingga ' + new Date(val).toLocaleString('id-ID'), 'success'),
+        onError: () => showToast('Gagal snooze email', 'error'),
+      })
+    })
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input) }, 200)
+    })
   }
 
   const handleMoveTo = () => {
-    showToast(t('email.simulatedMove'), 'info')
+    // Move to trash is the only supported action for users
+    deleteEmail(email.email_id, {
+      onSuccess: () => {
+        showToast(t('email.movedToTrash') || 'Email dipindahkan ke Sampah', 'success')
+        navigate(backPath)
+      },
+      onError: () => showToast(t('email.failDelete'), 'error'),
+    })
   }
 
   const handleAddLabel = () => {
-    showToast(t('email.simulatedLabel'), 'info')
+    // Toggle starred as the primary label action available
+    const nextVal = !isStarred
+    toggleStarredMutate({ emailId: email.email_id, isStarred: nextVal })
+    showToast(nextVal ? (t('email.addedToStarred') || 'Ditambahkan ke Berbintang') : (t('email.removedFromStarred') || 'Dihapus dari Berbintang'), 'info')
   }
 
   const closeMessageMenu = () => setMessageMenuAnchor(null)
@@ -1514,6 +1552,35 @@ export default function EmailDetailPage() {
             </div>
           </div>
 
+          {/* Event Card Box matching UI_user_page.png */}
+          <div className={styles.eventCard}>
+            <div className={styles.eventCardMain}>
+              <div className={styles.eventDateBadge}>Jum, 24 Jul, 19.00</div>
+              <h2 className={styles.eventCardTitle}>
+                {displaySubject || 'Vibe-code Your Application Code Quality and Security Check with Antigravity CLI and SDK'}
+              </h2>
+              <div className={styles.eventStatusRow}>
+                <span>Tidak ada acara pada tanggal ini</span>
+              </div>
+              <button className={styles.eventCalendarBtn}>Tambahkan ke Kalender</button>
+            </div>
+            <div className={styles.eventCardGraphic}>
+              <div className={styles.calGraphicIcon}>
+                <span className={styles.calGraphicMonth}>JUL</span>
+                <span className={styles.calGraphicDay}>24</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Strip matching UI_user_page.png */}
+          <div className={styles.feedbackStrip}>
+            <span className={styles.feedbackLabel}>Berdasarkan email ini</span>
+            <span className={styles.feedbackAsk}>Benar?</span>
+            <button className={styles.feedbackBtn} title="Ya"><ThumbsUp size={16} /></button>
+            <button className={styles.feedbackBtn} title="Tidak"><ThumbsDown size={16} /></button>
+          </div>
+
+
           <div className={styles.emailBodyWrapper}>
             {visibleThreadMessages.length > 0 ? (
               <div className={styles.threadStack}>
@@ -1799,7 +1866,7 @@ export default function EmailDetailPage() {
                   <div className={styles.actionButtons}>
                     <button
                       className={`${styles.btn} ${styles.btnGreen}`}
-                      onClick={() => release(emailId, {
+                      onClick={() => releaseEmail(emailId, {
                         onSuccess: () => { showToast(t('email.releasedToInbox'), 'success'); navigate(backPath) },
                         onError: () => showToast(t('email.failRelease'), 'error'),
                       })}
@@ -1836,6 +1903,38 @@ export default function EmailDetailPage() {
                         {reporting ? t('action.processing') : t('action.reportFP')}
                       </button>
                     </div>
+                    {(email.label === 'CLEAN' || email.label === 'WARN') && (
+                      <div className={styles.fpSection}>
+                        <select
+                          className={styles.fpInput}
+                          value={fnLabel}
+                          onChange={(e) => setFnLabel(e.target.value)}
+                          style={{ marginRight: '8px' }}
+                        >
+                          <option value="phishing">Phishing</option>
+                          <option value="spam">Spam</option>
+                          <option value="malware">Malware</option>
+                          <option value="suspicious">Suspicious</option>
+                        </select>
+                        <input
+                          className={styles.fpInput}
+                          type="text"
+                          placeholder="Notes (why is this dangerous?)"
+                          value={fnNotes}
+                          onChange={(e) => setFnNotes(e.target.value)}
+                        />
+                        <button
+                          className={`${styles.btn} ${styles.btnRed}`}
+                          onClick={() => reportFN({ emailId, correctedLabel: fnLabel, notes: fnNotes }, {
+                            onSuccess: () => { showToast('Email reported as false negative for training', 'warning'); navigate(backPath) },
+                            onError: (err) => showToast(err.response?.data?.detail || 'Failed to report false negative', 'error'),
+                          })}
+                          disabled={reportingFN}
+                        >
+                          {reportingFN ? 'Processing...' : 'Report False Negative'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </SecuritySection>
 
