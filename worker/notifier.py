@@ -7,7 +7,7 @@ import asyncio
 import logging
 import os
 import aiohttp
-import smtplib
+import aiosmtplib
 from email.mime.text import MIMEText
 from dataclasses import dataclass
 
@@ -20,6 +20,10 @@ SMTP_HOST = os.getenv("ALERT_SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("ALERT_SMTP_PORT", "587"))
 SMTP_USER = os.getenv("ALERT_SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("ALERT_SMTP_PASSWORD", "")
+# ALERT_RECIPIENT: address that receives email alerts. Defaults to SMTP_USER
+# so existing deployments keep working, but can be set independently.
+ALERT_RECIPIENT = os.getenv("ALERT_RECIPIENT", "") or SMTP_USER
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://dashboard:8080")
 
 
 @dataclass
@@ -56,10 +60,10 @@ class AlertManager:
             f"*ML Prob:* {payload.ml_probability:.4f}\n"
             f"*Anomaly:* {payload.anomaly_score:.4f}\n"
             f"*XAI:* {payload.xai_summary}\n"
-            f"<http://localhost:8081/email/{payload.email_id}|View in Dashboard>"
+            f"<{DASHBOARD_URL}/email/{payload.email_id}|View in Dashboard>"
         )
         try:
-            await self.session.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=10.0)
+            await self.session.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=aiohttp.ClientTimeout(total=10))
             logger.info("Slack alert sent for %s", payload.email_id)
         except Exception as e:
             logger.warning("Slack alert failed: %s", e)
@@ -83,7 +87,7 @@ class AlertManager:
                 "chat_id": TELEGRAM_CHAT_ID,
                 "text": text,
                 "parse_mode": "Markdown",
-            }, timeout=10.0)
+            }, timeout=aiohttp.ClientTimeout(total=10))
             logger.info("Telegram alert sent for %s", payload.email_id)
         except Exception as e:
             logger.warning("Telegram alert failed: %s", e)
@@ -101,17 +105,21 @@ class AlertManager:
             f"ML Probability: {payload.ml_probability:.4f}\n"
             f"Anomaly Score: {payload.anomaly_score:.4f}\n"
             f"XAI: {payload.xai_summary}\n\n"
-            f"Dashboard: http://localhost:8081/email/{payload.email_id}"
+            f"Dashboard: {DASHBOARD_URL}/email/{payload.email_id}"
         )
         msg = MIMEText(body)
         msg["Subject"] = f"[{payload.severity}] CogniMail Alert — {payload.subject[:40]}"
         msg["From"] = SMTP_USER
-        msg["To"] = SMTP_USER
+        msg["To"] = ALERT_RECIPIENT
         try:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
+            await aiosmtplib.send(
+                msg,
+                hostname=SMTP_HOST,
+                port=SMTP_PORT,
+                username=SMTP_USER,
+                password=SMTP_PASSWORD,
+                start_tls=True,
+            )
             logger.info("Email alert sent for %s", payload.email_id)
         except Exception as e:
             logger.warning("Email alert failed: %s", e)
