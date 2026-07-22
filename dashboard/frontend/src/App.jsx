@@ -18,12 +18,14 @@ import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 import RequireMailbox from './components/layout/RequireMailbox'
 import UserMailboxPage from './pages/UserMailboxPage'
+import UserDashboardPage from './pages/UserDashboardPage'
+import SuperadminTrainingPage from './pages/SuperadminTrainingPage'
 import { hasMailboxSessionFromSearch } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
   if (role === 'admin') return '/admin/dashboard'
-  if (role === 'user') return '/user/mailboxes'
+  if (role === 'user') return '/user/dashboard'
   if (role === 'mailbox') return '/mailbox-login'
   return '/login'
 }
@@ -85,9 +87,10 @@ function MailboxRoute({ children }) {
     if (role === 'mailbox') return children
     if (role === 'user') return children
     if (role === 'superadmin' || role === 'admin') {
-      // Allow admin/superadmin through on email detail routes so they can view emails
+      // Allow admin/superadmin through on email detail routes and /mail/:mailboxId/* webmail routes
+      const isMailboxRoute = /\/mail\/[^/]+/.test(location.pathname)
       const isEmailDetailRoute = /\/email\/[^/]+/.test(location.pathname)
-      if (isEmailDetailRoute) return children
+      if (isEmailDetailRoute || isMailboxRoute) return children
       return <Navigate to={`${dashboardPathForRole(role)}?tab=email`} replace />
     }
     return children
@@ -197,13 +200,15 @@ export default function App() {
         <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
 
-        {/* User mailboxes */}
+        {/* User routes */}
+        <Route path="/user/dashboard" element={<UserRoute><UserDashboardPage /></UserRoute>} />
         <Route path="/user/mailboxes" element={<UserRoute><UserMailboxPage /></UserRoute>} />
 
         {/* Admin routes — split URL by role */}
         <Route path="/admin" element={<RoleRedirect />} />
         <Route path="/super-admin" element={<RoleRedirect />} />
         <Route path="/super-admin/dashboard" element={<AdminRoute scope="superadmin"><AdminPage /></AdminRoute>} />
+        <Route path="/super-admin/training" element={<AdminRoute scope="superadmin"><SuperadminTrainingPage /></AdminRoute>} />
         <Route path="/admin/dashboard" element={<AdminRoute scope="admin"><AdminPage /></AdminRoute>} />
 
         {/* Fallback — redirect based on role */}
