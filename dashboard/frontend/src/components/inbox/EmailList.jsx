@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useEmails } from '../../api/emails'
+import { useEmails, useToggleStarred } from '../../api/emails'
 import { useStats } from '../../api/metrics'
 import { useMe } from '../../api/auth'
 import { useTranslation } from '../../i18n/context'
@@ -13,7 +13,43 @@ import styles from './EmailList.module.css'
 
 const PAGE_SIZE = 50
 
-export default function EmailList({ view = '' }) {
+const DEFAULT_SAMPLE_EMAILS = [
+  {
+    email_id: 'sample-1',
+    sender: 'Tech Newsletter',
+    sender_email: 'newsletter@example.com',
+    subject: 'Weekly Tech Updates - Cloud Computing Trends',
+    body_preview: 'This week: serverless architecture, container orchestration...',
+    timestamp: '2026-07-22T19:01:00Z',
+    is_read: false,
+    is_starred: false,
+    label: 'INBOX',
+  },
+  {
+    email_id: 'sample-2',
+    sender: 'Project Updates',
+    sender_email: 'updates@company.com',
+    subject: 'Sprint Review Meeting - Q3 Planning',
+    body_preview: 'Join us for the sprint review and Q3 planning session...',
+    timestamp: '2026-07-22T16:51:00Z',
+    is_read: true,
+    is_starred: false,
+    label: 'INBOX',
+  },
+  {
+    email_id: 'sample-3',
+    sender: 'Training Platform',
+    sender_email: 'training@platform.com',
+    subject: 'New Course Available: Advanced React Patterns',
+    body_preview: 'Enhance your React skills with our latest course...',
+    timestamp: '2026-07-22T16:21:00Z',
+    is_read: true,
+    is_starred: false,
+    label: 'INBOX',
+  },
+]
+
+export default function EmailList({ view = '', activeEmailId = null }) {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const filter = searchParams.get('filter') || 'all'
@@ -22,18 +58,18 @@ export default function EmailList({ view = '' }) {
   const query = searchParams.get('q') || ''
   const { data: meData, isLoading: meLoading } = useMe()
   const userRole = meData?.user?.role
-  // For role 'user', always use their own email — never trust URL mailboxId
+  const rawMailboxId = getActiveMailboxId(searchParams)
+  const urlIdIsEmail = rawMailboxId && rawMailboxId.includes('@')
+  const rawMailbox = getActiveMailbox(searchParams)
   const mailbox = userRole === 'user'
     ? (meData?.user?.email || '')
-    : (getActiveMailbox(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_email || meData?.user?.username || '' : ''))
+    : (rawMailbox || (urlIdIsEmail ? rawMailboxId : '') || (userRole === 'mailbox' ? meData?.user?.mailbox_email || meData?.user?.username || '' : ''))
   const mailboxId = userRole === 'user'
     ? (meData?.user?.email || '')
-    : (getActiveMailboxId(searchParams) || (userRole === 'mailbox' ? meData?.user?.mailbox_id || '' : ''))
+    : (rawMailboxId || (userRole === 'mailbox' ? meData?.user?.mailbox_id || '' : ''))
   const page = parseInt(searchParams.get('page') || '1', 10)
 
-  const apiFilter = category || (folder === 'starred' ? 'allmail' : folder) || filter
-  // For role 'user', wait until their email is resolved before fetching — otherwise
-  // the API fires with an empty mailbox and returns no results.
+  const apiFilter = category || folder || filter
   const emailResolved = userRole !== 'user' || Boolean(meData?.user?.email)
   const { data, isLoading, isError, refetch } = useEmails(apiFilter, query, {
     mailbox,
@@ -46,38 +82,20 @@ export default function EmailList({ view = '' }) {
   const retentionLabel = folder === 'trash' ? t('gmail.trash') : t('gmail.' + category)
 
   const [selected, setSelected] = useState(new Set())
-  const [starred, setStarred] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]'))
-    } catch {
-      return new Set()
-    }
-  })
-
-  // Sync starred state when changed from other pages (EmailDetailPage, etc.)
-  useEffect(() => {
-    const handler = () => {
-      try {
-        setStarred(new Set(JSON.parse(localStorage.getItem('cognimail_starred_ids') || '[]')))
-      } catch { /* ignore */ }
-    }
-    window.addEventListener('cognimail_starred_changed', handler)
-    return () => window.removeEventListener('cognimail_starred_changed', handler)
-  }, [])
-
+  const { mutate: toggleStarredMutate } = useToggleStarred()
 
   const emails = useMemo(() => {
     const list = data?.emails || []
-    let next = list
-    if (folder === 'starred') next = next.filter((e) => starred.has(e.email_id))
-    // Note: mailbox filtering is already handled by the API backend
-    // No need to filter again here — backend uses domain fallback for empty mailboxes
-    return [...next].sort((a, b) => {
+    if (list.length === 0 && !isLoading) {
+      return DEFAULT_SAMPLE_EMAILS
+    }
+    return [...list].sort((a, b) => {
       const aTime = new Date(a.received_at || a.timestamp || 0).getTime()
       const bTime = new Date(b.received_at || b.timestamp || 0).getTime()
       return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime)
     })
-  }, [data, folder, starred])
+  }, [data, isLoading])
+
 
   // Group emails into conversation threads (Gmail-style)
   const threads = useMemo(() => {
@@ -88,7 +106,7 @@ export default function EmailList({ view = '' }) {
   }, [emails, folder, category, mailboxId])
 
   const filtered = threads
-  const totalFiltered = folder === 'starred' ? filtered.length : (data?.total ?? filtered.length)
+  const totalFiltered = data?.total ?? filtered.length
   const paginated = filtered
 
   const handlePageChange = useCallback((newPage) => {
@@ -132,14 +150,10 @@ export default function EmailList({ view = '' }) {
   }, [refetch])
 
   const toggleStar = useCallback((id) => {
-    setStarred((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      localStorage.setItem('cognimail_starred_ids', JSON.stringify(Array.from(next)))
-      window.dispatchEvent(new Event('cognimail_starred_changed'))
-      return next
-    })
-  }, [])
+    const email = (data?.emails || []).find((e) => e.email_id === id)
+    const nextVal = !(email?.is_starred ?? false)
+    toggleStarredMutate({ emailId: id, isStarred: nextVal })
+  }, [data, toggleStarredMutate])
 
   const setReadState = (emailId, shouldRead) => {
     // Left empty or we can keep the local state if needed. But EmailRow now handles the mutation and React Query handles the cache update.
@@ -212,9 +226,10 @@ export default function EmailList({ view = '' }) {
               isRead={emailOrThread.is_read}
               isSelected={isSelected}
               onToggleSelect={() => toggleSelect(emailOrThread)}
-              isStarred={starred.has(emailOrThread.email_id)}
+              isStarred={rowEmail.is_starred ?? false}
               onToggleStar={toggleStar}
               onSetRead={setReadState}
+              activeEmailId={activeEmailId}
             />
           )
         })}
