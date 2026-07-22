@@ -5,7 +5,7 @@ import {
   AlertTriangle, RefreshCw, PlayCircle, FileText, Info 
 } from 'lucide-react'
 import api from '../api/client'
-import GmailShell from '../components/layout/GmailShell'
+import AdminShell from '../components/layout/AdminShell'
 import styles from './SuperadminTrainingPage.module.css'
 
 export default function SuperadminTrainingPage() {
@@ -99,7 +99,7 @@ export default function SuperadminTrainingPage() {
   const samples = samplesData?.samples || []
 
   return (
-    <GmailShell>
+    <AdminShell>
       <div className={styles.wrap}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
@@ -332,6 +332,6 @@ export default function SuperadminTrainingPage() {
           </div>
         )}
       </div>
-    </GmailShell>
+    </AdminShell>
   )
 }

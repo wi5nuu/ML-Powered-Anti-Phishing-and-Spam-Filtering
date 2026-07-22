@@ -7,7 +7,8 @@ import api from '../../api/client'
 import {
   Users, Activity, LogOut, BarChart2, AlertCircle,
   Mail, Settings, Bell, Server, Menu, ChevronLeft, ChevronRight,
-  Home, FileText, Shield, ShieldAlert, Sun, Moon, Search, X, Loader2
+  Home, FileText, Shield, ShieldAlert, Sun, Moon, Search, X, Loader2,
+  Database
 } from 'lucide-react'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
 import logoImg from '../../assets/logo.png'
@@ -22,6 +23,7 @@ const SUPERADMIN_NAV_ITEMS = [
   { tab: 'analytics', icon: BarChart2,  label: 'Analitik' },
   { tab: 'threat',    icon: ShieldAlert,label: 'Laporan Ancaman' },
   { tab: 'activity',  icon: FileText,   label: 'Log Audit' },
+  { tab: 'training',  icon: Database,   label: 'ML Training', externalPath: '/super-admin/training' },
   { tab: 'settings',  icon: Settings,   label: 'Pengaturan' },
 ]
 
@@ -268,12 +270,14 @@ export default function AdminShell({ children }) {
           <span className={styles.sectionLabel}>{collapsed ? '' : t('nav.main')}</span>
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = activeTab === item.tab
+            const isActive = item.externalPath
+              ? location.pathname === item.externalPath
+              : activeTab === item.tab
             return (
               <button
                 key={item.tab}
                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
-                onClick={() => navTo(item.tab)}
+                onClick={() => item.externalPath ? navigate(item.externalPath) : navTo(item.tab)}
                 title={collapsed ? t('nav.' + item.tab) : undefined}
               >
                 <span className={`${styles.navIcon} ${isActive ? styles.navIconActive : ''}`}>

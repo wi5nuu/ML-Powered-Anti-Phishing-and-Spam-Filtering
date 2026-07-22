@@ -73,3 +73,10 @@ dashboard/static/dist/
 Thumbs.db
 .DS_Store
 phishing_model.pkl
+
+# Binary assets / docs
+*.docx
+*.doc
+*.xlsx
+*.pptx
+UI_user_page.png

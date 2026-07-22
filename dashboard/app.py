@@ -107,8 +107,9 @@ def purge_expired_emails(db: Session) -> int:
 
 DASHBOARD_SECRET_KEY = os.getenv("DASHBOARD_SECRET_KEY")
 if not DASHBOARD_SECRET_KEY:
-    DASHBOARD_SECRET_KEY = _secrets.token_hex(32)
-    logger.warning("DASHBOARD_SECRET_KEY not set. Generated ephemeral key.")
+    logger.critical("DASHBOARD_SECRET_KEY environment variable is required. "
+                    "Set it to a stable secret (e.g. 64-char hex) before starting the server.")
+    raise SystemExit(1)
 
 static_dir = Path(__file__).parent / "static"
 
@@ -130,11 +131,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CogniMail Dashboard", version="3.0.0", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app)
 
-csrf_secret = os.getenv("DASHBOARD_SECRET_KEY") or _secrets.token_hex(32)
-# SECURITY FIX: Enable secure flag for cookies in production
+# csrf_secret is the same as DASHBOARD_SECRET_KEY (already validated above)
 is_production = os.getenv("ENV", "development") == "production"
-app.add_middleware(SessionMiddleware, secret_key=csrf_secret, same_site="lax", https_only=is_production)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
+app.add_middleware(SessionMiddleware, secret_key=DASHBOARD_SECRET_KEY, same_site="lax", https_only=is_production)
+_allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+_allowed_hosts = [h.strip() for h in _allowed_hosts if h.strip() and h.strip() != "*"]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 # Default CORS origins — includes Vite dev (5173), production build (8081), and configurable extras
 _default_cors = "http://localhost:5173,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8081"
 app.add_middleware(
@@ -5291,17 +5293,22 @@ async def api_trigger_retrain(
               f"Retraining triggered with {len(approved_samples)} samples")
     db.commit()
     
-    # TODO: In production, trigger actual retraining job here
-    # Example:
-    # job_id = celery_app.send_task('tasks.retrain_model', args=[sample_ids])
-    # return {"ok": True, "job_id": job_id, "samples_count": len(approved_samples)}
-    
-    return {
-        "ok": True,
-        "message": "Retraining trigger placeholder - integrate with your ML training pipeline",
-        "samples_count": len(approved_samples),
-        "note": "Samples marked as 'used_in_training'. Implement actual training job in production."
-    }
+    try:
+        job = celery_app.send_task('tasks.retrain_model', args=[sample_ids])
+        return {
+            "ok": True,
+            "job_id": job.id,
+            "samples_count": len(approved_samples),
+            "message": f"Retraining job {job.id} submitted with {len(approved_samples)} samples."
+        }
+    except Exception as e:
+        logger.exception("Failed to submit retraining task")
+        return {
+            "ok": True,
+            "samples_count": len(approved_samples),
+            "note": "Samples marked as 'used_in_training' but Celery task submission failed.",
+            "error": str(e)
+        }
 
 
 # Catch-all Route to serve React SPA

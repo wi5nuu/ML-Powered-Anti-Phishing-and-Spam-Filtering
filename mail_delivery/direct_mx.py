@@ -94,7 +94,8 @@ async def deliver_direct_mx(
         helo_hostname
         or os.getenv("OUTBOUND_HELO_HOSTNAME")
         or os.getenv("SMTP_DOMAIN")
-        or "localhost"
+        or os.getenv("HOSTNAME", "")
+        or "mail.cognimail.local"
     ).strip()
     timeout = float(os.getenv("OUTBOUND_SMTP_TIMEOUT", "30"))
     delivered: dict[str, str] = {}

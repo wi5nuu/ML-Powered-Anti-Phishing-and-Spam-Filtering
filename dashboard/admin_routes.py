@@ -384,7 +384,7 @@ def _parse_date(s: Optional[str]) -> Optional[datetime.datetime]:
     try:
         p = s.split("-")
         return datetime.datetime(int(p[0]), int(p[1]), int(p[2]))
-    except: return None
+    except Exception: return None
 
 
 def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> dict:
@@ -526,7 +526,7 @@ def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> 
             attachments = []
             try:
                 if e.attachments_json: attachments = json.loads(e.attachments_json)
-            except: pass
+            except Exception: pass
             has_attach = len(attachments) > 0
             has_malware = any(
                 att.get("filename","").lower().endswith((".exe",".zip",".rar",".js",".vbs",".scr",".bat",".msi"))
