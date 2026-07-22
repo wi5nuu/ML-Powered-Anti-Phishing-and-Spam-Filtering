@@ -467,6 +467,42 @@
   }
 
   .draftDialogActions {
-    gap: 10px;
+    gap: 8px;
   }
+}
+
+@media (max-width: 480px) {
+  .body {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .field {
+    font-size: 0.8125rem;
+  }
+  
+  .label {
+    min-width: 30px;
+  }
+  
+  .input, .textarea {
+    font-size: 0.9375rem;
+    padding: 8px;
+  }
+  
+  .footer {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .sendBtn {
+    padding: 9px 18px;
+    font-size: 0.9375rem;
+  }
+  
+  .attachmentChip {
+    font-size: 0.8125rem;
+    padding: 4px 8px;
+  }
+}
 }
