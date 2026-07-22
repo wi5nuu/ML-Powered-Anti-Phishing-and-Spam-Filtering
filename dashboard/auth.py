@@ -5,7 +5,7 @@ Authentication & Authorization module — JWT-based with RBAC.
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Workaround for bcrypt >= 4.1.0 compatibility with passlib in Python 3.13
 import bcrypt
@@ -55,7 +55,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -126,4 +126,4 @@ def log_audit(db: Session, user: str, action: str, email_id: str = None,
         details=details,
     )
     db.add(entry)
-    db.commit()
+    # DO NOT commit here — caller must manage transaction boundaries
