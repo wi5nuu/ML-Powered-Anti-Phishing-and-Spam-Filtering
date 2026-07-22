@@ -16,7 +16,7 @@ export const useEmails = (filter = 'all', searchQuery = '', options = {}) =>
     enabled: options.enabled !== false,
     queryFn: async () => {
       const CATEGORIES = ['transaction','customer_service','internal_document','b2b','spam','phishing','malware']
-      const FOLDERS = ['allmail', 'draft', 'trash']
+      const FOLDERS = ['allmail', 'draft', 'trash', 'starred', 'snoozed']
       const params = {}
       if (filter !== 'all') {
         if (CATEGORIES.includes(filter)) {
@@ -35,8 +35,8 @@ export const useEmails = (filter = 'all', searchQuery = '', options = {}) =>
       const { data } = await api.get('/emails', { params })
       return data
     },
-    refetchInterval: 30000,
-    staleTime: 10000,
+    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch to prevent loading 100k+ emails every 30s
+    staleTime: 2 * 60 * 1000, // 2 minutes
   })
 
 // ── Fetch single email
@@ -65,7 +65,11 @@ export const useReleaseEmail = () => {
       return { prev }
     },
     onError: (_err, _id, ctx) => {
-      qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+      if (ctx?.prev) {
+        ctx.prev.forEach(([queryKey, data]) => {
+          qc.setQueryData(queryKey, data)
+        })
+      }
     },
     onSettled: (_data, _err, emailId) => {
       qc.invalidateQueries({ queryKey: ['emails'] })
@@ -88,7 +92,11 @@ export const useConfirmSpam = () => {
       return { prev }
     },
     onError: (_err, _id, ctx) => {
-      qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+      if (ctx?.prev) {
+        ctx.prev.forEach(([queryKey, data]) => {
+          qc.setQueryData(queryKey, data)
+        })
+      }
     },
     onSettled: (_data, _err, emailId) => {
       qc.invalidateQueries({ queryKey: ['emails'] })
@@ -110,6 +118,19 @@ export const useReportFalsePositive = () => {
   })
 }
 
+// ── Report false negative (dangerous email that was marked safe)
+export const useReportFalseNegative = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ emailId, correctedLabel, notes }) =>
+      api.post(`/emails/${emailId}/report-false-negative`, { corrected_label: correctedLabel, notes }),
+    onSettled: (_data, _err, { emailId }) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', emailId] })
+    },
+  })
+}
+
 // ── Delete email
 export const useDeleteEmail = () => {
   const qc = useQueryClient()
@@ -124,7 +145,11 @@ export const useDeleteEmail = () => {
       return { prev }
     },
     onError: (_err, _id, ctx) => {
-      if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+      if (ctx?.prev) {
+        ctx.prev.forEach(([queryKey, data]) => {
+          qc.setQueryData(queryKey, data)
+        })
+      }
     },
     onSettled: (_data, _err, emailId) => {
       qc.invalidateQueries({ queryKey: ['emails'] })
@@ -168,5 +193,47 @@ export const useToggleReadEmail = () => {
       if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+  })
+}
+
+// ── Toggle starred
+export const useToggleStarred = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ emailId, isStarred }) => api.put(`/emails/${emailId}/starred`, { is_starred: isStarred }),
+    onMutate: async ({ emailId, isStarred }) => {
+      await qc.cancelQueries({ queryKey: ['emails'] })
+      const prev = qc.getQueriesData({ queryKey: ['emails'] })
+      qc.setQueriesData({ queryKey: ['emails'] }, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          emails: old.emails.map((e) => (e.email_id === emailId ? { ...e, is_starred: isStarred } : e)),
+        }
+      })
+      qc.setQueryData(['email', emailId], (old) => {
+        if (!old) return old
+        return { ...old, is_starred: isStarred }
+      })
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['stats'] })
+    },
+  })
+}
+
+// ── Toggle snooze
+export const useSnoozeEmail = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ emailId, snoozedUntil }) => api.put(`/emails/${emailId}/snooze`, { snoozed_until: snoozedUntil }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+    },
   })
 }
