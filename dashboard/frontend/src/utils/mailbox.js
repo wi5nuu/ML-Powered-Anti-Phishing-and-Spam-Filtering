@@ -1,11 +1,22 @@
+// Shared prefix — used by auth.js to clear ALL cognimail localStorage on logout
+export const COGNIMAIL_STORAGE_PREFIX = 'cognimail.'
+
 export const MAILBOX_STORAGE_KEY = 'cognimail.admin.mailboxes'
 export const MAILBOX_DIRECTORY_KEY = 'cognimail.admin.mailboxDirectory'
 export const MAIL_DOMAIN_STORAGE_KEY = 'cognimail.admin.mailDomain'
 export const MAILBOX_SESSION_PREFIX = 'cognimail.mailbox.session.'
 export const DEFAULT_MAIL_DOMAIN = import.meta.env.VITE_MAIL_DOMAIN || 'zenime.my.id'
 
+// Mailbox session TTL: 24 hours. After this, session is treated as expired and
+// the user must log in to their mailbox again. Prevents stale Docker sessions.
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000
+
 export function getMailDomain() {
   try {
+    // Always prefer the env var if set — prevents stale domain from a previous
+    // admin session leaking into a different user's session after login.
+    const envDomain = import.meta.env.VITE_MAIL_DOMAIN
+    if (envDomain) return envDomain
     return localStorage.getItem(MAIL_DOMAIN_STORAGE_KEY) || DEFAULT_MAIL_DOMAIN
   } catch {
     return DEFAULT_MAIL_DOMAIN
@@ -134,6 +145,12 @@ export function getMailboxSession(mailboxId, email) {
       if (!raw) continue
       const session = JSON.parse(raw)
       if (email && session.email !== email) continue
+      // Expire sessions older than SESSION_TTL_MS (24h) — prevents stale
+      // sessions from persisting across Docker restarts or user switches.
+      if (session.createdAt && Date.now() - session.createdAt > SESSION_TTL_MS) {
+        localStorage.removeItem(key)
+        continue
+      }
       return session
     }
     return null
