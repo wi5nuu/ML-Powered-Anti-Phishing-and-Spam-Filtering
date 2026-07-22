@@ -50,8 +50,17 @@ DB_URL             = (
     os.getenv("WORKER_DB_URL")
     or os.getenv("DB_ASYNC_URL")
     or os.getenv("DB_URL")
-    or "sqlite+aiosqlite:///./cognimail.db"
 )
+if not DB_URL:
+    raise RuntimeError(
+        "WORKER_DB_URL tidak ditemukan. "
+        "Set env var WORKER_DB_URL dengan PostgreSQL async URL. "
+        "Contoh: postgresql+asyncpg://cogniuser:password@postgres:5432/cognimail"
+    )
+if "sqlite" in DB_URL.lower():
+    raise RuntimeError(
+        "SQLite tidak didukung. Gunakan: postgresql+asyncpg://cogniuser:password@postgres:5432/cognimail"
+    )
 WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "10"))
 MAX_ATTACHMENT_BYTES = int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024)))
 MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
@@ -382,10 +391,10 @@ async def score_with_spamassassin(raw_email: str) -> float:
         return score
     except asyncio.TimeoutError:
         logger.error("spamassassin_timeout")
-        return 0.0
+        return -1.0  # Sentinel: timeout, not CLEAN
     except Exception as e:
         logger.error("spamassassin_error", error=str(e))
-        return 0.0
+        return -1.0  # Sentinel: error, not CLEAN
 
 
 async def score_with_ml(raw_email: str, email_id: str,
@@ -414,7 +423,8 @@ async def score_with_ml(raw_email: str, email_id: str,
 
 
 async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
-                             db_session: AsyncSession):
+                             db_session: AsyncSession,
+                             redis_client: aio_redis.Redis | None = None):
     """Process satu email end-to-end."""
     email_id   = payload.get("email_id", "unknown")
     raw_email  = payload.get("raw_email", "")
@@ -477,7 +487,7 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     # Simpan semua email. Untuk email CLEAN, simpan konten minimal saja untuk menghemat DB space.
     quarantine_entry = QuarantineEmail(
         email_id=email_id,
-        received_at=_db_text(received_at, 32),
+        received_at=datetime.fromisoformat(received_at) if isinstance(received_at, str) else received_at,
         label=fusion.label,
         fused_score=fusion.fused_score,
         sa_score=sa_score,
@@ -512,9 +522,15 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
     try:
-        r_pub = await aio_redis.from_url(REDIS_URL)
-        await r_pub.publish(PUBSUB_CHANNEL, pubsub_payload)
-        await r_pub.aclose()
+        if redis_client is not None:
+            await redis_client.publish(PUBSUB_CHANNEL, pubsub_payload)
+        else:
+            # Fallback: open a one-shot connection if no shared client provided
+            r_pub = await aio_redis.from_url(REDIS_URL)
+            try:
+                await r_pub.publish(PUBSUB_CHANNEL, pubsub_payload)
+            finally:
+                await r_pub.aclose()
     except Exception as e:
         logger.warning("pubsub_publish_failed", error=str(e))
 
@@ -597,7 +613,20 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
 async def run_worker():
     """Main worker loop."""
     r = aio_redis.from_url(REDIS_URL, socket_timeout=15, socket_connect_timeout=10)
+
+    # Retry loop — tunggu PostgreSQL siap sebelum lanjut
     engine = create_async_engine(DB_URL, echo=False)
+    for attempt in range(1, 31):
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("SELECT 1"))
+            break
+        except Exception as exc:
+            logger.warning("db_not_ready", attempt=attempt, error=str(exc))
+            if attempt == 30:
+                raise RuntimeError(f"PostgreSQL tidak tersedia setelah 30 percobaan: {exc}")
+            await asyncio.sleep(2)
+
     async with engine.begin() as conn:
         dialect = conn.dialect.name
         if dialect == "postgresql":
@@ -609,51 +638,45 @@ async def run_worker():
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
-        elif dialect == "sqlite":
-            result = await conn.execute(text("PRAGMA table_info(admin_mailboxes)"))
-            mailbox_columns = [row[1] for row in result.fetchall()]
-            if "forward_to" not in mailbox_columns:
-                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_to VARCHAR(255) DEFAULT ''"))
-            if "forward_enabled" not in mailbox_columns:
-                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_enabled BOOLEAN DEFAULT FALSE"))
-            if "forward_keep_copy" not in mailbox_columns:
-                await conn.execute(text("ALTER TABLE admin_mailboxes ADD COLUMN forward_keep_copy BOOLEAN DEFAULT TRUE"))
-            result = await conn.execute(text("PRAGMA table_info(quarantine_emails)"))
-            columns = [row[1] for row in result.fetchall()]
-            if "attachments_json" not in columns:
-                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN attachments_json TEXT"))
-            if "is_read" not in columns:
-                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN is_read BOOLEAN DEFAULT FALSE"))
-            if "spf_result" not in columns:
-                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN spf_result VARCHAR(32) DEFAULT ''"))
-            if "dkim_result" not in columns:
-                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''"))
-            if "dmarc_result" not in columns:
-                await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''"))
+        else:
+            logger.warning("dialect_not_postgresql", dialect=dialect)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     sem = asyncio.Semaphore(WORKER_CONCURRENCY)  # Batasi concurrency
+    DEAD_LETTER_QUEUE = QUEUE_NAME + ":dead"
+
+    async def _handle_with_sem(p: dict):
+        """Acquire semaphore then process; push to DLQ on unrecoverable failure."""
+        async with sem:
+            try:
+                async with async_session() as session:
+                    await process_one_email(p, http_client, session, redis_client=r)
+            except Exception as exc:
+                logger.exception("process_one_email_failed", email_id=p.get("email_id"), error=str(exc))
+                try:
+                    await r.rpush(DEAD_LETTER_QUEUE, json.dumps(p))
+                except Exception as dlq_exc:
+                    logger.error("dead_letter_push_failed", error=str(dlq_exc))
 
     async with httpx.AsyncClient() as http_client:
-        async with async_session() as session:
-            logger.info("worker_started", queue=QUEUE_NAME, concurrency=WORKER_CONCURRENCY)
-            while True:
-                try:
-                    # Blocking pop dengan timeout 5 detik
-                    item = await r.blpop(QUEUE_NAME, timeout=5)
-                    if item is None:
-                        continue
-                    _, raw_payload = item
-                    payload = json.loads(raw_payload)
+        logger.info("worker_started", queue=QUEUE_NAME, concurrency=WORKER_CONCURRENCY)
+        while True:
+            try:
+                # Blocking pop dengan timeout 5 detik
+                item = await r.blpop(QUEUE_NAME, timeout=5)
+                if item is None:
+                    continue
+                _, raw_payload = item
+                payload = json.loads(raw_payload)
 
-                    async with sem:
-                        await process_one_email(payload, http_client, session)
+                # Spawn a task so the main loop keeps dequeuing while workers run
+                asyncio.create_task(_handle_with_sem(payload))
 
-                except json.JSONDecodeError as e:
-                    logger.error("json_decode_error", error=str(e))
-                except Exception as e:
-                    logger.exception("worker_error", error=str(e))
-                    await asyncio.sleep(1)  # Backoff kecil sebelum retry
+            except json.JSONDecodeError as e:
+                logger.error("json_decode_error", error=str(e))
+            except Exception as e:
+                logger.exception("worker_error", error=str(e))
+                await asyncio.sleep(1)  # Backoff kecil sebelum retry
 
 
 if __name__ == "__main__":
