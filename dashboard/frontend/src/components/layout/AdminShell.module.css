@@ -519,14 +519,89 @@
     padding-top: env(safe-area-inset-top, 0px);
     gap: 8px;
   }
-  .content { -webkit-overflow-scrolling: touch; }
+  .content { 
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 12px;
+  }
+  .breadcrumb {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  
+  .topbar { 
+    padding: 0 12px; 
+    gap: 6px;
+    height: 52px;
+  }
+  
+  .content {
+    padding: 12px 10px;
+  }
+  
+  .rolePill {
+    margin: 8px 12px 4px;
+    padding: 5px 10px;
+  }
+  
+  .roleText {
+    font-size: 0.65rem;
+  }
+  
+  .sideNav {
+    padding: 4px 8px;
+  }
+  
+  .navItem {
+    padding: 10px 12px;
+    font-size: 0.9375rem;
+  }
+  
+  .navIcon {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 @media (max-width: 480px) {
-  .topbar { padding: 0 10px; gap: 6px; }
+  .topbar { 
+    padding: 0 8px; 
+    gap: 4px;
+    height: 50px;
+  }
+  
   .breadcrumbRoot,
-  .breadcrumbSep { display: none; }
+  .breadcrumbSep { 
+    display: none; 
+  }
+  
   .userName,
-  .userRole { display: none; }
-  .userChip { padding: 3px; border: none; background: transparent; }
+  .userRole { 
+    display: none; 
+  }
+  
+  .userChip { 
+    padding: 3px; 
+    border: none; 
+    background: transparent; 
+  }
+  
+  .content {
+    padding: 10px 8px;
+  }
+  
+  .userMenu {
+    max-width: 92vw;
+    right: 8px;
+  }
+  
+  .hamburger svg {
+    width: 20px;
+    height: 20px;
+  }
 }
