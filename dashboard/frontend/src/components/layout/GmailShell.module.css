@@ -909,9 +909,175 @@
   flex: 1;
 }
 
+/* ═══ RESPONSIVE ═══ */
 @media (max-width: 900px) {
   .companionDock {
     display: none;
+  }
+  
+  .topbar {
+    height: 56px;
+    padding: 0 8px;
+  }
+  
+  .topbarLeft {
+    min-width: auto;
+    gap: 2px;
+  }
+  
+  .hamburger {
+    display: flex !important;
+  }
+  
+  .brandText {
+    font-size: 1.25rem;
+  }
+  
+  .searchWrap {
+    max-width: 100%;
+    margin: 0 4px;
+  }
+  
+  .searchBar {
+    height: 44px;
+  }
+  
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 85vw;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  }
+  
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+  
+  .body {
+    margin-left: 0 !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    height: 56px;
+    padding: 0 4px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .topbarLeft {
+    gap: 0;
+  }
+  
+  .brand {
+    padding: 4px 2px;
+    margin-left: 0;
+  }
+  
+  .brandText {
+    font-size: 1.125rem;
+  }
+  
+  .searchBar {
+    height: 40px;
+    padding: 0 4px;
+  }
+  
+  .searchBar input {
+    font-size: 0.9375rem;
+    padding: 0 6px;
+  }
+  
+  .topbarRight {
+    gap: 2px;
+  }
+  
+  .iconBtn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .sidebar {
+    width: 260px !important;
+    min-width: 260px !important;
+    max-width: 80vw;
+  }
+  
+  .sideNav {
+    padding: 4px 8px;
+  }
+  
+  .navItem {
+    padding: 10px 12px;
+    font-size: 0.9375rem;
+  }
+  
+  .navIcon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .composeBtn {
+    margin: 8px 12px;
+    padding: 12px 16px;
+    font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    height: 52px;
+    padding: 0 2px;
+  }
+  
+  .brandText {
+    font-size: 1rem;
+  }
+  
+  .searchWrap {
+    margin: 0 2px;
+  }
+  
+  .searchBar {
+    height: 38px;
+  }
+  
+  .iconBtn {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .iconBtn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .sidebar {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  
+  .sideFooter {
+    padding: 12px;
+    font-size: 0.6875rem;
+  }
+  
+  .userMenu {
+    max-width: 90vw;
+    right: 4px;
+  }
+  
+  .appGrid {
+    width: 90vw;
+    max-width: 320px;
   }
 }
 
