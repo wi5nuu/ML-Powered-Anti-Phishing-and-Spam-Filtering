@@ -2,7 +2,7 @@
 email-validator>=2.1.0
 python-dotenv>=1.0.0
 aiosmtpd>=1.4.6
-aiosmtplib>=5.0.0
+aiosmtplib>=3.0.0
 
 # Queue
 redis>=5.0.0
@@ -29,9 +29,8 @@ itsdangerous>=2.2.0
 python-multipart>=0.0.9
 aiofiles>=23.2.0
 
-# Database
+# Database (PostgreSQL only — SQLite tidak didukung di production)
 sqlalchemy>=2.0.0
-aiosqlite>=0.20.0
 
 # Serialization & Storage
 joblib>=1.4.0
@@ -52,10 +51,9 @@ websockets>=12.0
 PyJWT[crypto]>=2.13.0
 passlib[bcrypt]>=1.7.4
 bcrypt<5
-python-multipart>=0.0.9
 
 # Image parsing
-pillow>=12.3.0
+pillow>=11.0.0
 
 # Rate Limiting
 slowapi>=0.1.9
@@ -69,6 +67,9 @@ openpyxl>=3.1.0
 
 # Threat Intelligence
 aiohttp>=3.9.0
+
+# Database migrations (Alembic required for schema versioning in production)
+alembic>=1.13.0
 
 # Async PostgreSQL (production)
 asyncpg>=0.29.0
