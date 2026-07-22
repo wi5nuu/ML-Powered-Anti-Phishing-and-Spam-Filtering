@@ -3,7 +3,7 @@ import { useTranslation } from '../i18n/context'
 import { useMe } from '../api/auth'
 import { useStats } from '../api/metrics'
 import {
-  ShieldCheck, Inbox, BarChart3, AlertTriangle,
+  ShieldCheck, Inbox, AlertTriangle,
   Mail, ArrowRight, CheckCircle, Info
 } from 'lucide-react'
 import styles from './UserDashboardPage.module.css'
@@ -113,10 +113,10 @@ export default function UserDashboardPage() {
               </button>
               <button
                 className={`${styles.qaBtn} ${styles.qaBtnSecondary}`}
-                onClick={() => navigate('/metrics')}
+                onClick={() => navigate('/user/mailboxes')}
               >
-                <BarChart3 size={15} />
-                {t('userDashboard.viewStats')}
+                <Mail size={15} />
+                {t('userDashboard.manageAccounts')}
                 <ArrowRight size={14} style={{ marginLeft: 'auto' }} />
               </button>
               {quarantined > 0 && (
