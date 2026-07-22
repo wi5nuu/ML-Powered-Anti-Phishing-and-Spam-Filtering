@@ -106,7 +106,7 @@ export default function SnoozedPage() {
                   isRead={email.is_read}
                   isStarred={email.is_starred ?? false}
                 />
-                {email.snoozed_until && (
+                    {email.snoozed_until && !isNaN(new Date(email.snoozed_until)) && (
                   <div style={{
                     position: 'absolute', right: '80px', top: '50%', transform: 'translateY(-50%)',
                     display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem',

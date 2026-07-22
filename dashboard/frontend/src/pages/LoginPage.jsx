@@ -54,7 +54,10 @@ export default function LoginPage() {
         setMailboxSession({ ...firstMailbox, id: mailboxKey, email: firstMailbox?.email || mailboxKey, login_source: 'main_login' })
         return `/mail/${encodeURIComponent(mailboxKey)}/inbox`
       }
-    } catch {
+    } catch (err) {
+      // Log error details for debugging but don't expose internals to user
+      const msg = err?.response?.data?.detail || err?.message || ''
+      console.warn('mailboxPathForUser failed:', msg)
     }
     return '/user/mailboxes'
   }
@@ -109,7 +112,8 @@ export default function LoginPage() {
       setError(t('login.resetRequired'))
       return
     }
-    setResetMessage(t('login.resetMessage'))
+    // Password reset requires SMTP configuration — inform the user to contact admin
+    setResetMessage(t('login.resetMessage') || 'Permintaan reset password telah dicatat. Hubungi administrator sistem untuk mereset password Anda.')
   }
 
   return (

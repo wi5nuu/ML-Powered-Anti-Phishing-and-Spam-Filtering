@@ -1,17 +1,18 @@
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Inbox, Tag, Users, Info, MessageSquare } from 'lucide-react'
 import styles from './CategoryTabs.module.css'
 
 const TABS = [
   { key: 'all',        label: 'Utama',        Icon: Inbox,          color: '#0b57d0' },
-  { key: 'promotions', label: 'Promosi',      Icon: Tag,            color: '#1e8e3e', badge: '6 baru', badgeColor: '#1e8e3e' },
-  { key: 'social',     label: 'Sosial',       Icon: Users,          color: '#0b57d0', badge: '8 baru', badgeColor: '#0b57d0' },
-  { key: 'updates',    label: 'Info Terbaru', Icon: Info,           color: '#e37400', badge: '18 baru', badgeColor: '#e37400' },
+  { key: 'promotions', label: 'Promosi',      Icon: Tag,            color: '#1e8e3e' },
+  { key: 'social',     label: 'Sosial',       Icon: Users,          color: '#0b57d0' },
+  { key: 'updates',    label: 'Info Terbaru', Icon: Info,           color: '#e37400' },
   { key: 'forums',     label: 'Forum',        Icon: MessageSquare,  color: '#444746' },
 ]
 
-export default function CategoryTabs({ activeFilter = 'all' }) {
+export default function CategoryTabs() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const currentTab = searchParams.get('category') || searchParams.get('filter') || 'all'
 
@@ -24,7 +25,8 @@ export default function CategoryTabs({ activeFilter = 'all' }) {
       params.set('category', key)
     }
     params.delete('page')
-    navigate(`/inbox?${params.toString()}`)
+    // Preserve the current path (e.g. /mail/:id/inbox) instead of hardcoding /inbox
+    navigate(`${location.pathname}?${params.toString()}`)
   }
 
   return (
@@ -43,11 +45,6 @@ export default function CategoryTabs({ activeFilter = 'all' }) {
               <Icon size={18} />
             </span>
             <span className={styles.label}>{tab.label}</span>
-            {tab.badge && (
-              <span className={styles.badge} style={{ backgroundColor: tab.badgeColor }}>
-                {tab.badge}
-              </span>
-            )}
           </button>
         )
       })}

@@ -524,6 +524,222 @@
   flex-shrink: 0;
 }
 
+/* ── Edit inline ── */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.displayName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.editIconBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.editIconBtn:hover {
+  background: var(--border-light);
+  color: var(--gmail-blue);
+}
+
+.roleChip {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--border-light);
+  color: var(--text-muted);
+}
+
+.editRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.editInput {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.editInput:focus {
+  border-color: var(--gmail-blue);
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.saveBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--gmail-blue);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.saveBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.cancelBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cancelBtn:hover {
+  background: var(--border-light);
+}
+
+.startEditBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.12s;
+  width: 100%;
+  justify-content: center;
+}
+.startEditBtn:hover {
+  background: var(--border-light);
+}
+
+.fieldError {
+  font-size: 0.8rem;
+  color: #d93025;
+  margin: 2px 0 0 0;
+}
+
+.fieldHint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+}
+
+/* Change password form */
+.pwForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pwField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pwLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.pwInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwInputWrap .editInput {
+  padding-right: 36px;
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+.eyeBtn:hover {
+  color: var(--text);
+}
+
+/* Info grid */
+.infoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cameraBtn {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--gmail-blue);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+.cameraBtn:hover {
+  opacity: 0.85;
+}
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .wrap {

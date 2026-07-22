@@ -13,8 +13,8 @@ import styles from './AuditPage.module.css'
 // TODO: Implement backend endpoint GET /api/audit-log/export-csv if CSV export is needed
 async function downloadAuditLogCsv() {
   console.warn('Audit log CSV export not yet implemented on backend')
-  alert('CSV export untuk audit log belum tersedia. Silakan hubungi administrator.')
-  return
+  // Return a message instead of using alert() — caller handles display via setExportMsg
+  throw new Error('CSV export untuk audit log belum tersedia. Silakan hubungi administrator.')
   /* Uncomment when backend endpoint is ready:
   const { default: api } = await import('../api/client')
   const { APP_TIME_ZONE } = await import('../utils/time')

@@ -174,14 +174,23 @@ def _seed_mailbox_access():
             db.commit()
 
 
-_ensure_schema_compatibility()
-_seed_mailbox_access()
+# Schema compatibility and seeding now handled on-demand in routes or startup
+# NOT at module import to avoid blocking
 SessionLocal = sessionmaker(bind=engine)
+
+# Re-enable these functions but call them explicitly during app startup, not module import
+def init_database_schema():
+    """Call this during app startup, not module import."""
+    _ensure_schema_compatibility()
+    _seed_mailbox_access()
 
 
 def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

@@ -152,7 +152,11 @@ export default function UserDashboardShell({ children }) {
               <LayoutDashboard size={15} className={styles.breadcrumbIcon} />
               <span className={styles.breadcrumbRoot}>CogniMail</span>
               <span className={styles.breadcrumbSep}>/</span>
-              <span className={styles.breadcrumbCurrent}>{t('userDashboard.dashboard')}</span>
+              <span className={styles.breadcrumbCurrent}>
+                {NAV_ITEMS.find(item => location.pathname.startsWith(item.path))
+                  ? t(NAV_ITEMS.find(item => location.pathname.startsWith(item.path)).labelKey)
+                  : t('userDashboard.dashboard')}
+              </span>
             </div>
           </div>
           <div className={styles.topRight}>
@@ -163,17 +167,15 @@ export default function UserDashboardShell({ children }) {
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <button className={styles.topBtn}>
+            <button className={styles.topBtn} aria-label={t('notifications.label') || 'Notifications'}>
               <Bell size={17} />
             </button>
             <div className={styles.userChip}>
               <div className={styles.avatar} style={generatedAvatarStyle}>{userAvatar}</div>
-              {!collapsed && (
-                <div className={styles.userInfo}>
-                  <span className={styles.userName}>{user?.username || t('userDashboard.username')}</span>
-                  <span className={styles.userRole}>{user?.role || t('userDashboard.role')}</span>
-                </div>
-              )}
+              <div className={styles.userInfo}>
+                <span className={styles.userName}>{user?.username || t('userDashboard.username')}</span>
+                <span className={styles.userRole}>{user?.role || t('userDashboard.role')}</span>
+              </div>
             </div>
             <button className={styles.logoutBtn} onClick={() => logout.mutate()}>
               <LogOut size={16} />

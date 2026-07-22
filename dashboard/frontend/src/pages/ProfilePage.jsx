@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Loader2, ArrowLeft, Camera, Activity, Shield, Mail, Calendar } from 'lucide-react'
+import { Loader2, ArrowLeft, Camera, Activity, Shield, Mail, Calendar, Edit2, Check, X, Lock, Eye, EyeOff } from 'lucide-react'
 import GmailShell from '../components/layout/GmailShell'
-import { useProfile, useUploadProfileAvatar } from '../api/profile'
-import { getActiveMailbox, getActiveMailboxId, setMailboxSession } from '../utils/mailbox'
+import { useProfile, useUploadProfileAvatar, useUpdateProfile, useChangePassword } from '../api/profile'
+import { getActiveMailbox, getActiveMailboxId } from '../utils/mailbox'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../utils/avatar'
 import { useTranslation } from '../i18n/context'
+import { useToast } from '../hooks/useToast'
 import styles from './ProfilePage.module.css'
 
 const MAX_AVATAR_BYTES = 1024 * 1024
@@ -32,11 +33,36 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef(null)
+  const { showToast } = useToast()
+
+  // Avatar state
   const [avatarError, setAvatarError] = useState('')
+
+  // Edit profile state
+  const [editingName, setEditingName] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [editCurrentPw, setEditCurrentPw] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  // Change password state
+  const [changingPw, setChangingPw] = useState(false)
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [showCurrentPw, setShowCurrentPw] = useState(false)
+  const [showNewPw, setShowNewPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState('')
+
   const activeMailbox = getActiveMailbox(searchParams)
   const activeMailboxId = getActiveMailboxId(searchParams)
-  const { data: profile, isLoading: profileLoading } = useProfile(activeMailboxId)
+  const { data: profile, isLoading: profileLoading, refetch } = useProfile(activeMailboxId)
   const uploadAvatar = useUploadProfileAvatar()
+  const updateProfile = useUpdateProfile()
+  const changePassword = useChangePassword()
+
   const displayEmail = profile?.mailbox_email || activeMailbox || profile?.email || profile?.username || t('common.na')
   const isMailboxProfile = Boolean(profile?.mailbox_email || activeMailboxId)
   const displayName = isMailboxProfile
@@ -55,46 +81,106 @@ export default function ProfilePage() {
 
     setAvatarError('')
     if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
-      setAvatarError(t('profile.avatarTypeError'))
+      setAvatarError('Format gambar tidak didukung. Gunakan JPEG, PNG, GIF, atau WEBP.')
       return
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      setAvatarError(t('profile.avatarSizeError'))
+      setAvatarError('Ukuran gambar maksimal 1 MB.')
       return
     }
     try {
-      const { width, height } = await readImageSize(file)
-      if (width !== height) {
-        setAvatarError(t('profile.avatarRatioError'))
-        return
-      }
+      await readImageSize(file)
     } catch {
-      setAvatarError(t('profile.avatarDimError'))
+      setAvatarError('File gambar tidak valid.')
       return
     }
+    try {
+      await uploadAvatar.mutateAsync(
+        activeMailboxId ? { file, mailboxId: activeMailboxId } : file
+      )
+      showToast('Avatar berhasil diperbarui', 'success')
+      refetch()
+    } catch (err) {
+      setAvatarError(err?.response?.data?.detail || 'Gagal mengunggah avatar.')
+    }
+  }
 
-    uploadAvatar.mutate({ file, mailboxId: activeMailboxId }, {
-      onSuccess: (response) => {
-        if (activeMailboxId && displayEmail) {
-          setMailboxSession({
-            id: activeMailboxId,
-            email: displayEmail,
-            avatar_url: response?.data?.avatar_url || '',
-          })
-        }
-      },
-      onError: (error) => {
-        setAvatarError(error.response?.data?.detail || t('profile.avatarUploadError'))
-      },
-    })
+  const startEditName = () => {
+    setNewUsername(profile?.username || '')
+    setEditCurrentPw('')
+    setEditError('')
+    setEditingName(true)
+  }
+
+  const cancelEditName = () => {
+    setEditingName(false)
+    setEditError('')
+    setEditCurrentPw('')
+  }
+
+  const saveEditName = async () => {
+    if (!newUsername.trim()) {
+      setEditError('Username tidak boleh kosong.')
+      return
+    }
+    if (!editCurrentPw) {
+      setEditError('Masukkan password saat ini untuk konfirmasi.')
+      return
+    }
+    setEditSaving(true)
+    setEditError('')
+    try {
+      await updateProfile.mutateAsync({
+        username: newUsername.trim(),
+        current_password: editCurrentPw,
+      })
+      showToast('Profil berhasil diperbarui', 'success')
+      setEditingName(false)
+      refetch()
+    } catch (err) {
+      setEditError(err?.response?.data?.detail || 'Gagal memperbarui profil.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const startChangePw = () => {
+    setCurrentPw('')
+    setNewPw('')
+    setConfirmPw('')
+    setPwError('')
+    setChangingPw(true)
+  }
+
+  const cancelChangePw = () => {
+    setChangingPw(false)
+    setPwError('')
+  }
+
+  const saveChangePw = async () => {
+    if (!currentPw) { setPwError('Masukkan password saat ini.'); return }
+    if (!newPw) { setPwError('Masukkan password baru.'); return }
+    if (newPw.length < 4) { setPwError('Password baru minimal 4 karakter.'); return }
+    if (newPw !== confirmPw) { setPwError('Konfirmasi password tidak cocok.'); return }
+    setPwSaving(true)
+    setPwError('')
+    try {
+      await changePassword.mutateAsync({ current_password: currentPw, new_password: newPw })
+      showToast('Password berhasil diubah', 'success')
+      setChangingPw(false)
+    } catch (err) {
+      setPwError(err?.response?.data?.detail || 'Gagal mengubah password.')
+    } finally {
+      setPwSaving(false)
+    }
   }
 
   if (profileLoading) {
     return (
       <GmailShell>
         <div className={styles.loading}>
-          <Loader2 size={24} className={styles.spin} />
-          {t('profile.loading')}
+          <Loader2 size={18} className={styles.spin} />
+          Memuat profil...
         </div>
       </GmailShell>
     )
@@ -103,73 +189,111 @@ export default function ProfilePage() {
   return (
     <GmailShell>
       <div className={styles.wrap}>
+        {/* Header */}
         <div className={styles.header}>
-          <button className={styles.backBtn} onClick={() => navigate(-1)}>
+          <button className={styles.backBtn} onClick={() => navigate(-1)} title="Kembali">
             <ArrowLeft size={18} />
           </button>
           <div className={styles.headerInfo}>
-            <h1 className={styles.title}>{t('profile.title')}</h1>
-            <p className={styles.subtitle}>{t('profile.subtitle')}</p>
+            <h1 className={styles.title}>Profil</h1>
+            <p className={styles.subtitle}>Kelola informasi akun Anda</p>
           </div>
         </div>
 
         <div className={styles.layout}>
-          <div className={styles.colLeft}>
-            <div className={styles.card}>
-              <div className={styles.profileHeader}>
-                <div className={styles.avatarField}>
-                  <button
-                    type="button"
-                    className={styles.profileAvatar}
-                    onClick={() => fileInputRef.current?.click()}
-                    title={t('profile.uploadAvatar')}
-                    aria-label={t('profile.uploadAvatar')}
-                    disabled={uploadAvatar.isPending}
-                    style={!uploadedAvatar ? { background: avatarColor(avatarKey) } : undefined}
-                  >
-                    {uploadedAvatar ? (
-                      <img src={avatarUrl} alt="" className={styles.avatarImage} />
-                    ) : (
-                      displayInitial
+          {/* Profile card */}
+          <div className={styles.card}>
+            {/* Avatar + name */}
+            <div className={styles.profileHeader}>
+              <div className={styles.avatarField}>
+                <button
+                  className={styles.profileAvatar}
+                  style={{ background: uploadedAvatar ? 'transparent' : avatarColor(avatarKey || 'U') }}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Ganti avatar"
+                  type="button"
+                >
+                  {uploadedAvatar
+                    ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: '1.3rem', fontWeight: 600, color: '#fff' }}>{displayInitial}</span>
+                  }
+                </button>
+                <button
+                  className={styles.cameraBtn}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Ganti foto"
+                  type="button"
+                >
+                  <Camera size={13} />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarChange}
+                />
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Username edit inline */}
+                {editingName ? (
+                  <div className={styles.editRow}>
+                    <input
+                      className={styles.editInput}
+                      value={newUsername}
+                      onChange={e => setNewUsername(e.target.value)}
+                      placeholder="Username baru"
+                      autoFocus
+                    />
+                    <input
+                      className={styles.editInput}
+                      type="password"
+                      value={editCurrentPw}
+                      onChange={e => setEditCurrentPw(e.target.value)}
+                      placeholder="Password saat ini"
+                    />
+                    {editError && <p className={styles.fieldError}>{editError}</p>}
+                    <div className={styles.editActions}>
+                      <button className={styles.saveBtn} onClick={saveEditName} disabled={editSaving}>
+                        {editSaving ? <Loader2 size={14} className={styles.spin} /> : <Check size={14} />}
+                        Simpan
+                      </button>
+                      <button className={styles.cancelBtn} onClick={cancelEditName}>
+                        <X size={14} /> Batal
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.nameRow}>
+                    <span className={styles.displayName}>{displayName}</span>
+                    {!isMailboxProfile && (
+                      <button className={styles.editIconBtn} onClick={startEditName} title="Edit username">
+                        <Edit2 size={14} />
+                      </button>
                     )}
-                    <span className={styles.avatarBadge}>
-                      {uploadAvatar.isPending ? <Loader2 size={15} className={styles.spin} /> : <Camera size={15} />}
-                    </span>
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp"
-                    className={styles.avatarInput}
-                    onChange={handleAvatarChange}
-                  />
-                </div>
-                <div>
-                  <div className={styles.profileName}>{displayName}</div>
-                  <div className={styles.profileEmail}>{displayEmail}</div>
-                  {avatarError && <div className={styles.avatarError}>{avatarError}</div>}
-                </div>
+                  </div>
+                )}
+                <span className={styles.roleChip}>{roleLabel}</span>
+              </div>
             </div>
 
-              <div className={styles.divider} />
+            {avatarError && <p className={styles.fieldError} style={{ marginTop: 8 }}>{avatarError}</p>}
+            {uploadAvatar.isPending && <p className={styles.fieldHint}>Mengunggah avatar...</p>}
 
-              {activeMailbox && (
-                <div className={styles.infoRow}>
-                  <Mail size={15} className={styles.infoIcon} />
-                  <span className={styles.infoLabel}>{t('profile.activeEmail')}</span>
-                  <span className={styles.infoValue}>{activeMailbox}</span>
-                </div>
-              )}
+            <div className={styles.divider} />
 
+            {/* Info rows */}
+            <div className={styles.infoGrid}>
               <div className={styles.infoRow}>
                 <Mail size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>{t('profile.operatorLogin')}</span>
-                <span className={styles.infoValue}>{profile?.username}</span>
+                <span className={styles.infoLabel}>Email</span>
+                <span className={styles.infoValue}>{displayEmail}</span>
               </div>
 
               <div className={styles.infoRow}>
                 <Shield size={15} className={styles.infoIcon} />
-                <span className={styles.infoLabel}>{t('users.role')}</span>
+                <span className={styles.infoLabel}>Role</span>
                 <span className={styles.infoValue}>{roleLabel}</span>
               </div>
 
@@ -179,9 +303,7 @@ export default function ProfilePage() {
                 <span className={styles.infoValue}>
                   {profile?.created_at
                     ? new Date(profile.created_at).toLocaleDateString('id-ID', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
+                        year: 'numeric', month: 'long', day: 'numeric',
                       })
                     : t('common.na')}
                 </span>
@@ -196,6 +318,88 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Change password card - only for dashboard users (not mailbox) */}
+          {!isMailboxProfile && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <Lock size={16} />
+                Ganti Password
+              </div>
+
+              {!changingPw ? (
+                <button className={styles.startEditBtn} onClick={startChangePw}>
+                  <Lock size={14} /> Ubah Password
+                </button>
+              ) : (
+                <div className={styles.pwForm}>
+                  {/* Current password */}
+                  <div className={styles.pwField}>
+                    <label className={styles.pwLabel}>Password saat ini</label>
+                    <div className={styles.pwInputWrap}>
+                      <input
+                        className={styles.editInput}
+                        type={showCurrentPw ? 'text' : 'password'}
+                        value={currentPw}
+                        onChange={e => setCurrentPw(e.target.value)}
+                        placeholder="Password saat ini"
+                        autoFocus
+                      />
+                      <button type="button" className={styles.eyeBtn} onClick={() => setShowCurrentPw(v => !v)}>
+                        {showCurrentPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New password */}
+                  <div className={styles.pwField}>
+                    <label className={styles.pwLabel}>Password baru</label>
+                    <div className={styles.pwInputWrap}>
+                      <input
+                        className={styles.editInput}
+                        type={showNewPw ? 'text' : 'password'}
+                        value={newPw}
+                        onChange={e => setNewPw(e.target.value)}
+                        placeholder="Minimal 4 karakter"
+                      />
+                      <button type="button" className={styles.eyeBtn} onClick={() => setShowNewPw(v => !v)}>
+                        {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm password */}
+                  <div className={styles.pwField}>
+                    <label className={styles.pwLabel}>Konfirmasi password baru</label>
+                    <div className={styles.pwInputWrap}>
+                      <input
+                        className={styles.editInput}
+                        type={showConfirmPw ? 'text' : 'password'}
+                        value={confirmPw}
+                        onChange={e => setConfirmPw(e.target.value)}
+                        placeholder="Ulangi password baru"
+                      />
+                      <button type="button" className={styles.eyeBtn} onClick={() => setShowConfirmPw(v => !v)}>
+                        {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {pwError && <p className={styles.fieldError}>{pwError}</p>}
+
+                  <div className={styles.editActions}>
+                    <button className={styles.saveBtn} onClick={saveChangePw} disabled={pwSaving}>
+                      {pwSaving ? <Loader2 size={14} className={styles.spin} /> : <Check size={14} />}
+                      Simpan Password
+                    </button>
+                    <button className={styles.cancelBtn} onClick={cancelChangePw}>
+                      <X size={14} /> Batal
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </GmailShell>

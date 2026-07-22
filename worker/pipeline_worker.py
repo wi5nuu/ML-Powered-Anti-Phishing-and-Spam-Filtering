@@ -40,7 +40,7 @@ from worker.email_forwarder import forward_email
 load_dotenv()
 logger = structlog.get_logger()
 
-REDIS_URL          = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL          = os.getenv("REDIS_URL", "redis://redis:6379/0")
 QUEUE_NAME         = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
 PUBSUB_CHANNEL     = os.getenv("PUBSUB_CHANNEL", "email:processed")
 CLASSIFIER_URL     = os.getenv("CLASSIFIER_URL", "http://classifier:8001")

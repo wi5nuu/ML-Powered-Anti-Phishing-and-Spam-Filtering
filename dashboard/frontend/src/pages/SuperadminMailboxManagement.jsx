@@ -99,14 +99,14 @@ export default function SuperadminMailboxManagement() {
     setUsersLoading(true); setError('')
     api.get('/admin/list-users-with-admin')
       .then(({ data }) => setUsers(Array.isArray(data) ? data : []))
-      .catch(() => setUsers([]))
+      .catch((e) => { setUsers([]); setError(e?.response?.data?.detail || 'Gagal memuat daftar pengguna.') })
       .finally(() => setUsersLoading(false))
   }
   const fetchAdmins = () => {
-    setAdminsLoading(true)
+    setAdminsLoading(true); setError('')
     api.get('/admin/list-admins-with-stats')
       .then(({ data }) => setAdmins(Array.isArray(data) ? data : []))
-      .catch(() => setAdmins([]))
+      .catch((e) => { setAdmins([]); setError(e?.response?.data?.detail || 'Gagal memuat daftar admin.') })
       .finally(() => setAdminsLoading(false))
   }
 

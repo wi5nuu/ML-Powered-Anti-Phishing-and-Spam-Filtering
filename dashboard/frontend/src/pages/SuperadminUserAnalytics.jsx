@@ -231,9 +231,9 @@ export default function SuperadminUserAnalytics() {
       return sortDir === 'asc' ? va - vb : vb - va
     })
 
-  const maxTotal   = Math.max(...users.map(u => u.total_emails), 1)
-  const totalThreats = users.reduce((s, u) => s + u.phishing + u.spam + u.malware, 0)
-  const highRisk   = users.filter(u => u.threat_score >= 50).length
+  const maxTotal     = Math.max(...users.map(u => u.total_emails), 1)
+  const totalThreats = users.reduce((s, u) => s + (u.phishing || 0) + (u.spam || 0) + (u.malware || 0), 0)
+  const highRisk     = users.filter(u => u.threat_score >= 50).length
 
   const SortIcon = ({ col }) => sortKey !== col
     ? <ChevronDown size={11} style={{ opacity: 0.3 }} />

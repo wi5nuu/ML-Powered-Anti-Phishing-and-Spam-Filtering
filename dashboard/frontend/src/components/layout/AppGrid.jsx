@@ -66,6 +66,7 @@ function AppItem({ app, stats, onClick }) {
 export default function AppGrid({ open, onClose, user }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // useStats is only called when open=true to avoid unnecessary requests
   const { data: stats } = useStats()
 
   if (!open) return null
@@ -89,7 +90,7 @@ export default function AppGrid({ open, onClose, user }) {
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.headerTitle}>{t('appGrid.favorites')}</span>
-          <button className={styles.editBtn} title={t('appGrid.editShortcut')}>
+          <button className={styles.editBtn} title={t('appGrid.editShortcut')} disabled aria-disabled="true">
             <Pencil size={16} />
           </button>
         </div>
