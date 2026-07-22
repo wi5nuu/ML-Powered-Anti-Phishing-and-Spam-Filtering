@@ -46,6 +46,7 @@ export default function ProfilePage() {
   const displayInitial = avatarText(avatarKey || 'U', isMailboxProfile ? 1 : 2)
   const avatarUrl = profile?.avatar_url || ''
   const uploadedAvatar = hasUploadedAvatar(avatarUrl)
+  const roleLabel = profile?.role || t('common.na')
 
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0]
