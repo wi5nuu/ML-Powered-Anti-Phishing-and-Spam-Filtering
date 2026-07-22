@@ -214,14 +214,23 @@ export default function ComposeModal({
         formData.append('from_email', fromMailbox)
         formData.append('subject', subject)
         formData.append('body', body)
-        formData.append('action', 'send')
+        formData.append('action', effectiveComposeMode === 'new' ? 'send' : effectiveComposeMode)
         formData.append('draft_id', draftId)
+        if (effectiveParentEmailId) formData.append('reply_to_id', effectiveParentEmailId)
         attachments.forEach((file) => formData.append('attachments', file))
         await api.post('/emails/send', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
       } else {
-        await api.post('/emails/send', { to: finalRecipients, from_email: fromMailbox, subject, body, action: 'send', draft_id: draftId })
+        await api.post('/emails/send', { 
+          to: finalRecipients, 
+          from_email: fromMailbox, 
+          subject, 
+          body, 
+          action: effectiveComposeMode === 'new' ? 'send' : effectiveComposeMode, 
+          draft_id: draftId,
+          reply_to_id: effectiveParentEmailId || ''
+        })
       }
       showToast(t('compose.sentSuccessPrefix') + finalRecipients, 'success')
       resetCompose()
