@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { MAILBOX_SESSION_PREFIX } from '../utils/mailbox'
+import { COGNIMAIL_STORAGE_PREFIX, MAILBOX_SESSION_PREFIX } from '../utils/mailbox'
 
 const api = axios.create({
   baseURL: '/api',
@@ -7,10 +7,13 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-function clearMailboxSessions() {
+function clearAllCognimailStorage() {
+  // On dashboard session expiry, clear ALL cognimail.* keys — not just sessions.
+  // This prevents stale mailbox list / directory / domain from the expired session
+  // leaking into the next user's login.
   try {
     Object.keys(localStorage)
-      .filter((key) => key.startsWith(MAILBOX_SESSION_PREFIX))
+      .filter((key) => key.startsWith(COGNIMAIL_STORAGE_PREFIX))
       .forEach((key) => localStorage.removeItem(key))
   } catch {
     // Ignore localStorage failures.
@@ -37,7 +40,7 @@ function redirectExpiredSession() {
 
   const isMailboxPath = /^\/mail\/[^/]+/.test(path)
   if (isMailboxPath) {
-    // For mailbox paths: only clear the mailbox localStorage session.
+    // For mailbox paths: only clear this specific mailbox session.
     // Do NOT clear dashboard sessions — dashboard user may still be logged in.
     const mailboxMatch = path.match(/^\/mail\/([^/]+)/)
     const mailboxId = mailboxMatch?.[1] ? decodeURIComponent(mailboxMatch[1]) : ''
@@ -48,8 +51,8 @@ function redirectExpiredSession() {
       // Ignore.
     }
   } else {
-    // For dashboard paths: clear all mailbox sessions on dashboard auth expiry.
-    clearMailboxSessions()
+    // For dashboard paths: clear ALL cognimail storage on session expiry.
+    clearAllCognimailStorage()
   }
 
   window.location.replace(expiredLoginTarget())
