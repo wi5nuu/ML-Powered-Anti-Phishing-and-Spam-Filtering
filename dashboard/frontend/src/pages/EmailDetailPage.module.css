@@ -1907,5 +1907,113 @@
   .scoreGrid { grid-template-columns: repeat(2, 1fr); }
   .eventCard { flex-direction: column; align-items: flex-start; margin: 8px 12px; }
   .feedbackStrip { margin: 0 12px 12px; flex-wrap: wrap; }
+  
+  .recipientDropdown {
+    width: calc(100vw - 32px);
+    max-width: 380px;
+  }
+}
+
+@media (max-width: 480px) {
+  .splitLayout {
+    padding: 4px;
+    gap: 8px;
+    min-height: calc(100vh - 52px);
+    min-height: calc(100dvh - 52px);
+  }
+  
+  .originalPage {
+    padding: 12px 8px;
+  }
+  
+  .subjectRow { 
+    padding: 12px 10px 6px; 
+  }
+  
+  .subjectTitle { 
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+  
+  .senderHeader { 
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  
+  .senderName {
+    font-size: 0.875rem;
+  }
+  
+  .senderEmail {
+    font-size: 0.8125rem;
+  }
+  
+  .emailBodyWrapper { 
+    padding: 10px 10px 20px;
+  }
+  
+  .emailBody {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .toolbar {
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  
+  .toolbarBtn {
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+  }
+  
+  .scoreGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+  
+  .scoreCard {
+    padding: 10px;
+  }
+  
+  .eventCard {
+    margin: 6px 8px;
+    padding: 10px;
+  }
+  
+  .feedbackStrip {
+    margin: 0 8px 10px;
+    gap: 8px;
+  }
+  
+  .feedbackBtn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .recipientDropdown {
+    width: calc(100vw - 24px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px;
+  }
+  
+  .attachmentList {
+    padding: 8px;
+  }
+  
+  .attachmentItem {
+    padding: 8px 10px;
+  }
+  
+  .securityPane {
+    top: 52px;
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
+  }
 }
 
