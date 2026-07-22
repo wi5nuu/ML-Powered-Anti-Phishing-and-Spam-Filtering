@@ -127,7 +127,7 @@ const DEFAULTS = {
 
 export default function SettingsPage() {
   const { t } = useTranslation()
-  const { addToast } = useToast()
+  const { showToast: addToast } = useToast()
   const { data: me, isLoading: meLoading } = useMe()
   const { data: remoteSettings, isLoading, isError } = useSettings()
   const { mutate: saveSettings, isPending: isSaving } = useUpdateSettings()
