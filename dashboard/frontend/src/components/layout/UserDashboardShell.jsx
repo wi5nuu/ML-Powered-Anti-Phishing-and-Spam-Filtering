@@ -4,22 +4,23 @@ import { useMe, useLogout } from '../../api/auth'
 import { useTheme } from '../../hooks/useTheme'
 import { useTranslation } from '../../i18n/context'
 import {
-  LayoutDashboard, Inbox, BarChart3, Settings, HelpCircle,
-  LogOut, ChevronLeft, ChevronRight, Bell, Shield, Menu, Sun, Moon
+  LayoutDashboard, Inbox, Mail, Settings, HelpCircle,
+  LogOut, ChevronLeft, ChevronRight, Menu, Sun, Moon
 } from 'lucide-react'
 import { avatarColor, avatarText, hasUploadedAvatar } from '../../utils/avatar'
+import logoImg from '../../assets/logo.png'
 import styles from './UserDashboardShell.module.css'
 
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: LayoutDashboard, labelKey: 'userDashboard.dashboard' },
+  { path: '/user/dashboard', icon: LayoutDashboard, labelKey: 'userDashboard.dashboard' },
+  { path: '/user/mailboxes', icon: Mail, labelKey: 'userDashboard.manageAccounts' },
   { path: '/inbox', icon: Inbox, labelKey: 'userDashboard.inbox' },
-  { path: '/metrics', icon: BarChart3, labelKey: 'userDashboard.metrics' },
   { path: '/settings', icon: Settings, labelKey: 'nav.settings' },
   { path: '/help', icon: HelpCircle, labelKey: 'userDashboard.help' },
 ]
 
 export default function UserDashboardShell({ children }) {
-  const { t } = useTranslation()
+  const { t, lang, toggleLang } = useTranslation()
   const { data: auth } = useMe()
   const logout = useLogout()
   const navigate = useNavigate()
@@ -27,6 +28,7 @@ export default function UserDashboardShell({ children }) {
   const { theme, toggle: toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [avatarFailed, setAvatarFailed] = useState(false)
 
   // Close the mobile drawer on route change.
   useEffect(() => { setMobileNavOpen(false) }, [location.pathname])
@@ -56,11 +58,14 @@ export default function UserDashboardShell({ children }) {
   const avatarKey = user?.username || 'U'
   const initials = avatarText ? avatarText(avatarKey, 2) : (user?.username ? user.username[0].toUpperCase() : 'U')
   const userAvatarUrl = user?.avatar_url || ''
-  const uploadedAvatar = hasUploadedAvatar ? hasUploadedAvatar(userAvatarUrl) : false
+  const uploadedAvatar = (hasUploadedAvatar ? hasUploadedAvatar(userAvatarUrl) : false) && !avatarFailed
   const userAvatar = uploadedAvatar
-    ? <img src={userAvatarUrl} alt="" className={styles.avatarImage} />
+    ? <img src={userAvatarUrl} alt="" className={styles.avatarImage} onError={() => setAvatarFailed(true)} />
     : initials
   const generatedAvatarStyle = uploadedAvatar ? undefined : (avatarColor ? { background: avatarColor(avatarKey) } : undefined)
+  const activeNavItem = NAV_ITEMS.find((item) => location.pathname === item.path) || NAV_ITEMS[0]
+
+  useEffect(() => setAvatarFailed(false), [userAvatarUrl])
 
   return (
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
@@ -86,7 +91,7 @@ export default function UserDashboardShell({ children }) {
           ) : (
             <>
               <div className={styles.brandIcon}>
-                <Shield size={18} />
+                <img src={logoImg} alt="CogniMail" />
               </div>
               <div className={styles.brandText}>
                 <span className={styles.brandName}>CogniMail</span>
@@ -152,10 +157,13 @@ export default function UserDashboardShell({ children }) {
               <LayoutDashboard size={15} className={styles.breadcrumbIcon} />
               <span className={styles.breadcrumbRoot}>CogniMail</span>
               <span className={styles.breadcrumbSep}>/</span>
-              <span className={styles.breadcrumbCurrent}>{t('userDashboard.dashboard')}</span>
+              <span className={styles.breadcrumbCurrent}>{t(activeNavItem.labelKey)}</span>
             </div>
           </div>
           <div className={styles.topRight}>
+            <button type="button" className={styles.topBtn} onClick={toggleLang} title={lang === 'id' ? 'English' : 'Indonesia'}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{lang === 'id' ? 'EN' : 'ID'}</span>
+            </button>
             <button 
               className={styles.topBtn}
               onClick={toggleTheme}
@@ -163,19 +171,14 @@ export default function UserDashboardShell({ children }) {
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <button className={styles.topBtn}>
-              <Bell size={17} />
-            </button>
-            <div className={styles.userChip}>
+            <button type="button" className={styles.userChip} onClick={() => navigate('/profile')} title={t('profile.title')}>
               <div className={styles.avatar} style={generatedAvatarStyle}>{userAvatar}</div>
-              {!collapsed && (
-                <div className={styles.userInfo}>
-                  <span className={styles.userName}>{user?.username || t('userDashboard.username')}</span>
-                  <span className={styles.userRole}>{user?.role || t('userDashboard.role')}</span>
-                </div>
-              )}
-            </div>
-            <button className={styles.logoutBtn} onClick={() => logout.mutate()}>
+              <div className={styles.userInfo}>
+                <span className={styles.userName}>{user?.username || t('userDashboard.username')}</span>
+                <span className={styles.userRole}>{user?.role || t('userDashboard.role')}</span>
+              </div>
+            </button>
+            <button className={styles.logoutBtn} onClick={() => logout.mutate()} disabled={logout.isPending} title={t('nav.logout')}>
               <LogOut size={16} />
             </button>
           </div>

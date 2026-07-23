@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useMe } from './api/auth'
+import api from './api/client'
 import { useWebSocket } from './hooks/useWebSocket'
 import { I18nProvider } from './i18n/context'
 import LoginPage from './pages/LoginPage'
@@ -9,18 +12,18 @@ import EmailDetailPage from './pages/EmailDetailPage'
 import HelpPage from './pages/HelpPage'
 import StarredPage from './pages/StarredPage'
 import SentPage from './pages/SentPage'
-import SnoozedPage from './pages/SnoozedPage'
 import DraftPage from './pages/DraftPage'
-import PembelianPage from './pages/PembelianPage'
 import AnalyzerPage from './pages/AnalyzerPage'
+import MetricsPage from './pages/MetricsPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 import RequireMailbox from './components/layout/RequireMailbox'
+import UserDashboardShell from './components/layout/UserDashboardShell'
 import UserMailboxPage from './pages/UserMailboxPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import SuperadminTrainingPage from './pages/SuperadminTrainingPage'
-import { hasMailboxSessionFromSearch } from './utils/mailbox'
+import { removeMailboxLocalState } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
   if (role === 'superadmin') return '/super-admin/dashboard'
@@ -61,10 +64,29 @@ function ProtectedRoute({ children }) {
 
 function MailboxRoute({ children }) {
   const { data, isLoading } = useMe()
-  const [searchParams] = useSearchParams()
   const location = useLocation()
+  const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
+  const routeMailboxId = mailboxPath?.[1] ? decodeURIComponent(mailboxPath[1]) : ''
+  const shouldValidateMailbox = Boolean(data?.authenticated && routeMailboxId)
+  const mailboxAccess = useQuery({
+    queryKey: ['mailbox-access', routeMailboxId],
+    queryFn: async () => {
+      const { data: result } = await api.get(`/mailboxes/${encodeURIComponent(routeMailboxId)}/access`)
+      return result
+    },
+    enabled: shouldValidateMailbox,
+    retry: false,
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  })
 
-  if (isLoading) {
+  useEffect(() => {
+    if (routeMailboxId && mailboxAccess.isError) removeMailboxLocalState(routeMailboxId)
+  }, [routeMailboxId, mailboxAccess.isError])
+
+  if (isLoading || (shouldValidateMailbox && mailboxAccess.isLoading)) {
     return (
       <div style={{
         display: 'flex',
@@ -80,7 +102,15 @@ function MailboxRoute({ children }) {
     )
   }
 
-  if (hasMailboxSessionFromSearch(searchParams)) return children
+  if (shouldValidateMailbox && mailboxAccess.isError) {
+    const role = data?.user?.role
+    if (role === 'superadmin' || role === 'admin') {
+      return <Navigate to={`${dashboardPathForRole(role)}?tab=email&mailbox=not-found`} replace />
+    }
+    return <Navigate to={`/mail/${encodeURIComponent(routeMailboxId)}/login?removed=1`} replace />
+  }
+
+  if (shouldValidateMailbox && mailboxAccess.data?.ok) return children
 
   if (data?.authenticated) {
     const role = data?.user?.role
@@ -96,7 +126,6 @@ function MailboxRoute({ children }) {
     return children
   }
 
-  const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
   if (mailboxPath?.[1]) {
     return <Navigate to={`/mail/${encodeURIComponent(mailboxPath[1])}/login`} replace />
   }
@@ -195,13 +224,12 @@ export default function App() {
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/starred" element={<RequireMailbox><MailboxRoute><StarredPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/sent" element={<RequireMailbox><MailboxRoute><SentPage /></MailboxRoute></RequireMailbox>} />
-        <Route path="/snoozed" element={<RequireMailbox><MailboxRoute><SnoozedPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/draft" element={<RequireMailbox><MailboxRoute><DraftPage /></MailboxRoute></RequireMailbox>} />
-        <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
         <Route path="/analyzer" element={<ProtectedRoute><AnalyzerPage /></ProtectedRoute>} />
+        <Route path="/metrics" element={<ProtectedRoute><MetricsPage /></ProtectedRoute>} />
 
         {/* User routes */}
-        <Route path="/user/dashboard" element={<UserRoute><UserDashboardPage /></UserRoute>} />
+        <Route path="/user/dashboard" element={<UserRoute><UserDashboardShell><UserDashboardPage /></UserDashboardShell></UserRoute>} />
         <Route path="/user/mailboxes" element={<UserRoute><UserMailboxPage /></UserRoute>} />
 
         {/* Admin routes — split URL by role */}

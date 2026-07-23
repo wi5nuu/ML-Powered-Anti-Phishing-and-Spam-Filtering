@@ -167,6 +167,23 @@ export function clearMailboxSession(mailboxId, email) {
   }
 }
 
+export function removeMailboxLocalState(mailboxId) {
+  const id = String(mailboxId || '').trim()
+  if (!id) return
+  const mailbox = getMailboxById(id)
+  clearMailboxSession(id, mailbox?.email || '')
+  try {
+    const directory = getMailboxDirectory().filter((item) => String(item.id) !== id)
+    localStorage.setItem(MAILBOX_DIRECTORY_KEY, JSON.stringify(directory))
+    const mailboxes = getMailboxes().filter(
+      (item) => String(item?.id || item?.mailbox_id || item?.email || '') !== id,
+    )
+    localStorage.setItem(MAILBOX_STORAGE_KEY, JSON.stringify(mailboxes))
+  } catch {
+    // Server-side validation remains authoritative if storage is unavailable.
+  }
+}
+
 export function hasMailboxSessionFromSearch(searchParams) {
   const mailbox = getActiveMailbox(searchParams)
   const mailboxId = getActiveMailboxId(searchParams)

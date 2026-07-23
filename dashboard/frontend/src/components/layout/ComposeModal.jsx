@@ -236,6 +236,7 @@ export default function ComposeModal({
       resetCompose()
       onClose()
       queryClient.invalidateQueries({ queryKey: ['emails'] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
     } catch (err) {
       const detail = err.response?.data?.detail
       const message = typeof detail === 'object'
@@ -291,6 +292,7 @@ export default function ComposeModal({
       })
       if (!silent) showToast(t('compose.draftSaved'), 'success')
       queryClient.invalidateQueries({ queryKey: ['emails'] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
       if (resetAfter) resetCompose()
       if (closeAfter) onClose()
     } catch (err) {

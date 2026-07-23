@@ -615,7 +615,12 @@ async def run_worker():
     r = aio_redis.from_url(REDIS_URL, socket_timeout=15, socket_connect_timeout=10)
 
     # Retry loop — tunggu PostgreSQL siap sebelum lanjut
-    engine = create_async_engine(DB_URL, echo=False)
+    engine = create_async_engine(
+        DB_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
     for attempt in range(1, 31):
         try:
             async with engine.begin() as conn:

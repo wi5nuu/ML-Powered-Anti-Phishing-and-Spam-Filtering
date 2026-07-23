@@ -5,15 +5,18 @@ import { APP_TIME_ZONE } from '../utils/time'
 // ── Quick stats (header ribbon, sidebar counts)
 // PERFORMANCE FIX: Disabled aggressive auto-refetch to prevent server overload
 // Stats now only refetch on manual action (compose, delete, etc) via React Query invalidation
-export const useStats = () =>
+export const useStats = ({ mailbox, mailboxId } = {}) =>
   useQuery({
-    queryKey: ['stats'],
+    queryKey: ['stats', mailbox || '', mailboxId || ''],
     queryFn: async () => {
-      const { data } = await api.get('/stats')
+      const params = {}
+      if (mailbox) params.mailbox = mailbox
+      if (mailboxId) params.mailbox_id = mailboxId
+      const { data } = await api.get('/stats', { params })
       return data
     },
-    refetchInterval: false, // Disabled - only refetch on invalidation
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 5000,
+    staleTime: 0,
   })
 
 // ── Full metrics panel (charts, top senders, daily stats)
@@ -27,8 +30,10 @@ export const useMetrics = ({ mailbox, mailboxId } = {}) =>
       const { data } = await api.get('/metrics', { params })
       return data
     },
-    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 5000,
   })
 
 // ── Audit log (paginated)

@@ -3,6 +3,7 @@
   flex-direction: column;
   flex: 1;
   background: var(--surface);
+  min-height: 0;
 }
 
 .trashNotice {
@@ -50,6 +51,8 @@
 .list {
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
 }
 
 .skeletonRow {
@@ -77,12 +80,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 20px;
+  min-height: 260px;
+  padding: 64px 24px;
   gap: 16px;
   color: var(--text-muted);
   font-size: 1rem;
   font-family: 'Google Sans', sans-serif;
+  text-align: center;
 }
+.empty p { max-width: 320px; margin: 0; line-height: 1.5; }
 
 @media (max-width: 600px) {
   .trashNotice { margin: 0 12px; }

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import GmailShell from '../components/layout/GmailShell'
 import { useTranslation } from '../i18n/context'
-import { useEmails, useToggleStarred } from '../api/emails'
+import { useEmails, useToggleReadEmail, useToggleStarred } from '../api/emails'
 import { useMe } from '../api/auth'
 import EmailRow from '../components/inbox/EmailRow'
 import EmailToolbar from '../components/inbox/EmailToolbar'
@@ -51,17 +51,7 @@ export default function SentPage() {
 
   const [selected, setSelected] = useState(new Set())
   const { mutate: toggleStarredMutate } = useToggleStarred()
-  const [readIds, setReadIds] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('cognimail_read_ids') || '[]'))
-    } catch {
-      return new Set()
-    }
-  })
-
-  useEffect(() => {
-    localStorage.setItem('cognimail_read_ids', JSON.stringify(Array.from(readIds)))
-  }, [readIds])
+  const { mutate: toggleReadMutate } = useToggleReadEmail()
 
   const sentRows = useMemo(() => {
     const rows = data?.emails || []
@@ -140,13 +130,8 @@ export default function SentPage() {
   }, [data, toggleStarredMutate])
 
   const setReadState = useCallback((id, shouldRead = true) => {
-    setReadIds((prev) => {
-      const next = new Set(prev)
-      if (shouldRead) next.add(id)
-      else next.delete(id)
-      return next
-    })
-  }, [])
+    toggleReadMutate({ emailId: id, isRead: shouldRead })
+  }, [toggleReadMutate])
 
   return (
     <GmailShell>
@@ -190,7 +175,7 @@ export default function SentPage() {
               key={email.email_id}
               email={email}
               senderLabel={`${t('common.recipient')}: ${email.recipient_list || t('common.na')}`}
-              isRead={readIds.has(email.email_id)}
+              isRead={email.is_read ?? false}
               isSelected={isThreadSelected(email)}
               onToggleSelect={() => toggleSelectThread(email)}
               isStarred={email.is_starred ?? false}

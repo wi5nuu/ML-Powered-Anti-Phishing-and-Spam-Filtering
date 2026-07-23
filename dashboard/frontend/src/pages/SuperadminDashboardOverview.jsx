@@ -102,9 +102,11 @@ export default function SuperadminDashboardOverview() {
     }
   }, [])
 
-  // BUGFIX: fetchAll wrapped in useCallback but used as useEffect dependency creates infinite loop
-  // Solution: Remove fetchAll from dependency array, run only on mount
-  useEffect(() => { fetchAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    fetchAll()
+    const interval = window.setInterval(fetchAll, 10000)
+    return () => window.clearInterval(interval)
+  }, [fetchAll])
 
   const allOk = health && (health.status === 'ok' || health.status === 'healthy')
 
@@ -164,7 +166,7 @@ export default function SuperadminDashboardOverview() {
     { label: t('overview.cleanLabel'), value: emailStats?.clean   ?? 0, color: '#34a853' },
   ]
 
-  const total = emailStats?.total || 1
+  const total = emailStats?.total ?? 0
 
   return (
     <div className={styles.wrap}>
@@ -316,7 +318,7 @@ export default function SuperadminDashboardOverview() {
               </div>
               <div className={styles.threatList}>
                 {threatItems.map((item) => {
-                  const pct = Math.round((item.value / total) * 100)
+                  const pct = total > 0 ? Math.round((item.value / total) * 100) : 0
                   return (
                     <div key={item.label} className={styles.threatRow}>
                       <div className={styles.threatTop}>

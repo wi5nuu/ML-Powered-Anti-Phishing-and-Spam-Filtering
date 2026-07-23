@@ -78,15 +78,6 @@ STRUCTURED_FEATURES = [
     "entropy_of_links",
     "num_forms",
     "javascript_present",
-    # ── Business context features ───────────────────────────────────────────
-    "safe_business_score",
-    "bec_score",
-    "urgency_level",
-    "sender_reputation",
-    "has_generic_greeting",
-    "request_for_transfer",
-    "ceo_impersonation",
-    "business_context_weight",
 ]
 
 # ─── Data Model ──────────────────────────────────────────────────────────────

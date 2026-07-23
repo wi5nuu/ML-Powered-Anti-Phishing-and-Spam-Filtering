@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2, GripVertical, Archive } from 'lucide-react'
-import { useDeleteEmail, useReleaseEmail, useRestoreEmail, useToggleReadEmail } from '../../api/emails'
+import { Mail, MailOpen, Paperclip, RotateCcw, Star, Trash2, Archive } from 'lucide-react'
+import { useDeleteEmail, useReleaseEmail, useRestoreEmail, useToggleReadEmail, useToggleStarred } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
 import { useTranslation } from '../../i18n/context'
 import api from '../../api/client'
@@ -45,6 +45,7 @@ export default function EmailRow({
   const { mutateAsync: releaseEmail } = useReleaseEmail()
   const { mutateAsync: restoreEmail } = useRestoreEmail()
   const { mutateAsync: toggleRead } = useToggleReadEmail()
+  const { mutate: toggleStarred } = useToggleStarred()
   const { showToast } = useToast()
 
   const verdict = (email.label || email.final_verdict || email.ensemble_verdict || 'clean').toLowerCase()
@@ -73,6 +74,15 @@ export default function EmailRow({
     const nextRead = !effectiveIsRead
     setRead(nextRead)
     showToast(nextRead ? t('emailRow.markAsRead') : t('emailRow.markAsUnread'), 'info')
+  }
+
+  const handleToggleStar = (e) => {
+    e.stopPropagation()
+    if (onToggleStar) {
+      onToggleStar(email.email_id)
+      return
+    }
+    toggleStarred({ emailId: email.email_id, isStarred: !isStarred })
   }
 
   const handleRowClick = () => {
@@ -152,9 +162,6 @@ export default function EmailRow({
         onClick={handleRowClick}
       >
         <div className={styles.actions}>
-          <span className={styles.dragHandle} title="Geser">
-            <GripVertical size={14} color="#9aa0a6" />
-          </span>
           <input
             type="checkbox"
             checked={isSelected}
@@ -164,7 +171,7 @@ export default function EmailRow({
           {!isTrash && (
             <button
               className={`${styles.starBtn} ${isStarred ? styles.starActive : ''}`}
-              onClick={(e) => { e.stopPropagation(); onToggleStar?.(email.email_id) }}
+              onClick={handleToggleStar}
               title={isStarred ? t('emailRow.unmarkImportant') : t('emailRow.markImportant')}
             >
               <Star size={15} fill={isStarred ? '#f2c94c' : 'none'} color={isStarred ? '#f2c94c' : '#5f6368'} />

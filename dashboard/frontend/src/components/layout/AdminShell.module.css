@@ -57,6 +57,13 @@
   flex-shrink: 0;
 }
 
+.brandIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .brandText {
   display: flex;
   flex-direction: column;
@@ -219,6 +226,44 @@
 /* ── Spacer ── */
 .spacer { flex: 1; }
 
+.logoutBtnSide {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 10px 12px;
+  padding: 10px 12px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.logoutBtnSide:hover {
+  border-color: var(--gmail-red);
+  color: var(--gmail-red);
+  background: var(--gmail-red-bg);
+}
+
+.logoutBtnSide:disabled,
+.logoutBtn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.collapsed .logoutBtnSide {
+  justify-content: center;
+  margin-inline: 10px;
+  padding-inline: 0;
+}
+
 /* ── Back btn ── */
 .backBtn {
   display: flex;
@@ -330,6 +375,16 @@
   border-radius: 24px;
   border: 1px solid var(--border);
   background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+}
+
+.userChip:hover {
+  border-color: var(--role-accent);
+  background: var(--role-soft);
 }
 
 .avatar {
@@ -469,6 +524,8 @@
 [data-theme='dark'] .navItemActive:hover { background: color-mix(in srgb, var(--role-accent) 28%, #111318); }
 [data-theme='dark'] .backBtn { border-color: #2D3139; color: #6B7280; }
 [data-theme='dark'] .backBtn:hover { border-color: var(--role-accent-2); color: var(--role-accent-2); background: color-mix(in srgb, var(--role-accent) 22%, #111318); }
+[data-theme='dark'] .logoutBtnSide { border-color: #2D3139; color: #9CA3AF; }
+[data-theme='dark'] .logoutBtnSide:hover { border-color: #F87171; color: #F87171; background: #2D1515; }
 [data-theme='dark'] .topbar { background: #1A1D23; border-bottom-color: #2D3139; }
 [data-theme='dark'] .breadcrumbCurrent { color: #F3F4F6; }
 [data-theme='dark'] .breadcrumbRoot { color: #6B7280; }
@@ -519,10 +576,7 @@
     padding-top: env(safe-area-inset-top, 0px);
     gap: 8px;
   }
-  .content { 
-    -webkit-overflow-scrolling: touch;
-    padding: 16px 12px;
-  }
+  .content { -webkit-overflow-scrolling: touch; }
   .breadcrumb {
     padding: 10px 12px;
   }
@@ -538,10 +592,6 @@
     padding: 0 12px; 
     gap: 6px;
     height: 52px;
-  }
-  
-  .content {
-    padding: 12px 10px;
   }
   
   .rolePill {
@@ -589,10 +639,6 @@
     padding: 3px; 
     border: none; 
     background: transparent; 
-  }
-  
-  .content {
-    padding: 10px 8px;
   }
   
   .userMenu {

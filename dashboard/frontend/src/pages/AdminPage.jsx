@@ -4,13 +4,11 @@ import { useTranslation } from '../i18n/context'
 import AdminShell from '../components/layout/AdminShell'
 import api from '../api/client'
 import { useMe } from '../api/auth'
-import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, AtSign, TrendingUp, TrendingDown, Inbox, Server, Wifi, Database, Cpu, Clock, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, RefreshCw, Download } from 'lucide-react'
+import { Users, Shield, Mail, Activity, Plus, X, Check, AlertCircle, Reply, ChevronDown, ChevronUp, Flag, ChevronRight, Settings, Save, Eye, EyeOff, Copy, TrendingUp, TrendingDown, Inbox, Database, Clock, CheckCircle2, AlertTriangle, ShieldCheck, ShieldAlert, Zap, FileText, ListFilter, ArrowUpRight, MoreVertical, KeyRound, Forward, RefreshCw, Download } from 'lucide-react'
 import SuperadminDashboardOverview from './SuperadminDashboardOverview'
 import SuperadminUserManagement from './SuperadminUserManagement'
-import SuperadminMailboxManagement from './SuperadminMailboxManagement'
 import SuperadminSystemHealth from './SuperadminSystemHealth'
 import SuperadminUserAnalytics from './SuperadminUserAnalytics'
-import AdminUserManagement from './AdminUserManagement'
 import AdminMailboxManagement from './AdminMailboxManagement'
 import AdminQuarantineReview from './AdminQuarantineReview'
 import AdminDetectionLogs from './AdminDetectionLogs'
@@ -23,18 +21,9 @@ import trackStyles from './ThreatReportPage.module.css'
 
 const CATEGORY_COLORS = { bug: '#ea4335', question: '#1a73e8', access: '#f29900', false_positive: '#34a853', other: '#5f6368' }
 const PRIORITY_COLORS = { low: '#5f6368', normal: '#1a73e8', high: '#f29900', urgent: '#ea4335' }
-const systemServices = [
-  { nameKey: 'service.smtp', status: 'healthy', icon: <Mail size={14} /> },
-  { nameKey: 'service.database', status: 'healthy', icon: <Database size={14} /> },
-  { nameKey: 'service.redis', status: 'healthy', icon: <Wifi size={14} /> },
-  { nameKey: 'service.classifier', status: 'healthy', icon: <Cpu size={14} /> },
-  { nameKey: 'service.restApi', status: 'healthy', icon: <Server size={14} /> },
-]
-const statusMeta = {
-  healthy:  { bg: '#ECFDF5', color: '#059669', icon: <CheckCircle2 size={13} />, labelKey: 'status.online' },
-  warning:  { bg: '#FFFBEB', color: '#D97706', icon: <AlertTriangle size={13} />, labelKey: 'status.warning' },
-  down:     { bg: '#FEF2F2', color: '#DC2626', icon: <XCircle size={13} />, labelKey: 'status.offline' },
-}
+const SUPERADMIN_TABS = new Set(['overview', 'track', 'users', 'email', 'analytics', 'threat', 'activity', 'reports', 'health', 'settings'])
+const ADMIN_TABS = new Set(['overview', 'email', 'review', 'logs', 'activity', 'reports', 'settings'])
+
 export default function AdminPage() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -43,27 +32,14 @@ export default function AdminPage() {
   const tab = searchParams.get('tab') || 'overview'
   const isSuper = me?.user?.role === 'superadmin'
   const isAdmin = me?.user?.role === 'admin'
-  // Safety: redirect unauthorized users away from tabs
+  // Keep direct/query-string navigation within the tabs available to each role.
   useEffect(() => {
-    if (tab === 'users' && !isSuper && !isAdmin && me) {
+    if (!me) return
+    const allowedTabs = isSuper ? SUPERADMIN_TABS : isAdmin ? ADMIN_TABS : new Set()
+    if (!allowedTabs.has(tab)) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
-    if (tab === 'email' && !isSuper && !isAdmin && me) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-    if (tab === 'track' && !isSuper && me) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-    if (tab === 'health' && !isSuper && me) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-    if (tab === 'review' && !isSuper && !isAdmin && me) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-    if (tab === 'logs' && !isSuper && !isAdmin && me) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-  }, [tab, isSuper, isAdmin, me])
+  }, [tab, isSuper, isAdmin, me, setSearchParams])
 
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
@@ -110,14 +86,22 @@ export default function AdminPage() {
       setMailboxState(emails)
       setMailboxes(emails)
     } catch {
-      const fallback = getMailboxes()
-      setMailboxRows(fallback.map((email, index) => ({ id: `local-${index}`, email, domain: email.split('@')[1] || mailDomain })))
-      setMailboxState(fallback)
+      // Do not present cached/local mailbox entries as if they came from the server.
+      setMailboxRows([])
+      setMailboxState([])
     }
   }
 
-  // Fetch static data on mount
-  useEffect(() => { fetchData(); fetchMailboxes() }, [])
+  // Keep dashboard values synchronized with the database.
+  useEffect(() => {
+    fetchData()
+    fetchMailboxes()
+    const interval = window.setInterval(() => {
+      fetchData()
+      fetchMailboxes()
+    }, 10000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   // Fetch superadmin-only track data once role is known
   useEffect(() => {
@@ -335,28 +319,17 @@ export default function AdminPage() {
   }
 
   const totalThreats = stats ? (stats.warn || 0) + (stats.quarantine || 0) : 0
-  const totalEmails = stats ? Math.max(stats.total_emails || 1, 1) : 1
-  const safePct = stats ? Math.round(((stats.clean || 0) / totalEmails) * 100) : 0
-  const spamPct = stats ? Math.round(((stats.warn || 0) / totalEmails) * 100) : 0
-  const quarantinePct = stats ? Math.round(((stats.quarantine || 0) / totalEmails) * 100) : 0
+  const totalEmails = stats?.total_emails ?? 0
+  const percentage = (value) => totalEmails > 0 ? Math.round(((value || 0) / totalEmails) * 100) : 0
+  const safePct = percentage(stats?.clean)
+  const spamPct = percentage(stats?.categories?.spam)
+  const phishingPct = percentage(stats?.categories?.phishing)
+  const quarantinePct = percentage(stats?.quarantine)
 
   return (
     <AdminShell>
       <div className={styles.page}>
         {msg && <div className={styles.msg}>{msg}</div>}
-
-        <div className={styles.tabs}>
-          <button className={`${styles.tab} ${tab === 'overview' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'overview' })}>{t('tab.overview')}</button>
-          {isSuper && <button className={`${styles.tab} ${tab === 'track' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'track' })}>{t('tab.tracking')}</button>}
-          <button className={`${styles.tab} ${tab === 'users' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'users' })}>{t('tab.users')}</button>
-          <button className={`${styles.tab} ${tab === 'activity' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'activity' })}>{t('tab.activity')}</button>
-          <button className={`${styles.tab} ${tab === 'email' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'email' })}>{t('tab.email')}</button>
-          <button className={`${styles.tab} ${tab === 'reports' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'reports' })}>{t('tab.reports')}</button>
-          {!isSuper && <button className={`${styles.tab} ${tab === 'review' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'review' })}>{t('tab.review')}</button>}
-          {!isSuper && <button className={`${styles.tab} ${tab === 'logs' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'logs' })}>{t('tab.logs')}</button>}
-          {isSuper && <button className={`${styles.tab} ${tab === 'health' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'health' })}>{t('tab.health')}</button>}
-          <button className={`${styles.tab} ${tab === 'settings' ? styles.tabActive : ''}`} onClick={() => setSearchParams({ tab: 'settings' })}>{t('tab.settings')}</button>
-        </div>
 
         {tab === 'overview' && isSuper && (
           <SuperadminDashboardOverview />
@@ -441,7 +414,7 @@ export default function AdminPage() {
                   <div className={styles.sc2Body}>
                     <span className={styles.sc2Value}>{totalThreats}</span>
                     <span className={styles.sc2Label}>{t('stat.threatsDetected')}</span>
-                    <span className={styles.sc2Sub}>{((totalThreats / totalEmails) * 100).toFixed(1)}{t('stat.percentOfTotal')}</span>
+                    <span className={styles.sc2Sub}>{(totalEmails > 0 ? (totalThreats / totalEmails) * 100 : 0).toFixed(1)}{t('stat.percentOfTotal')}</span>
                   </div>
                   <TrendingDown size={14} className={styles.sc2Arrow} style={{ color: '#DC2626' }} />
                 </div>
@@ -509,7 +482,7 @@ export default function AdminPage() {
                             <span className={styles.secDot} style={{ background: '#D97706' }} />
                             {t('overview.spam')}
                           </span>
-                          <span className={styles.secBarCount}>{stats.warn ?? 0}</span>
+                          <span className={styles.secBarCount}>{stats.categories?.spam ?? 0}</span>
                         </div>
                         <div className={styles.secBarTrack}>
                           <div className={styles.secBarFill} style={{ width: `${spamPct}%`, background: '#D97706' }} />
@@ -521,14 +494,14 @@ export default function AdminPage() {
                         <div className={styles.secBarMeta}>
                           <span className={styles.secBarLabel}>
                             <span className={styles.secDot} style={{ background: '#DC2626' }} />
-                            {t('overview.phishingMalware')}
+                            {t('overview.phishing')}
                           </span>
-                          <span className={styles.secBarCount}>{Math.round((stats.quarantine ?? 0) * 0.6)}</span>
+                          <span className={styles.secBarCount}>{stats.categories?.phishing ?? 0}</span>
                         </div>
                         <div className={styles.secBarTrack}>
-                          <div className={styles.secBarFill} style={{ width: `${Math.round(quarantinePct * 0.6)}%`, background: '#DC2626' }} />
+                          <div className={styles.secBarFill} style={{ width: `${phishingPct}%`, background: '#DC2626' }} />
                         </div>
-                        <span className={styles.secBarPct}>{Math.round(quarantinePct * 0.6)}%</span>
+                        <span className={styles.secBarPct}>{phishingPct}%</span>
                       </div>
 
                       <div className={styles.secBar}>
@@ -548,60 +521,22 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Mailbox Overview (superadmin) or Threat Breakdown (admin) */}
-                {isSuper ? (
-                  <div className={styles.sectionCard}>
-                    <div className={styles.sectionCardHeader}>
-                      <Mail size={16} className={styles.sectionCardIcon} />
-                      <span>{t('mailbox.title')}</span>
-                    </div>
-                    <div className={styles.mailboxOverview}>
-                      <div className={styles.mboDomainRow}>
-                        <div className={styles.mboDomainIcon}>
-                          <AtSign size={18} />
-                        </div>
-                        <div>
-                          <div className={styles.mboDomain}>{mailDomain}</div>
-                          <div className={styles.mboSub}>{t('mailbox.primaryDomain')}</div>
-                        </div>
-                      </div>
-                      <div className={styles.mboStats}>
-                        <div className={styles.mboStatItem}>
-                          <span className={styles.mboStatValue}>{mailboxRows.length}</span>
-                          <span className={styles.mboStatLabel}>{t('mailbox.activeMailboxes')}</span>
-                        </div>
-                        <div className={styles.mboStatItem}>
-                          <span className={styles.mboStatValue}>0 KB</span>
-                          <span className={styles.mboStatLabel}>{t('mailbox.storageUsed')}</span>
-                        </div>
-                        <div className={styles.mboStatItem}>
-                          <span className={styles.mboStatValue} style={{ color: '#059669' }}>100%</span>
-                          <span className={styles.mboStatLabel}>{t('mailbox.available')}</span>
-                        </div>
-                      </div>
-                      <button className={styles.mboBtn} onClick={() => setSearchParams({ tab: 'email' })}>
-                        <Mail size={14} />
-                        {t('mailbox.manage')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.sectionCard}>
+                <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <TrendingDown size={16} className={styles.sectionCardIcon} style={{ color: '#DC2626' }} />
                       <span>{t('overview.threatBreakdown')}</span>
                     </div>
                     <div className={styles.threatGrid}>
                       <div className={styles.threatItem} style={{ '--tc': '#D97706', '--tb': '#FFFBEB' }}>
-                        <span className={styles.threatValue}>{stats?.warn ?? 0}</span>
+                        <span className={styles.threatValue}>{stats?.categories?.spam ?? 0}</span>
                         <span className={styles.threatLabel}>{t('overview.spam')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#DC2626', '--tb': '#FEF2F2' }}>
-                        <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.6)}</span>
+                        <span className={styles.threatValue}>{stats?.categories?.phishing ?? 0}</span>
                         <span className={styles.threatLabel}>{t('overview.phishing')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#7C3AED', '--tb': '#F3E8FF' }}>
-                        <span className={styles.threatValue}>{Math.round((stats?.quarantine ?? 0) * 0.4)}</span>
+                        <span className={styles.threatValue}>{stats?.categories?.malware ?? 0}</span>
                         <span className={styles.threatLabel}>{t('overview.malware')}</span>
                       </div>
                       <div className={styles.threatItem} style={{ '--tc': '#059669', '--tb': '#ECFDF5' }}>
@@ -610,37 +545,12 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </div>
-                )}
               </div>
 
               {/* RIGHT COLUMN */}
               <div className={styles.dashCol}>
 
-                {/* System Health (superadmin) or Security Queue (admin) */}
-                {isSuper ? (
-                  <div className={styles.sectionCard}>
-                    <div className={styles.sectionCardHeader}>
-                      <Server size={16} className={styles.sectionCardIcon} />
-                      <span>{t('overview.systemHealth')}</span>
-                      <span className={styles.sectionCardBadge} style={{ background: '#ECFDF5', color: '#059669' }}>{t('overview.allSystemsOnline')}</span>
-                    </div>
-                    <div className={styles.healthList}>
-                      {systemServices.map((svc) => {
-                        const meta = statusMeta[svc.status]
-                        return (
-                          <div key={svc.name} className={styles.healthRow}>
-                            <span className={styles.healthIcon} style={{ background: '#F9FAFB', color: '#374151' }}>{svc.icon}</span>
-                            <span className={styles.healthName}>{t(svc.nameKey)}</span>
-                            <span className={styles.healthBadge} style={{ background: meta.bg, color: meta.color }}>
-                              {meta.icon} {t(meta.labelKey)}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.sectionCard}>
+                <div className={styles.sectionCard}>
                     <div className={styles.sectionCardHeader}>
                       <ListFilter size={16} className={styles.sectionCardIcon} />
                       <span>{t('overview.securityQueue')}</span>
@@ -665,7 +575,6 @@ export default function AdminPage() {
                       )}
                     </div>
                   </div>
-                )}
 
                 {/* Recent Activity */}
                 <div className={styles.sectionCard}>
@@ -737,9 +646,6 @@ export default function AdminPage() {
 
         {tab === 'users' && isSuper && (
           <SuperadminUserManagement />
-        )}
-        {tab === 'users' && !isSuper && (
-          <AdminUserManagement />
         )}
 
         {tab === 'reports' && (
@@ -1002,7 +908,7 @@ export default function AdminPage() {
         )}
 
         {tab === 'email' && isSuper && (
-          <SuperadminMailboxManagement />
+          <AdminMailboxManagement />
         )}
         {tab === 'email' && !isSuper && (
           <AdminMailboxManagement />
@@ -1082,4 +988,4 @@ export default function AdminPage() {
       <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} userRole={me?.user?.role} />
     </AdminShell>
   )
-}
+}

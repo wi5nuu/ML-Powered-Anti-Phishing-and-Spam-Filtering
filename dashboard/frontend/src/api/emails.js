@@ -35,8 +35,12 @@ export const useEmails = (filter = 'all', searchQuery = '', options = {}) =>
       const { data } = await api.get('/emails', { params })
       return data
     },
-    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch to prevent loading 100k+ emails every 30s
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    // Each request is paginated, so polling keeps the mailbox current without
+    // loading the entire table or inventing client-side counts.
+    refetchInterval: options.refetchInterval ?? 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 3000,
   })
 
 // ── Fetch single email
@@ -174,7 +178,9 @@ export const useToggleReadEmail = () => {
     onMutate: async ({ emailId, isRead }) => {
       // Optimistically update the list cache
       await qc.cancelQueries({ queryKey: ['emails'] })
+      await qc.cancelQueries({ queryKey: ['email', emailId] })
       const prev = qc.getQueriesData({ queryKey: ['emails'] })
+      const prevDetail = qc.getQueryData(['email', emailId])
       qc.setQueriesData({ queryKey: ['emails'] }, (old) => {
         if (!old) return old
         return {
@@ -185,14 +191,34 @@ export const useToggleReadEmail = () => {
       // Optimistically update the single email cache if it exists
       qc.setQueryData(['email', emailId], (old) => {
         if (!old) return old
-        return { ...old, is_read: isRead }
+        return {
+          ...old,
+          is_read: isRead,
+          thread_is_read: isRead,
+          thread_has_unread: !isRead,
+          thread_messages: Array.isArray(old.thread_messages)
+            ? old.thread_messages.map((message) => {
+                const label = String(message.label || '').toUpperCase()
+                const status = String(message.status || '').toLowerCase()
+                return label === 'SENT' || label === 'DRAFT' || status === 'sent' || status === 'draft'
+                  ? message
+                  : { ...message, is_read: isRead }
+              })
+            : old.thread_messages,
+        }
       })
-      return { prev }
+      return { prev, prevDetail }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueriesData({ queryKey: ['emails'] }, ctx.prev)
+      if (ctx?.prev) {
+        ctx.prev.forEach(([queryKey, data]) => qc.setQueryData(queryKey, data))
+      }
+      if (ctx?.prevDetail) qc.setQueryData(['email', _vars.emailId], ctx.prevDetail)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['emails'] }),
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ['emails'] })
+      qc.invalidateQueries({ queryKey: ['email', vars.emailId] })
+    },
   })
 }
 

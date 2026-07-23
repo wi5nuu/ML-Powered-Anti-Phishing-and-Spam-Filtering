@@ -1,0 +1,4 @@
+# These existing source files are stored with CRLF in repository history.
+# Preserve them byte-for-byte so Windows autocrlf does not create whole-file diffs.
+dashboard/app.py -text
+dashboard/frontend/src/pages/AdminPage.jsx -text
