@@ -1,10 +1,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useEmails, useToggleStarred } from '../../api/emails'
-import { useStats } from '../../api/metrics'
 import { useMe } from '../../api/auth'
 import { useTranslation } from '../../i18n/context'
-import CategoryTabs from './CategoryTabs'
 import EmailToolbar from './EmailToolbar'
 import EmailRow from './EmailRow'
 import { getActiveMailbox, getActiveMailboxId } from '../../utils/mailbox'
@@ -12,42 +10,6 @@ import { groupEmailsIntoThreads } from '../../utils/threadUtils'
 import styles from './EmailList.module.css'
 
 const PAGE_SIZE = 50
-
-const DEFAULT_SAMPLE_EMAILS = [
-  {
-    email_id: 'sample-1',
-    sender: 'Tech Newsletter',
-    sender_email: 'newsletter@example.com',
-    subject: 'Weekly Tech Updates - Cloud Computing Trends',
-    body_preview: 'This week: serverless architecture, container orchestration...',
-    timestamp: '2026-07-22T19:01:00Z',
-    is_read: false,
-    is_starred: false,
-    label: 'INBOX',
-  },
-  {
-    email_id: 'sample-2',
-    sender: 'Project Updates',
-    sender_email: 'updates@company.com',
-    subject: 'Sprint Review Meeting - Q3 Planning',
-    body_preview: 'Join us for the sprint review and Q3 planning session...',
-    timestamp: '2026-07-22T16:51:00Z',
-    is_read: true,
-    is_starred: false,
-    label: 'INBOX',
-  },
-  {
-    email_id: 'sample-3',
-    sender: 'Training Platform',
-    sender_email: 'training@platform.com',
-    subject: 'New Course Available: Advanced React Patterns',
-    body_preview: 'Enhance your React skills with our latest course...',
-    timestamp: '2026-07-22T16:21:00Z',
-    is_read: true,
-    is_starred: false,
-    label: 'INBOX',
-  },
-]
 
 export default function EmailList({ view = '', activeEmailId = null }) {
   const { t } = useTranslation()
@@ -78,17 +40,17 @@ export default function EmailList({ view = '', activeEmailId = null }) {
     pageSize: PAGE_SIZE,
     enabled: !meLoading && emailResolved,
   })
-  const { data: stats } = useStats()
-  const retentionLabel = folder === 'trash' ? t('gmail.trash') : t('gmail.' + category)
+  const retentionLabel = folder === 'trash'
+    ? t('gmail.trash')
+    : category
+      ? t(`gmail.${category}`)
+      : ''
 
   const [selected, setSelected] = useState(new Set())
   const { mutate: toggleStarredMutate } = useToggleStarred()
 
   const emails = useMemo(() => {
     const list = data?.emails || []
-    if (list.length === 0 && !isLoading) {
-      return DEFAULT_SAMPLE_EMAILS
-    }
     return [...list].sort((a, b) => {
       const aTime = new Date(a.received_at || a.timestamp || 0).getTime()
       const bTime = new Date(b.received_at || b.timestamp || 0).getTime()
@@ -161,7 +123,6 @@ export default function EmailList({ view = '', activeEmailId = null }) {
 
   return (
     <div className={styles.wrapper}>
-      {!folder && <CategoryTabs activeFilter={filter} />}
       {retentionLabel && (
         <div className={styles.trashNotice}>
           {t('emailList.retentionNotice').replace('{folder}', retentionLabel)}

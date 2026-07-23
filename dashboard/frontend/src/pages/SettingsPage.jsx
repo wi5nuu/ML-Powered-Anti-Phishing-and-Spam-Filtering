@@ -119,7 +119,7 @@ const DEFAULTS = {
   imap_port: 993,
   imap_user: '',
   poll_interval_seconds: 30,
-  protected_domains: ['lodaya.id', 'lodayatech.id', 'lodaya.co.id'],
+  protected_domains: [],
   whitelist_senders: [],
   admin_alert_email: '',
   max_quarantine_days: 30,

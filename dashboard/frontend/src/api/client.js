@@ -7,6 +7,32 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+function normalizeApiDetail(detail) {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === 'string') return item
+        if (!item || typeof item !== 'object') return String(item ?? '')
+        const location = Array.isArray(item.loc)
+          ? item.loc.filter((part) => part !== 'body').join('.')
+          : ''
+        const message = item.msg || item.message || item.detail || ''
+        return [location, message].filter(Boolean).join(': ')
+      })
+      .filter(Boolean)
+    return messages.join('; ') || 'Request validation failed.'
+  }
+  if (detail && typeof detail === 'object') {
+    return detail.message || detail.msg || detail.detail || JSON.stringify(detail)
+  }
+  return detail == null ? '' : String(detail)
+}
+
+export function getApiErrorMessage(error, fallback = 'Request failed.') {
+  return normalizeApiDetail(error?.response?.data?.detail) || error?.message || fallback
+}
+
 function clearAllCognimailStorage() {
   // On dashboard session expiry, clear ALL cognimail.* keys — not just sessions.
   // This prevents stale mailbox list / directory / domain from the expired session
@@ -61,6 +87,12 @@ function redirectExpiredSession() {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    if (err.response?.data && Object.prototype.hasOwnProperty.call(err.response.data, 'detail')) {
+      err.response.data = {
+        ...err.response.data,
+        detail: normalizeApiDetail(err.response.data.detail),
+      }
+    }
     if (err.response?.status === 401) {
       const url = err.config?.url || ''
       const isLoginRequest = url.includes('/auth/login') || url.includes('/mailboxes/login')

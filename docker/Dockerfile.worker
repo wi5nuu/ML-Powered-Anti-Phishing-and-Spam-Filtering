@@ -21,7 +21,6 @@ COPY worker/ worker/
 COPY mail_delivery/ mail_delivery/
 COPY decision_engine/ decision_engine/
 COPY database/ database/
-COPY ingestion/ ingestion/
 COPY classifier/ classifier/
 
 CMD ["python", "-m", "worker.pipeline_worker"]

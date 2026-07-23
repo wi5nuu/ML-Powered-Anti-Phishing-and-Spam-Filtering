@@ -8,49 +8,24 @@ import { useTranslation } from '../../i18n/context'
 import logoImg from '../../assets/logo.png'
 import {
   Menu, Search, Settings, Sun, Moon, User,
-  Pencil, Inbox, Send, SlidersHorizontal, HelpCircle, Grid,
-  Shield, Flag, Calendar, CheckSquare, Users, Plus, Sparkles,
-  Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
+  Pencil, Inbox, Send,
+  Shield, Flag,
+  Star, FileText, Mail, ChevronDown, ChevronRight
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
-import EmailList from '../inbox/EmailList'
-import AppGrid from './AppGrid'
-import EmailDetailPage from '../../pages/EmailDetailPage'
-import { ReadPaneProvider, useReadPane } from '../../contexts/ReadPaneContext'
 import { clearMailboxSession, getActiveMailbox, getActiveMailboxId, getMailboxById, getMailboxSession, setMailboxSession, withMailbox } from '../../utils/mailbox'
 import { useUserMailbox } from '../../api/userMailbox'
 import { avatarColor, avatarInitial, hasUploadedAvatar } from '../../utils/avatar'
 import styles from './GmailShell.module.css'
 
-// Derive which list view to show alongside the email detail, based on the
-// `from` query param that EmailRow embeds when navigating to the detail route.
-function getListViewFromPath(fromPath) {
-  if (!fromPath) return ''
-  const segment = fromPath.match(/^\/mail\/[^/]+\/([^/?]+)/)?.[1] || ''
-  if (segment === 'sent') return 'sent'
-  if (segment === 'drafts') return 'draft'
-  if (segment === 'all') return 'allmail'
-  if (segment === 'trash') return 'trash'
-  if (segment === 'starred') return 'starred'
-  if (['spam', 'phishing', 'malware'].includes(segment)) return segment
-  if (fromPath.startsWith('/sent')) return 'sent'
-  if (fromPath.startsWith('/draft')) return 'draft'
-  // inbox: carry over folder/category
-  return ''
-}
-
 export default function GmailShell({ children }) {
-  // Move all hooks before any conditional returns (Rules of Hooks)
-  const inReadPane = useReadPane()
   const { t } = useTranslation()
   const { theme, toggle } = useTheme()
   const { data: me } = useMe()
-  const { data: stats } = useStats()
   const { mutate: logout } = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [appGridOpen, setAppGridOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
@@ -99,6 +74,7 @@ export default function GmailShell({ children }) {
   const activeMailbox = rawActiveMailbox || (urlMailboxIsEmail ? activeMailboxId : '')
   const mailboxIdentity = activeMailbox || userMailboxEmail
   const mailboxId = activeMailboxId || userMailboxId
+  const { data: stats } = useStats({ mailbox: mailboxIdentity, mailboxId })
   const displayIdentity = mailboxIdentity || user?.username || ''
   const displayRole = mailboxIdentity ? t('gmail.mailboxRole') : user?.role
   const displayInitial = avatarInitial(displayIdentity || 'U')
@@ -110,19 +86,15 @@ export default function GmailShell({ children }) {
   const hasTopbarIdentity = Boolean(user || hasMailboxIdentity)
 
   // ── Split-pane detection ──────────────────────────────────────────────────
-  const isInboxPath =
-    location.pathname === '/inbox' ||
-    /^\/mail\/[^/]+\/inbox$/.test(location.pathname) ||
-    location.pathname === '/'
   const isEmailDetailPath =
     /^\/email\/[^/]+/.test(location.pathname) ||
     /^\/mail\/[^/]+\/email\/[^/]+/.test(location.pathname)
-  const isSplitPane = isEmailDetailPath || isInboxPath
-  const activeEmailId =
-    location.pathname.match(/\/email\/([^/?]+)/)?.[1] ||
-    (isInboxPath ? 'gdg-event-1' : null)
-  const fromPath = searchParams.get('from') || ''
-  const splitListView = getListViewFromPath(fromPath)
+
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'CogniMail Box'
+    return () => { document.title = previousTitle || 'CogniMail Dashboard' }
+  }, [])
 
 
   useEffect(() => {
@@ -229,29 +201,41 @@ export default function GmailShell({ children }) {
     logout()
   }
 
-  const runSearch = () => {
-    const value = searchValue.trim()
+  const getSearchContext = () => {
     const sourcePath = isEmailDetailPath
       ? (searchParams.get('from') || '/inbox')
       : `${location.pathname}${location.search}`
     const [basePath, baseQuery = ''] = sourcePath.split('?')
     const baseParams = new URLSearchParams(baseQuery)
+    const mailSection = basePath.match(/^\/mail\/[^/]+\/([^/]+)/)?.[1] || ''
 
     let searchBase = '/inbox'
-    if (basePath.startsWith('/sent')) searchBase = '/sent'
-    else if (basePath.startsWith('/draft')) searchBase = '/draft'
-    else if (/^\/mail\/[^/]+\/sent/.test(basePath)) searchBase = '/sent'
-    else if (/^\/mail\/[^/]+\/drafts/.test(basePath)) searchBase = '/draft'
+    if (basePath.startsWith('/sent') || mailSection === 'sent') searchBase = '/sent'
+    else if (basePath.startsWith('/draft') || mailSection === 'drafts') searchBase = '/draft'
 
     const params = new URLSearchParams()
-    if (value) params.set('q', value)
-
     if (searchBase === '/inbox') {
-      const folder = baseParams.get('folder')
-      const category = baseParams.get('category')
+      const folder = mailSection === 'starred'
+        ? 'starred'
+        : mailSection === 'all'
+          ? 'allmail'
+          : mailSection === 'trash'
+            ? 'trash'
+            : baseParams.get('folder')
+      const category = ['spam', 'phishing', 'malware'].includes(mailSection)
+        ? mailSection
+        : baseParams.get('category')
       if (folder) params.set('folder', folder)
       if (category) params.set('category', category)
     }
+
+    return { searchBase, params }
+  }
+
+  const runSearch = () => {
+    const value = searchValue.trim()
+    const { searchBase, params } = getSearchContext()
+    if (value) params.set('q', value)
 
     const query = params.toString()
     navigate(withMailbox(query ? `${searchBase}?${query}` : searchBase, mailboxIdentity, mailboxId))
@@ -259,29 +243,9 @@ export default function GmailShell({ children }) {
 
   const clearSearch = () => {
     setSearchValue('')
-    const sourcePath = isEmailDetailPath
-      ? (searchParams.get('from') || '/inbox')
-      : `${location.pathname}${location.search}`
-    const [basePath, baseQuery = ''] = sourcePath.split('?')
-    const baseParams = new URLSearchParams(baseQuery)
-    baseParams.delete('q')
-
-    let clearBase = '/inbox'
-    if (basePath.startsWith('/sent')) clearBase = '/sent'
-    else if (basePath.startsWith('/draft')) clearBase = '/draft'
-    else if (/^\/mail\/[^/]+\/sent/.test(basePath)) clearBase = '/sent'
-    else if (/^\/mail\/[^/]+\/drafts/.test(basePath)) clearBase = '/draft'
-    else {
-      const folder = baseParams.get('folder')
-      const category = baseParams.get('category')
-      const keep = new URLSearchParams()
-      if (folder) keep.set('folder', folder)
-      if (category) keep.set('category', category)
-      const q = keep.toString()
-      navigate(withMailbox(q ? `/inbox?${q}` : '/inbox', mailboxIdentity, mailboxId))
-      return
-    }
-    navigate(withMailbox(clearBase, mailboxIdentity, mailboxId))
+    const { searchBase, params } = getSearchContext()
+    const query = params.toString()
+    navigate(withMailbox(query ? `${searchBase}?${query}` : searchBase, mailboxIdentity, mailboxId))
   }
 
   const handleSearch = (e) => {
@@ -372,11 +336,6 @@ export default function GmailShell({ children }) {
     </NavLink>
   )
 
-  // Early return after all hooks have been called (Rules of Hooks compliance)
-  if (inReadPane) {
-    return <div className={styles.readPaneContent}>{children}</div>
-  }
-
   return (
     <div className={styles.shell} onClick={handleShellClick}>
       {/* ═══ TOP BAR (100% Gmail Style matching UI_user_page.png) ═══ */}
@@ -402,12 +361,8 @@ export default function GmailShell({ children }) {
             <Menu size={20} />
           </button>
           <NavLink to={withMailbox('/inbox', mailboxIdentity, mailboxId)} className={styles.brand}>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M4 8L16 17L28 8V24H4V8Z" fill="#EA4335" />
-              <path d="M4 8L16 17L28 8H4Z" fill="#C5221F" />
-              <path d="M28 8V24H24V11L16 17L8 11V24H4V8H28Z" fill="#4285F4" />
-            </svg>
-            <span className={styles.brandText}>Gmail</span>
+            <img src={logoImg} alt="CogniMail" />
+            <span className={styles.brandText}><b>CogniMail</b><small>{mailboxIdentity || 'Secure Mail'}</small></span>
           </NavLink>
         </div>
 
@@ -419,7 +374,7 @@ export default function GmailShell({ children }) {
             </button>
             <input
               type="text"
-              placeholder="Telusuri email"
+              placeholder={t('gmail.searchPlaceholder')}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={handleSearch}
@@ -427,7 +382,7 @@ export default function GmailShell({ children }) {
               onBlur={() => setSearchFocused(false)}
               id="search-input"
             />
-            {searchValue ? (
+            {searchValue && (
               <button
                 className={styles.searchIcon}
                 onClick={clearSearch}
@@ -437,42 +392,12 @@ export default function GmailShell({ children }) {
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
-            ) : (
-              <button className={styles.searchIcon} title="Opsi penelusuran" onClick={runSearch}>
-                <SlidersHorizontal size={18} />
-              </button>
             )}
           </div>
         </div>
 
         {/* RIGHT: icons matching Gmail order in UI_user_page.png */}
         <div className={styles.topbarRight}>
-          <button className={styles.iconRound} title="Dukungan / Bantuan">
-            <HelpCircle size={20} />
-          </button>
-          
-          <button
-            className={styles.iconRound}
-            onClick={() => { if (!mailboxIdentity) navigate('/settings') }}
-            title="Setelan"
-            id="settings-top-btn"
-          >
-            <Settings size={20} />
-          </button>
-
-          <button className={styles.upgradeBtn} title="Upgrade ke versi premium">
-            Upgrade
-          </button>
-
-          <button
-            className={styles.iconRound}
-            onClick={() => setAppGridOpen(true)}
-            title="Aplikasi Google"
-            id="app-grid-btn"
-          >
-            <Grid size={20} />
-          </button>
-
           <button
             className={styles.iconRound}
             onClick={toggle}
@@ -569,15 +494,6 @@ export default function GmailShell({ children }) {
         )}
         {/* SIDEBAR — Retaining current sidebar intact as requested */}
         <nav className={`${styles.sidebar} ${!sidebarOpen ? styles.sidebarCollapsed : ''} ${mobileNavOpen ? styles.sidebarMobileOpen : ''}`}>
-          {!sidebarOpen && (
-            <button
-              className={styles.sidebarToggleBtn}
-              onClick={() => setSidebarOpen(true)}
-              title={t('gmail.openSidebar')}
-            >
-              <Menu size={20} />
-            </button>
-          )}
           {sidebarOpen && (
             <>
               <button className={styles.composeBtn} id="compose-btn" onClick={() => {
@@ -593,11 +509,9 @@ export default function GmailShell({ children }) {
 
               {navItem('/inbox', <Inbox size={18} color="#444746" />, 'Kotak Masuk', stats?.unread)}
               {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, 'Berbintang', stats?.starred)}
-              {navItem('/inbox?folder=snoozed', <FileText size={18} color="#444746" />, 'Ditunda', 0)}
               {navItem('/sent', <Send size={18} color="#444746" />, 'Terkirim', stats?.sent)}
               {navItem('/draft', <FileText size={18} color="#444746" />, 'Draf', stats?.draft)}
-              {navItem('/pembelian', <Tag size={18} color="#444746" />, 'Pembelian', 78)}
-              {navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Selengkapnya', stats?.total)}
+              {navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Semua Email', stats?.total)}
 
               <div className={styles.divider} />
               <div className={styles.sidebarHeading}>{t('gmail.threatLabel')}</div>
@@ -638,50 +552,9 @@ export default function GmailShell({ children }) {
           )}
         </nav>
 
-        {/* MAIN CONTENT — split pane on inbox or email detail routes (desktop only) */}
-        {isSplitPane ? (
-          <div className={styles.splitMain}>
-            <div className={styles.listPane}>
-              <EmailList view={splitListView} activeEmailId={activeEmailId} />
-            </div>
-            <div className={styles.readPane}>
-              <ReadPaneProvider>
-                {isEmailDetailPath ? children : <EmailDetailPage overrideEmailId={activeEmailId} />}
-              </ReadPaneProvider>
-            </div>
-          </div>
-        ) : (
-          <main className={styles.main}>{children}</main>
-        )}
+        <main className={styles.main}>{children}</main>
 
-        {/* FAR RIGHT COMPANION DOCK (100% Gmail Side Dock in UI_user_page.png) */}
-        <aside className={styles.companionDock}>
-          <button className={styles.dockItem} title="Kalender">
-            <Calendar size={20} color="#1a73e8" />
-          </button>
-          <button className={styles.dockItem} title="Keep">
-            <div className={styles.keepIconWrap}>
-              <FileText size={18} color="#fbbc04" />
-            </div>
-          </button>
-          <button className={styles.dockItem} title="Tasks">
-            <CheckSquare size={20} color="#1a73e8" />
-          </button>
-          <button className={styles.dockItem} title="Kontak">
-            <Users size={20} color="#1a73e8" />
-          </button>
-          <div className={styles.dockDivider} />
-          <button className={styles.dockItem} title="Dapatkan add-on">
-            <Plus size={20} color="#444746" />
-          </button>
-          <div className={styles.dockSpacer} />
-          <button className={styles.dockItem} title="Ciutkan panel samping">
-            <ChevronRight size={18} color="#444746" />
-          </button>
-        </aside>
       </div>
-
-      <AppGrid open={appGridOpen} onClose={() => setAppGridOpen(false)} user={user} />
 
       <ComposeModal
         open={composeOpen}

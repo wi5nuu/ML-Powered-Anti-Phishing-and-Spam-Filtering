@@ -49,6 +49,11 @@
   flex-direction: column;
   gap: 6px;
 }
+.statLabel { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+.statValue { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+.statClean { color: #34a853; }
+.statWarning { color: #d97706; }
+.statDanger { color: #ea4335; }
 
 /* Content Grid */
 .contentGrid {
@@ -181,7 +186,32 @@
 .tipIcon { flex-shrink: 0; margin-top: 1px; }
 .tipText { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 
+[data-theme='dark'] .statCard,
+[data-theme='dark'] .sectionCard,
+[data-theme='dark'] .protectionCard {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] .scoreStatVal,
+[data-theme='dark'] .protStatValue,
+[data-theme='dark'] .tipText {
+  color: var(--text);
+}
+
+[data-theme='dark'] .scoreStatLabel,
+[data-theme='dark'] .scoreLabel,
+[data-theme='dark'] .protStatLabel,
+[data-theme='dark'] .protLastScan {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .protStat { background: var(--hover); }
+[data-theme='dark'] .qaBtnSecondary { background: #172554; color: #93c5fd; }
+[data-theme='dark'] .qaBtnDanger { background: #3f1717; color: #fca5a5; }
+
 @media (max-width: 768px) {
+  .wrap { padding: var(--page-padding-y-mobile) var(--page-padding-x-mobile) var(--page-padding-bottom-mobile); }
   .contentGrid { grid-template-columns: 1fr; }
   .hero { flex-direction: column; gap: 16px; }
   .heroRight { align-items: flex-start; }

@@ -41,18 +41,21 @@
   transition: background 0.15s;
 }
 .brand:hover { background: var(--border-light); }
+.brand img { width: 34px; height: 34px; object-fit: contain; flex: none; }
 
 .brandText {
-  font-size: 1.375rem;
-  font-weight: 400;
-  color: var(--text-muted);
-  letter-spacing: -0.3px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   white-space: nowrap;
 }
 .brandText b {
-  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.05;
+  font-weight: 650;
   color: var(--text);
 }
+.brandText small { max-width: 155px; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); font-size: .67rem; line-height: 1.1; }
 
 /* ── Search ── */
 .searchWrap {
@@ -325,8 +328,8 @@
 
 /* Collapsed state — hanya tampilkan toggle button */
 .sidebarCollapsed {
-  width: 72px;
-  padding: 8px 0;
+  width: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -515,68 +518,6 @@
   height: calc(100vh - 64px);
   position: sticky;
   top: 64px;
-}
-
-/* ═══ SPLIT PANE (three-panel layout) ═══ */
-/* Fills the same area as .main but divides it into list + read pane */
-.splitMain {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: row;
-  overflow: hidden;
-  height: calc(100vh - 64px);
-  position: sticky;
-  top: 64px;
-}
-
-/* Left panel: email list, fixed width, scrollable */
-.listPane {
-  width: 480px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-right: 1px solid var(--border-medium);
-  background: var(--surface);
-}
-
-/* Right panel: email detail, fills remaining space — padded so content
-   sits closer to the right edge and doesn't feel too wide */
-.readPane {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: var(--surface);
-}
-
-/* When EmailDetailPage renders GmailShell inside the read pane, the shell
-   is suppressed — only this wrapper is rendered so the content fits */
-.readPaneContent {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: var(--surface);
-}
-
-/* On tablet, narrow the list pane */
-@media (max-width: 1280px) {
-  .listPane { width: 420px; }
-}
-@media (max-width: 1100px) {
-  .listPane { width: 360px; }
-}
-
-/* On narrow screens, hide the list pane and show only the read pane
-   (the user got here by clicking a row — back button restores the list) */
-@media (max-width: 768px) {
-  .splitMain { flex-direction: column; }
-  .listPane { display: none; }
-  .readPane { flex: 1; }
 }
 
 /* ── Responsive ── */

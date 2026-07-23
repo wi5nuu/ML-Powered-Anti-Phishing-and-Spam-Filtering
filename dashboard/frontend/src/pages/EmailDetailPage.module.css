@@ -1744,16 +1744,7 @@
 }
 
 /* ── Event Card Box matching UI_user_page.png ── */
-.eventCard {
-  background: #edf3fc;
-  border-radius: 16px;
-  padding: 20px 24px;
-  margin: 12px 24px 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
+.eventCard { display: none; }
 
 .eventCardMain {
   flex: 1;
@@ -1832,15 +1823,7 @@
 }
 
 /* ── Feedback Strip matching UI_user_page.png ── */
-.feedbackStrip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 24px 16px 24px;
-  padding: 8px 12px;
-  font-size: 0.8125rem;
-  color: #5f6368;
-}
+.feedbackStrip { display: none; }
 
 .feedbackLabel {
   font-weight: 500;

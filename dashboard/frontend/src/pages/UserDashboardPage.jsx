@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n/context'
 import { useMe } from '../api/auth'
 import { useStats } from '../api/metrics'
+import api from '../api/client'
 import {
   ShieldCheck, Inbox, AlertTriangle,
   Mail, ArrowRight, CheckCircle, Info
@@ -13,6 +15,19 @@ export default function UserDashboardPage() {
   const navigate = useNavigate()
   const { data: auth } = useMe()
   const { data: stats } = useStats()
+  const [systemHealthy, setSystemHealthy] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    const fetchHealth = () => api.get('/health')
+      .then(({ data }) => {
+        if (active) setSystemHealthy(data?.status === 'healthy' || data?.status === 'ok')
+      })
+      .catch(() => { if (active) setSystemHealthy(false) })
+    fetchHealth()
+    const interval = window.setInterval(fetchHealth, 10000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [])
 
   const user = auth?.user
   const now = new Date()
@@ -22,9 +37,9 @@ export default function UserDashboardPage() {
 
   const total = stats?.total ?? 0
   const clean = stats?.clean ?? 0
-  const warned = stats?.warned ?? 0
-  const quarantined = stats?.quarantined ?? 0
-  const safeRate = total > 0 ? Math.round((clean / total) * 100) : 100
+  const warned = stats?.warn ?? 0
+  const quarantined = stats?.quarantine ?? 0
+  const safeRate = total > 0 ? Math.round((clean / total) * 100) : 0
 
   return (
     <div className={styles.wrap}>
@@ -34,7 +49,7 @@ export default function UserDashboardPage() {
           <div className={styles.heroGreet}>{greeting},</div>
           <div className={styles.heroName}>{user?.username || 'User'}</div>
           <div className={styles.heroTitle}>{t('userDashboard.securityDashboard')}</div>
-          <div className={styles.heroSub}>{t('userDashboard.protectionActive')}</div>
+          <div className={styles.heroSub}>{systemHealthy ? t('userDashboard.protectionActive') : t('userDashboard.systemUnavailable')}</div>
         </div>
         <div className={styles.heroRight}>
           <div className={styles.heroDate}>
@@ -42,7 +57,7 @@ export default function UserDashboardPage() {
           </div>
           <div className={styles.heroBadge}>
             <ShieldCheck size={13} />
-            {t('userDashboard.activeProtection')}
+            {systemHealthy ? t('userDashboard.activeProtection') : t('overview.offline')}
           </div>
         </div>
       </div>
@@ -50,20 +65,20 @@ export default function UserDashboardPage() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <span style={{ fontSize: 11, color: '#5f6368' }}>{t('overview.totalEmail')}</span>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#202124' }}>{total}</span>
+          <span className={styles.statLabel}>{t('overview.totalEmail')}</span>
+          <span className={styles.statValue}>{total}</span>
         </div>
         <div className={styles.statCard}>
-          <span style={{ fontSize: 11, color: '#5f6368' }}>{t('overview.clean')}</span>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#34a853' }}>{clean}</span>
+          <span className={styles.statLabel}>{t('overview.clean')}</span>
+          <span className={`${styles.statValue} ${styles.statClean}`}>{clean}</span>
         </div>
         <div className={styles.statCard}>
-          <span style={{ fontSize: 11, color: '#5f6368' }}>{t('userDashboard.needsAttention')}</span>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#fbbc04' }}>{warned}</span>
+          <span className={styles.statLabel}>{t('userDashboard.needsAttention')}</span>
+          <span className={`${styles.statValue} ${styles.statWarning}`}>{warned}</span>
         </div>
         <div className={styles.statCard}>
-          <span style={{ fontSize: 11, color: '#5f6368' }}>{t('overview.quarantine')}</span>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#ea4335' }}>{quarantined}</span>
+          <span className={styles.statLabel}>{t('overview.quarantine')}</span>
+          <span className={`${styles.statValue} ${styles.statDanger}`}>{quarantined}</span>
         </div>
       </div>
 
@@ -160,8 +175,11 @@ export default function UserDashboardPage() {
               <span className={styles.scardIcon}><ShieldCheck size={15} /> {t('overview.systemHealth')}</span>
             </div>
             <div className={styles.protStatus}>
-              <div className={styles.protStatusDot} />
-              <span className={styles.protStatusText}>{t('userDashboard.systemActive')}</span>
+              <div
+                className={styles.protStatusDot}
+                style={{ background: systemHealthy ? '#34a853' : '#ea4335' }}
+              />
+              <span className={styles.protStatusText}>{systemHealthy ? t('userDashboard.systemActive') : t('userDashboard.systemUnavailable')}</span>
             </div>
             <div className={styles.protStats}>
               <div className={styles.protStat}>

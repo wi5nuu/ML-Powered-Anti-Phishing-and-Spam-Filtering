@@ -6,10 +6,10 @@ Registered via app.include_router(admin_routes.router) in app.py.
 Routes here are CRUD operations not covered (or covered with less validation)
 by the @app.xxx routes in app.py. Specifically:
   - POST /users  — Pydantic-validated creation with proper role guards
-  - PATCH /users/{user_id}  — partial update by numeric id
-  - DELETE /users/{user_id}  — delete by numeric id (superadmin only)
-  - PATCH /mailboxes/{mailbox_id}  — partial update
-  - DELETE /mailboxes/{mailbox_id}  — delete (superadmin only, stricter than app.py)
+  - PATCH /users/id/{user_id}  — partial update by numeric id
+  - DELETE /users/id/{user_id}  — delete by numeric id (superadmin only)
+  - PATCH /mailboxes/id/{mailbox_id}  — partial update
+  - DELETE /mailboxes/id/{mailbox_id}  — delete (superadmin only, stricter than app.py)
 
 Intentionally NOT duplicated here (app.py versions are richer):
   GET  /users      — org-scoped filtering
@@ -28,9 +28,10 @@ import csv
 import io
 import json
 
-from database.models import User, UserRole, AdminMailbox, AuditLog, Organization, QuarantineEmail
+from database.models import User, UserRole, AdminMailbox, AdminMailboxAccess, AuditLog, Organization, QuarantineEmail
 from dashboard.database import get_db
-from dashboard.auth import get_current_user_cookie, hash_password
+from dashboard.auth import get_current_user_cookie, hash_password, log_audit
+from dashboard.config import get_configured_mail_domain, email_uses_configured_domain, is_valid_email_address
 from sqlalchemy import func, or_
 
 # Import libraries for PDF and Excel export
@@ -74,6 +75,16 @@ def require_superadmin(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def _admin_can_manage_user(admin: User, user: User) -> bool:
+    if admin.role == UserRole.SUPERADMIN.value:
+        return True
+    if user.role != UserRole.USER.value:
+        return False
+    if admin.organization_id:
+        return user.organization_id == admin.organization_id
+    return user.organization_id is None and email_uses_configured_domain(user.email or "")
+
+
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
@@ -97,6 +108,12 @@ class MailboxUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+@router.get("/config")
+def get_admin_config(current_user: User = Depends(require_admin)):
+    """Expose non-secret deployment values needed by admin forms."""
+    return {"mail_domain": get_configured_mail_domain()}
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _serialize_user(u: User) -> dict:
@@ -116,6 +133,7 @@ def _serialize_mailbox(m: AdminMailbox) -> dict:
         "email": m.email,
         "domain": getattr(m, "domain", ""),
         "sender_name": getattr(m, "sender_name", ""),
+        "assigned_to": getattr(m, "assigned_to", "") or "",
         "created_by": getattr(m, "created_by", ""),
         "is_active": getattr(m, "is_active", True),
         "created_at": str(getattr(m, "created_at", "")),
@@ -126,31 +144,44 @@ def _serialize_mailbox(m: AdminMailbox) -> dict:
 
 @router.post("/users", status_code=201)
 def create_user(
+    request: Request,
     payload: UserCreate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),
 ):
-    """Create a user. Admins can only create 'user' role; superadmins can create any role."""
-    if current_user.role == UserRole.ADMIN.value and payload.role != UserRole.USER.value:
-        raise HTTPException(status_code=403, detail="Admin hanya dapat membuat pengguna dengan role 'user'.")
-    if payload.role not in (UserRole.USER.value, UserRole.ADMIN.value, UserRole.SUPERADMIN.value):
-        raise HTTPException(status_code=400, detail="Role tidak valid.")
-    if db.query(User).filter(User.username == payload.username).first():
+    """Create an administrator account from the superadmin dashboard."""
+    username = payload.username.strip()
+    email = (payload.email or "").strip().lower() or None
+    if not username:
+        raise HTTPException(status_code=400, detail="Username wajib diisi.")
+    if len(username) > 64:
+        raise HTTPException(status_code=400, detail="Username maksimal 64 karakter.")
+    if email and not is_valid_email_address(email):
+        raise HTTPException(status_code=400, detail="Format email tidak valid.")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password minimal 8 karakter.")
+    if payload.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=400, detail="Halaman ini hanya dapat membuat akun admin.")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email wajib diisi.")
+    if not email_uses_configured_domain(email):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Email admin wajib menggunakan domain @{get_configured_mail_domain()}.",
+        )
+    if db.query(User).filter(User.username == username).first():
         raise HTTPException(status_code=409, detail="Username sudah digunakan.")
-    if payload.email and db.query(User).filter(User.email == payload.email).first():
+    if email and db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=409, detail="Email sudah digunakan.")
     
-    # Enforce organization_id for admin-created users
+    # Organization is optional for global admins. When provided, it must exist.
     org_id = payload.organization_id
-    if current_user.role == UserRole.ADMIN.value:
-        if not current_user.organization_id:
-            raise HTTPException(status_code=403, detail="Admin tidak memiliki organisasi.")
-        # Force the new user to be in the admin's organization
-        org_id = current_user.organization_id
+    if org_id and not db.query(Organization).filter(Organization.id == org_id).first():
+        raise HTTPException(status_code=400, detail="Organisasi tidak ditemukan.")
     
     user = User(
-        username=payload.username,
-        email=payload.email,
+        username=username,
+        email=email,
         hashed_password=hash_password(payload.password),
         role=payload.role,
         is_active=payload.is_active,
@@ -158,37 +189,56 @@ def create_user(
         created_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db.add(user)
+    log_audit(
+        db,
+        current_user.username,
+        "create_user",
+        None,
+        request.client.host if request.client else None,
+        username,
+    )
     db.commit()
     db.refresh(user)
     return _serialize_user(user)
 
 
-@router.patch("/users/{user_id}")
+@router.patch("/users/id/{user_id}")
 def update_user(
     user_id: int,
     payload: UserUpdate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan.")
+    if user.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Halaman ini hanya dapat mengelola akun admin.")
     if payload.role == UserRole.SUPERADMIN.value and current_user.role != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Hanya superadmin yang dapat menetapkan role superadmin.")
     if user.id == current_user.id and payload.is_active is False:
         raise HTTPException(status_code=400, detail="Tidak dapat menonaktifkan akun Anda sendiri.")
     # P2 FIX: Admin can only edit users within their own organization
     if current_user.role == UserRole.ADMIN.value:
-        if not current_user.organization_id:
-            raise HTTPException(status_code=403, detail="Admin tidak memiliki organisasi.")
-        if user.organization_id != current_user.organization_id:
-            raise HTTPException(status_code=403, detail="Admin hanya dapat mengedit pengguna dalam organisasi yang sama.")
+        if not _admin_can_manage_user(current_user, user):
+            raise HTTPException(status_code=403, detail="Admin hanya dapat mengedit pengguna dalam cakupannya.")
         if user.role != UserRole.USER.value:
             raise HTTPException(status_code=403, detail="Admin hanya dapat mengedit pengguna dengan role 'user'.")
         if payload.role is not None and payload.role != UserRole.USER.value:
             raise HTTPException(status_code=403, detail="Admin hanya dapat menetapkan role 'user'.")
+        if payload.email is not None and not email_uses_configured_domain(payload.email):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Email pengguna wajib menggunakan domain @{get_configured_mail_domain()}.",
+            )
     if payload.email is not None:
-        user.email = payload.email
+        email = payload.email.strip().lower()
+        if not is_valid_email_address(email):
+            raise HTTPException(status_code=400, detail="Format email tidak valid.")
+        duplicate = db.query(User).filter(User.email == email, User.id != user.id).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="Email sudah digunakan.")
+        user.email = email
     if payload.role is not None:
         user.role = payload.role
     if payload.is_active is not None:
@@ -200,7 +250,7 @@ def update_user(
     return _serialize_user(user)
 
 
-@router.delete("/users/{user_id}", status_code=204)
+@router.delete("/users/id/{user_id}", status_code=204)
 def delete_user(
     user_id: int,
     current_user: User = Depends(require_superadmin),
@@ -209,15 +259,37 @@ def delete_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Pengguna tidak ditemukan.")
+    if user.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Halaman ini hanya dapat menghapus akun admin.")
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Tidak dapat menghapus akun Anda sendiri.")
+    owned_mailboxes = db.query(AdminMailbox).filter(
+        AdminMailbox.assigned_to == user.username,
+        AdminMailbox.is_active == True,
+    ).count()
+    if owned_mailboxes:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Pindahkan {owned_mailboxes} mailbox yang dikelola admin ini sebelum menghapus akun.",
+        )
+    if user.role == UserRole.SUPERADMIN.value:
+        remaining_superadmins = db.query(User).filter(
+            User.role == UserRole.SUPERADMIN.value,
+            User.id != user.id,
+            User.is_active == True,
+        ).count()
+        if remaining_superadmins == 0:
+            raise HTTPException(status_code=400, detail="Minimal satu superadmin aktif harus tetap tersedia.")
+    db.query(AdminMailboxAccess).filter(
+        AdminMailboxAccess.username == user.username
+    ).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
 
 
 # ── Mailbox endpoints ──────────────────────────────────────────────────────────
 
-@router.patch("/mailboxes/{mailbox_id}")
+@router.patch("/mailboxes/id/{mailbox_id}")
 def update_mailbox(
     mailbox_id: int,
     payload: MailboxUpdate,
@@ -227,17 +299,9 @@ def update_mailbox(
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox tidak ditemukan.")
-    # P2 FIX: Admin can only update mailboxes within their own organization
     if current_user.role == UserRole.ADMIN.value:
-        if not current_user.organization_id:
-            raise HTTPException(status_code=403, detail="Admin tidak memiliki organisasi.")
-        org_usernames = [
-            u.username for u in db.query(User.username).filter(
-                User.organization_id == current_user.organization_id
-            ).all()
-        ]
-        if mailbox.created_by not in org_usernames:
-            raise HTTPException(status_code=403, detail="Admin hanya dapat mengelola mailbox dalam organisasi yang sama.")
+        if mailbox.assigned_to != current_user.username:
+            raise HTTPException(status_code=403, detail="Admin tidak memiliki akses ke mailbox ini.")
     if payload.sender_name is not None:
         mailbox.sender_name = payload.sender_name
     if payload.is_active is not None:
@@ -247,7 +311,7 @@ def update_mailbox(
     return _serialize_mailbox(mailbox)
 
 
-@router.delete("/mailboxes/{mailbox_id}", status_code=204)
+@router.delete("/mailboxes/id/{mailbox_id}", status_code=204)
 def delete_mailbox(
     mailbox_id: int,
     current_user: User = Depends(require_superadmin),

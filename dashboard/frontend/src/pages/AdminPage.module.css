@@ -38,36 +38,6 @@
   opacity: 0.9;
 }
 
-/* ── Tabs ── */
-.tabs {
-  display: flex;
-  gap: 2px;
-  margin-bottom: var(--section-gap);
-  border-bottom: 1px solid var(--border);
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s;
-  margin-bottom: -1px;
-}
-.tab:hover { color: var(--text); background: var(--border-light); }
-.tabActive {
-  color: var(--role-accent);
-  border-bottom-color: var(--role-accent);
-}
-
 /* ── Stats Grid ── */
 .statsGrid {
   display: grid;
