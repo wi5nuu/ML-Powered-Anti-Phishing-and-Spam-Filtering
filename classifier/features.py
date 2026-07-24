@@ -231,16 +231,16 @@ class EmailParser:
                         body_text += part.get_payload(decode=True).decode(
                             charset, errors="replace"
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to decode text/plain part: %s", e)
                 elif ctype == "text/html":
                     charset = part.get_content_charset() or "utf-8"
                     try:
                         body_html += part.get_payload(decode=True).decode(
                             charset, errors="replace"
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to decode text/html part: %s", e)
         else:
             payload = msg.get_payload(decode=True)
             if payload:
@@ -367,22 +367,29 @@ class FeatureExtractor:
             "paypal", "google", "microsoft", "amazon", "apple",
             "lodaya", "cognimail", "gojek", "grab", "shopee", "tokopedia"
         }
-        if any(b in display_lower for b in known_brands):
+        matched_brands = [b for b in known_brands if re.search(rf"(?:^|\W){re.escape(b)}(?:$|\W)", display_lower)]
+        if matched_brands:
             sender_ext = tldextract.extract(parsed.sender_domain)
             sender_brand = sender_ext.domain.lower()
             features.display_name_mismatch = not any(
                 re.search(rf"(?:^|\.){re.escape(b)}(?:$|\.)", sender_brand)
-                for b in known_brands
-                if b in display_lower
+                for b in matched_brands
             )
 
         # Fake RE/FWD (subject mulai dengan RE: atau FWD: tapi bukan reply asli)
         subject_lower = parsed.subject.lower()
         if subject_lower.startswith(("re:", "fwd:", "fw:")):
-            # Heuristik: tidak ada References header = kemungkinan fake
-            features.subject_has_re_fwd_fake = not bool(
+            has_reply_headers = bool(
                 parsed.headers.get("References") or parsed.headers.get("In-Reply-To")
             )
+            body_start = parsed.body_text[:300]
+            has_forwarded_content = bool(
+                re.search(r"(?im)^-{2,}\s*forwarded", body_start)
+                or re.search(r"(?im)^-{2,}\s*original", body_start)
+                or re.search(r"(?im)^from:.*wrote:", body_start)
+                or re.search(r"(?i)<[^>]*>\s*wrote:", body_start)
+            )
+            features.subject_has_re_fwd_fake = not (has_reply_headers or has_forwarded_content)
 
         # Recipients
         features.num_recipients = len(parsed.recipient_list)
