@@ -68,6 +68,15 @@ if _missing_unsupervised:
         f"classifier/features.py STRUCTURED_FEATURES."
     )
 
+# Validate all unsupervised features exist on the EmailFeatures dataclass.
+from classifier.features import EmailFeatures
+_missing_feature_attrs = [f for f in UNSUPERVISED_FEATURES if not hasattr(EmailFeatures, f)]
+if _missing_feature_attrs:
+    raise RuntimeError(
+        f"UNSUPERVISED_FEATURES references fields not on EmailFeatures dataclass: "
+        f"{_missing_feature_attrs}. Update classifier/features.py EmailFeatures."
+    )
+
 # Kolom boolean yang perlu dikonversi float (untuk StandardScaler)
 BOOL_FEATURES = [
     "has_url_shortener", "has_lookalike_domain", "has_executable_attachment",
@@ -278,6 +287,10 @@ class AnomalyDetector:
 
     def load(self):
         """Load model terbaru dari MODEL_DIR."""
+        self.isolation_forest = None
+        self.one_class_svm = None
+        self.scaler = None
+        self._is_fitted = False
         try:
             self.isolation_forest = joblib.load(
                 MODEL_DIR / "isolation_forest_latest.joblib"
@@ -292,7 +305,6 @@ class AnomalyDetector:
             logger.info("Unsupervised models loaded from %s", MODEL_DIR)
         except FileNotFoundError as e:
             logger.warning("Unsupervised model belum ada: %s", e)
-            self._is_fitted = False
 
     @property
     def is_fitted(self) -> bool:
