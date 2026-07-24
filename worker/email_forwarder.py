@@ -25,13 +25,17 @@ from email import policy
 from email.parser import Parser
 
 import aiosmtplib
-from email.utils import getaddresses
+from email.utils import getaddresses, make_msgid
 from mail_delivery import deliver_direct_mx
 
 logger = logging.getLogger(__name__)
 
 FORWARDER_SMTP_HOST = os.getenv("FORWARDER_SMTP_HOST", "")
-FORWARDER_SMTP_PORT = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
+try:
+    FORWARDER_SMTP_PORT = int(os.getenv("FORWARDER_SMTP_PORT", "587"))
+except (ValueError, TypeError):
+    logger.warning("Invalid FORWARDER_SMTP_PORT=%r, using default 587", os.getenv("FORWARDER_SMTP_PORT"))
+    FORWARDER_SMTP_PORT = 587
 FORWARDER_SMTP_USER = os.getenv("FORWARDER_SMTP_USER", "")
 FORWARDER_SMTP_PASS = os.getenv("FORWARDER_SMTP_PASS", "")
 FORWARDER_FROM = os.getenv("FORWARDER_FROM", "").strip().lower()
@@ -39,6 +43,11 @@ FORWARDER_STARTTLS = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "t
 FORWARDER_DOMAIN_MAP = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
 FORWARDER_DESTINATION_OVERRIDE = os.getenv("FORWARDER_DESTINATION_OVERRIDE", "")
 OUTBOUND_SMTP_MODE = os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower()
+try:
+    SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "30"))
+except (ValueError, TypeError):
+    logger.warning("Invalid SMTP_TIMEOUT=%r, using default 30", os.getenv("SMTP_TIMEOUT"))
+    SMTP_TIMEOUT = 30
 
 # Header X-Spam untuk email WARN
 SPAM_HEADER = "X-Spam-Reason"
@@ -68,14 +77,22 @@ def _parse_recipients(raw_email: str, payload_recipients: list) -> list:
     """Extract recipient addresses from raw email or payload."""
     if payload_recipients:
         return _normalize_recipients(payload_recipients)
-    # Parse From/To dari raw email
-    recipients = []
-    for line in raw_email.splitlines():
-        if line.lower().startswith("to:"):
-            addr = line[3:].strip()
-            if addr:
-                recipients.append(addr)
-    return _normalize_recipients(recipients)
+    # Parse To header properly using email.parser (handles multi-line folded headers)
+    try:
+        msg = Parser(policy=policy.default).parsestr(raw_email)
+        to_addrs = msg.get_all("To", [])
+        cc_addrs = msg.get_all("Cc", [])
+        all_addrs = (to_addrs or []) + (cc_addrs or [])
+        return _normalize_recipients(all_addrs)
+    except Exception:
+        # Fallback to line-by-line parsing if parser fails
+        recipients = []
+        for line in raw_email.splitlines():
+            if line.lower().startswith("to:"):
+                addr = line[3:].strip()
+                if addr:
+                    recipients.append(addr)
+        return _normalize_recipients(recipients)
 
 
 def _prepare_forward_message(
@@ -92,12 +109,15 @@ def _prepare_forward_message(
     preserve the actual author for replies and auditing.
     """
     message = Parser(policy=policy.SMTP).parsestr(raw_email)
+    if "Message-ID" not in message:
+        message["Message-ID"] = make_msgid()
     original_from = str(message.get("From", "")).strip()
 
     for header in (
         "Return-Path",
         "Delivered-To",
         "Bcc",
+        "From",
         "X-CogniMail-Original-From",
         "X-CogniMail-Forwarded-By",
         SPAM_HEADER,
@@ -108,10 +128,7 @@ def _prepare_forward_message(
         while header in message:
             del message[header]
 
-    if "From" in message:
-        message.replace_header("From", envelope_from)
-    else:
-        message["From"] = envelope_from
+    message["From"] = envelope_from
     message["To"] = ", ".join(recipients)
     if original_from:
         if "Reply-To" not in message:
@@ -124,7 +141,9 @@ def _prepare_forward_message(
 
 
 async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
-                         payload: dict) -> bool:
+                         payload: dict | None = None) -> bool:
+    if payload is None:
+        payload = {}
     """
     Forward email ke recipient asli via SMTP.
     
@@ -195,6 +214,7 @@ async def forward_email(raw_email: str, fusion_label: str, fused_score: float,
             hostname=FORWARDER_SMTP_HOST,
             port=FORWARDER_SMTP_PORT,
             use_tls=FORWARDER_SMTP_PORT == 465,
+            timeout=SMTP_TIMEOUT,
         ) as smtp:
             if FORWARDER_SMTP_PORT != 465 and FORWARDER_STARTTLS:
                 await smtp.starttls()
