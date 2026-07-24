@@ -123,6 +123,7 @@ class QuarantineEmail(Base):
     received_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     label = Column(String(16), nullable=False, index=True)
     fused_score = Column(Float, nullable=False)
+    message_id = Column(String(255), default="", index=True)
     sa_score = Column(Float, default=0.0)
     ml_probability = Column(Float, default=0.0)
     anomaly_score = Column(Float, default=0.0)
@@ -138,8 +139,8 @@ class QuarantineEmail(Base):
     status = Column(String(16), default=EmailStatus.PENDING.value, index=True)
     is_read = Column(Boolean, default=False, index=True)
     is_starred = Column(Boolean, default=False, index=True)
-    snoozed_until = Column(DateTime, nullable=True, index=True)
-    deleted_at = Column(DateTime, nullable=True, index=True)
+    snoozed_until = Column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
     category = Column(String(32), default="", index=True)
     subject = Column(String(512), default="")
     sender = Column(String(256), default="", index=True)
@@ -186,7 +187,7 @@ class Report(Base):
     status = Column(String(16), default="open", index=True)
     admin_reply = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
-    resolved_at = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class ApiKey(Base):
@@ -198,6 +199,7 @@ class ApiKey(Base):
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     rate_limit = Column(Integer, default=100)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
 
 
@@ -233,8 +235,8 @@ class TrainingSample(Base):
     reviewed_by = Column(String(64), nullable=True)  # Admin who reviewed
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
-    reviewed_at = Column(DateTime, nullable=True)
-    used_in_training_at = Column(DateTime, nullable=True, index=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    used_in_training_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
 
 class AuditTrail(Base):
