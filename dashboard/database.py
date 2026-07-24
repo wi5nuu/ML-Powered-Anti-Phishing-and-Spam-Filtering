@@ -47,7 +47,30 @@ if "sqlite" in DB_URL.lower() and not _is_testing:
 
 # SQLite needs check_same_thread=False for multi-threaded test runners
 _connect_args = {"check_same_thread": False} if "sqlite" in DB_URL.lower() else {}
-engine = create_engine(DB_URL, connect_args=_connect_args)
+_engine_kwargs = {"connect_args": _connect_args}
+if "sqlite" not in DB_URL.lower():
+    try:
+        _pool_size = int(os.getenv("DB_POOL_SIZE", "10"))
+    except (ValueError, TypeError):
+        log.warning("Invalid DB_POOL_SIZE=%r, using default 10", os.getenv("DB_POOL_SIZE"))
+        _pool_size = 10
+    try:
+        _max_overflow = int(os.getenv("DB_POOL_OVERFLOW", "20"))
+    except (ValueError, TypeError):
+        log.warning("Invalid DB_POOL_OVERFLOW=%r, using default 20", os.getenv("DB_POOL_OVERFLOW"))
+        _max_overflow = 20
+    try:
+        _pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+    except (ValueError, TypeError):
+        log.warning("Invalid DB_POOL_TIMEOUT=%r, using default 30", os.getenv("DB_POOL_TIMEOUT"))
+        _pool_timeout = 30
+    _engine_kwargs.update(
+        pool_size=_pool_size,
+        max_overflow=_max_overflow,
+        pool_timeout=_pool_timeout,
+        pool_pre_ping=True,
+    )
+engine = create_engine(DB_URL, **_engine_kwargs)
 
 
 def _ensure_schema_compatibility():
@@ -72,8 +95,7 @@ def _ensure_schema_compatibility():
             try:
                 with engine.begin() as conn:
                     if is_postgres:
-                        col_part = stmt.split("ADD COLUMN ", 1)[1]
-                        conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_part}"))
+                        conn.execute(text(stmt.replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")))
                     else:
                         conn.execute(text(stmt))
                 log.info("migration: ran: %s", stmt)
@@ -94,12 +116,13 @@ def _ensure_schema_compatibility():
             email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dkim_result VARCHAR(32) DEFAULT ''")
         if "dmarc_result" not in email_columns:
             email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''")
+        if "message_id" not in email_columns:
+            email_statements.append("ALTER TABLE quarantine_emails ADD COLUMN message_id VARCHAR(255) DEFAULT ''")
         for stmt in email_statements:
             try:
                 with engine.begin() as conn:
                     if is_postgres:
-                        col_part = stmt.split("ADD COLUMN ", 1)[1]
-                        conn.execute(text(f"ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS {col_part}"))
+                        conn.execute(text(stmt.replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")))
                     else:
                         conn.execute(text(stmt))
                 log.info("migration: ran: %s", stmt)
@@ -127,8 +150,7 @@ def _ensure_schema_compatibility():
         try:
             with engine.begin() as conn:
                 if is_postgres:
-                    col_part = stmt.split("ADD COLUMN ", 1)[1]
-                    conn.execute(text(f"ALTER TABLE admin_mailboxes ADD COLUMN IF NOT EXISTS {col_part}"))
+                    conn.execute(text(stmt.replace("ADD COLUMN ", "ADD COLUMN IF NOT EXISTS ")))
                 else:
                     conn.execute(text(stmt))
             log.info("migration: ran: %s", stmt)
@@ -138,7 +160,7 @@ def _ensure_schema_compatibility():
 
 def _seed_mailbox_access():
     with Session(engine) as db:
-        rows = db.query(AdminMailbox).all()
+        rows = db.query(AdminMailbox).limit(5000).all()
         changed = False
 
         def add_access(mailbox_id, username):
