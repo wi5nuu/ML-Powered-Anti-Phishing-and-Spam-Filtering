@@ -15,7 +15,7 @@ import uuid
 import json
 import random
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Allow import from project root (works both in Docker /app and local checkout)
 _project_root = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +32,6 @@ from dashboard.auth import hash_password
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def rand_dt(days_ago_max=90, days_ago_min=0):
-    from datetime import timezone
     delta = timedelta(
         days=random.randint(days_ago_min, days_ago_max),
         hours=random.randint(0, 23),
@@ -495,7 +494,7 @@ def seed():
                     sender = random.choice(PHISHING_SENDERS)
                     subject = random.choice(PHISHING_SUBJECTS)
                     body = random.choice(PHISHING_BODIES).format(
-                        time=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                        time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                         token=uuid.uuid4().hex[:16]
                     )
                 else:
@@ -511,7 +510,7 @@ def seed():
                     sender = random.choice(PHISHING_SENDERS)
                     subject = random.choice(PHISHING_SUBJECTS)
                     body = random.choice(PHISHING_BODIES).format(
-                        time=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                        time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                         token=uuid.uuid4().hex[:16]
                     )
             else:
@@ -534,7 +533,7 @@ def seed():
 
             rec = QuarantineEmail(
                 email_id         = email_id,
-                received_at      = created_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                received_at      = created_dt,
                 label            = label,
                 fused_score      = fused,
                 sa_score         = sa_score,
@@ -591,7 +590,7 @@ def seed():
         # ── 6. Pipeline Metrics ───────────────────────────────────────────────
         metrics_records = []
         for i in range(90):
-            dt    = datetime.utcnow() - timedelta(days=i)
+            dt    = datetime.now(timezone.utc) - timedelta(days=i)
             total = random.randint(50, 250)
             warn  = random.randint(10, 60)
             quar  = random.randint(5, 40)
