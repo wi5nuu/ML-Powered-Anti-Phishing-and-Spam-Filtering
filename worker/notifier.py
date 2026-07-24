@@ -17,9 +17,18 @@ SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 SMTP_HOST = os.getenv("ALERT_SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("ALERT_SMTP_PORT", "587"))
+try:
+    SMTP_PORT = int(os.getenv("ALERT_SMTP_PORT", "587"))
+except (ValueError, TypeError):
+    logger.warning("Invalid ALERT_SMTP_PORT=%r, using default 587", os.getenv("ALERT_SMTP_PORT"))
+    SMTP_PORT = 587
 SMTP_USER = os.getenv("ALERT_SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("ALERT_SMTP_PASSWORD", "")
+try:
+    SMTP_TIMEOUT = int(os.getenv("ALERT_SMTP_TIMEOUT", "30"))
+except (ValueError, TypeError):
+    logger.warning("Invalid ALERT_SMTP_TIMEOUT=%r, using default 30", os.getenv("ALERT_SMTP_TIMEOUT"))
+    SMTP_TIMEOUT = 30
 # ALERT_RECIPIENT: address that receives email alerts. Defaults to SMTP_USER
 # so existing deployments keep working, but can be set independently.
 ALERT_RECIPIENT = os.getenv("ALERT_RECIPIENT", "") or SMTP_USER
@@ -42,10 +51,13 @@ class AlertPayload:
 class AlertManager:
     def __init__(self):
         self.session: aiohttp.ClientSession = None
+        self._session_lock = asyncio.Lock()
 
     async def ensure_session(self):
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            async with self._session_lock:
+                if self.session is None or self.session.closed:
+                    self.session = aiohttp.ClientSession()
 
     async def send_slack(self, payload: AlertPayload):
         if not SLACK_WEBHOOK_URL:
@@ -119,6 +131,7 @@ class AlertManager:
                 username=SMTP_USER,
                 password=SMTP_PASSWORD,
                 start_tls=True,
+                timeout=SMTP_TIMEOUT,
             )
             logger.info("Email alert sent for %s", payload.email_id)
         except Exception as e:
