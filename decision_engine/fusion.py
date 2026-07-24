@@ -24,23 +24,39 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # Konfigurasi (bisa override via env vars)
-ML_WEIGHT       = float(os.getenv("FUSION_ML_WEIGHT", "0.50"))
-SA_WEIGHT       = float(os.getenv("FUSION_SA_WEIGHT", "0.25"))
-ANOMALY_WEIGHT  = float(os.getenv("FUSION_ANOMALY_WEIGHT", "0.25"))
-SA_HARD_LIMIT   = float(os.getenv("SA_QUARANTINE_THRESHOLD", "15.0"))
-ML_HARD_LIMIT   = float(os.getenv("ML_QUARANTINE_THRESHOLD", "0.95"))
-ANOMALY_HARD_LIMIT = float(os.getenv("ANOMALY_QUARANTINE_THRESHOLD", "0.90"))
-SA_MAX_SCORE    = float(os.getenv("SA_MAX_SCORE", "20.0"))
-THRESH_CLEAN    = float(os.getenv("THRESHOLD_CLEAN", "0.30"))
-THRESH_WARN     = float(os.getenv("THRESHOLD_WARN", "0.70"))
+def _env_float(key: str, default: str) -> float:
+    try:
+        return float(os.getenv(key, default))
+    except (ValueError, TypeError):
+        logger.warning("Invalid %s=%r, falling back to %s", key, os.getenv(key), default)
+        return float(default)
+
+def _env_int(key: str, default: str) -> int:
+    try:
+        return int(os.getenv(key, default))
+    except (ValueError, TypeError):
+        logger.warning("Invalid %s=%r, falling back to %s", key, os.getenv(key), default)
+        return int(default)
+
+ML_WEIGHT       = _env_float("FUSION_ML_WEIGHT", "0.50")
+SA_WEIGHT       = _env_float("FUSION_SA_WEIGHT", "0.25")
+ANOMALY_WEIGHT  = _env_float("FUSION_ANOMALY_WEIGHT", "0.25")
+SA_HARD_LIMIT   = _env_float("SA_QUARANTINE_THRESHOLD", "15.0")
+ML_HARD_LIMIT   = _env_float("ML_QUARANTINE_THRESHOLD", "0.95")
+ANOMALY_HARD_LIMIT = _env_float("ANOMALY_QUARANTINE_THRESHOLD", "0.90")
+SA_MAX_SCORE    = _env_float("SA_MAX_SCORE", "20.0")
+if SA_MAX_SCORE <= 0:
+    SA_MAX_SCORE = 20.0
+THRESH_CLEAN    = _env_float("THRESHOLD_CLEAN", "0.30")
+THRESH_WARN     = _env_float("THRESHOLD_WARN", "0.70")
 WARN_EVIDENCE_GATED = os.getenv("WARN_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
-WARN_MIN_EVIDENCE = int(os.getenv("WARN_MIN_EVIDENCE", "2"))
-WARN_ML_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ML_EVIDENCE_THRESHOLD", "0.85"))
-WARN_SA_EVIDENCE_THRESHOLD = float(os.getenv("WARN_SA_EVIDENCE_THRESHOLD", "8.0"))
-WARN_ANOMALY_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ANOMALY_EVIDENCE_THRESHOLD", "0.85"))
+WARN_MIN_EVIDENCE = _env_int("WARN_MIN_EVIDENCE", "2")
+WARN_ML_EVIDENCE_THRESHOLD = _env_float("WARN_ML_EVIDENCE_THRESHOLD", "0.85")
+WARN_SA_EVIDENCE_THRESHOLD = _env_float("WARN_SA_EVIDENCE_THRESHOLD", "8.0")
+WARN_ANOMALY_EVIDENCE_THRESHOLD = _env_float("WARN_ANOMALY_EVIDENCE_THRESHOLD", "0.85")
 WARN_AUTH_EVIDENCE = os.getenv("WARN_AUTH_EVIDENCE", "false").lower() in {"1", "true", "yes", "on"}
 QUARANTINE_EVIDENCE_GATED = os.getenv("QUARANTINE_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
-QUARANTINE_MIN_EVIDENCE = int(os.getenv("QUARANTINE_MIN_EVIDENCE", "2"))
+QUARANTINE_MIN_EVIDENCE = _env_int("QUARANTINE_MIN_EVIDENCE", "2")
 
 
 @dataclass
@@ -70,6 +86,11 @@ def fuse(sa_score: float, ml_probability: float,
     Returns:
         FusionResult dengan label routing dan penjelasan.
     """
+    # Coerce None inputs (e.g. from nullable DB columns) to safe defaults
+    if sa_score is None: sa_score = -1.0
+    if ml_probability is None: ml_probability = 0.0
+    if anomaly_score is None: anomaly_score = 0.0
+
     # Normalisasi SA score ke [0, 1]
     # sa_score == -1.0 adalah sentinel dari pipeline_worker yang berarti
     # SpamAssassin timeout atau error — perlakukan sebagai skor netral (0.0),
