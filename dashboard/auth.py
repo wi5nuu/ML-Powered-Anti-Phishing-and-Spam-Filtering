@@ -34,11 +34,17 @@ if not _sk:
     logger.warning("Set DASHBOARD_SECRET_KEY di .env agar sesi tetap valid")
     logger.warning("setelah server restart. Contoh: DASHBOARD_SECRET_KEY=my-secure-key-123")
     logger.warning("=" * 60)
+elif len(_sk.encode("utf-8")) < 32:
+    logger.warning("DASHBOARD_SECRET_KEY terlalu pendek (%d bytes, minimal 32). HMAC-SHA256 membutuhkan kunci >= 32 bytes.", len(_sk.encode("utf-8")))
 SECRET_KEY = _sk
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 if ALGORITHM not in {"HS256", "HS384", "HS512"}:
     raise RuntimeError("JWT_ALGORITHM harus menggunakan HS256, HS384, atau HS512")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+except (ValueError, TypeError):
+    logger.warning("Invalid ACCESS_TOKEN_EXPIRE_MINUTES=%r, using default 480", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+    ACCESS_TOKEN_EXPIRE_MINUTES = 480
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -71,7 +77,7 @@ def decode_token(token: str) -> dict:
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     payload = decode_token(token)
     username = payload.get("sub")
-    if username is None:
+    if not username:
         raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(User).filter(User.username == username).first()
     if not user or not user.is_active:
@@ -86,7 +92,7 @@ def get_current_user_cookie(request: Request, db: Session = Depends(get_db)) -> 
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(token)
     username = payload.get("sub")
-    if username is None:
+    if not username:
         raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(User).filter(User.username == username).first()
     if not user or not user.is_active:
@@ -106,6 +112,7 @@ def verify_api_key(key: str, db: Session) -> ApiKey:
     if not key:
         raise HTTPException(status_code=401, detail="Invalid API key")
     import hashlib
+    from datetime import datetime, timezone
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     api_key = db.query(ApiKey).filter(
         ApiKey.key_hash == key_hash,
@@ -113,6 +120,9 @@ def verify_api_key(key: str, db: Session) -> ApiKey:
     ).first()
     if not api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
+    if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
+        api_key.is_active = False
+        raise HTTPException(status_code=401, detail="API key has expired")
     return api_key
 
 
