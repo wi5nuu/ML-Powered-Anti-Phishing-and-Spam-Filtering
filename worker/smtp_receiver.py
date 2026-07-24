@@ -20,17 +20,28 @@ logger = logging.getLogger("smtp_receiver")
 REDIS_URL       = os.getenv("REDIS_URL", "redis://redis:6379/0")
 QUEUE_NAME      = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
 SMTP_HOST       = os.getenv("SMTP_HOST", "0.0.0.0")
-SMTP_PORT       = int(os.getenv("SMTP_PORT", "25"))
+try:
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
+except (ValueError, TypeError):
+    logger.warning("Invalid SMTP_PORT=%r, using default 25", os.getenv("SMTP_PORT"))
+    SMTP_PORT = 25
 SMTP_DOMAIN     = os.getenv("SMTP_DOMAIN", "mail.example.com")
-MAX_MESSAGE_BYTES = int(os.getenv("MAX_MESSAGE_BYTES", str(25 * 1024 * 1024)))
+try:
+    MAX_MESSAGE_BYTES = int(os.getenv("MAX_MESSAGE_BYTES", str(25 * 1024 * 1024)))
+except (ValueError, TypeError):
+    logger.warning("Invalid MAX_MESSAGE_BYTES=%r, using default 25MB", os.getenv("MAX_MESSAGE_BYTES"))
+    MAX_MESSAGE_BYTES = 25 * 1024 * 1024
 
 # STARTTLS config — enable when TLS cert/key paths are provided
 SMTP_TLS_CERT   = os.getenv("SMTP_TLS_CERT", "")   # e.g. /certs/fullchain.pem
 SMTP_TLS_KEY    = os.getenv("SMTP_TLS_KEY", "")    # e.g. /certs/privkey.pem
 SMTP_REQUIRE_TLS = os.getenv("SMTP_REQUIRE_TLS", "false").lower() == "true"
 
-# Maximum connections allowed per IP to mitigate abuse
-MAX_CONNECTIONS_PER_IP = int(os.getenv("SMTP_MAX_CONN_PER_IP", "10"))
+try:
+    MAX_CONNECTIONS_PER_IP = int(os.getenv("SMTP_MAX_CONN_PER_IP", "10"))
+except (ValueError, TypeError):
+    logger.warning("Invalid SMTP_MAX_CONN_PER_IP=%r, using default 10", os.getenv("SMTP_MAX_CONN_PER_IP"))
+    MAX_CONNECTIONS_PER_IP = 10
 
 ACCEPTED_MAIL_DOMAINS = {
     domain.strip().lower()
@@ -51,6 +62,9 @@ def _get_redis() -> aio_redis.Redis:
     if _redis_pool is None:
         _redis_pool = aio_redis.from_url(REDIS_URL, decode_responses=False)
     return _redis_pool
+
+
+
 
 
 # ── Lazy DB engine ─────────────────────────────────────────────────────────────
