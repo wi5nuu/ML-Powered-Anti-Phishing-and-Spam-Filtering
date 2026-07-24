@@ -33,10 +33,14 @@ os.environ.setdefault("ENV", "development")
 import uvicorn
 
 if __name__ == "__main__":
+    try:
+        _port = int(os.getenv("DASHBOARD_PORT", "8081"))
+    except (ValueError, TypeError):
+        _port = 8081
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
-        port=int(os.getenv("DASHBOARD_PORT", "8081")),
+        port=_port,
         reload=True,
         reload_dirs=[str(Path(__file__).parent)],
     )
