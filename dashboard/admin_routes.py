@@ -18,6 +18,7 @@ Intentionally NOT duplicated here (app.py versions are richer):
   GET  /stats      — app.py version aggregates email/threat counts too
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -27,6 +28,15 @@ import datetime
 import csv
 import io
 import json
+import os
+
+logger = logging.getLogger(__name__)
+
+try:
+    EXPORT_MAX_ROWS = int(os.getenv("EXPORT_MAX_ROWS", "50000"))
+except (ValueError, TypeError):
+    logger.warning("Invalid EXPORT_MAX_ROWS=%r, using default 50000", os.getenv("EXPORT_MAX_ROWS"))
+    EXPORT_MAX_ROWS = 50000
 
 from database.models import User, UserRole, AdminMailbox, AdminMailboxAccess, AuditLog, Organization, QuarantineEmail
 from dashboard.database import get_db
@@ -382,7 +392,7 @@ def _generate_pdf_export(audit_records):
     ts = ParagraphStyle('T',parent=styles['Heading1'],fontSize=18,
                          textColor=colors.HexColor('#1a73e8'),spaceAfter=30,alignment=1)
     el.append(Paragraph("User Activity Tracking Report", ts))
-    el.append(Paragraph(f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC", styles['Normal']))
+    el.append(Paragraph(f"Generated: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC", styles['Normal']))
     el.append(Spacer(1,20))
     td = [["ID","Timestamp","User","Action","Email ID"]]
     for r in audit_records:
@@ -414,7 +424,7 @@ def export_audit_trail(
 ):
     """Export audit log data (legacy)."""
     audit_records = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(500).all()
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     fl = format.lower()
     if fl == "csv":
         content = _generate_csv_export(audit_records)
@@ -447,7 +457,7 @@ def _parse_date(s: Optional[str]) -> Optional[datetime.datetime]:
     if not s: return None
     try:
         p = s.split("-")
-        return datetime.datetime(int(p[0]), int(p[1]), int(p[2]))
+        return datetime.datetime(int(p[0]), int(p[1]), int(p[2]), tzinfo=datetime.timezone.utc)
     except Exception: return None
 
 
@@ -463,9 +473,9 @@ def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> 
     if restrict_org_id:
         email_q = email_q.filter(QuarantineEmail.organization_id == restrict_org_id)
     if dt_from:
-        email_q = email_q.filter(QuarantineEmail.received_at >= dt_from.strftime("%Y-%m-%d"))
+        email_q = email_q.filter(QuarantineEmail.received_at >= dt_from)
     if dt_to:
-        email_q = email_q.filter(QuarantineEmail.received_at <= dt_to.strftime("%Y-%m-%d") + " 23:59:59")
+        email_q = email_q.filter(QuarantineEmail.received_at <= dt_to + datetime.timedelta(days=1) - datetime.timedelta(seconds=1))
 
     log_q = db.query(AuditLog)
     if dt_from:
@@ -480,7 +490,7 @@ def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> 
         admin_q = admin_q.filter(User.id.in_(req.admin_ids))
     admins = admin_q.order_by(User.username).all()
 
-    all_emails = email_q.order_by(QuarantineEmail.received_at.desc().nullslast()).all()
+    all_emails = email_q.order_by(QuarantineEmail.received_at.desc().nullslast()).limit(EXPORT_MAX_ROWS).all()
     total_email = len(all_emails)
     total_clean = sum(1 for e in all_emails if e.label == "CLEAN")
     total_warn = sum(1 for e in all_emails if e.label == "WARN")
@@ -590,7 +600,8 @@ def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> 
             attachments = []
             try:
                 if e.attachments_json: attachments = json.loads(e.attachments_json)
-            except Exception: pass
+            except Exception as ex:
+                logger.warning("Failed to parse attachments_json", email_id=e.id, error=str(ex))
             has_attach = len(attachments) > 0
             has_malware = any(
                 att.get("filename","").lower().endswith((".exe",".zip",".rar",".js",".vbs",".scr",".bat",".msi"))
@@ -641,7 +652,7 @@ def _generate_pdf_report(data: dict):
                          textColor=colors.grey,alignment=1,spaceAfter=20)
 
     el.append(Paragraph("CogniMail — Comprehensive Report", ts))
-    el.append(Paragraph(f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC | Period: {s['date_from']} — {s['date_to']}", ss))
+    el.append(Paragraph(f"Generated: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC | Period: {s['date_from']} — {s['date_to']}", ss))
 
     # Summary table
     st = Table([["Metric","Value"],
@@ -806,7 +817,7 @@ def _generate_excel_report(data: dict):
                 ("Blocked (Quarantine)",s["total_quarantine"]),
                 ("Period From",s["date_from"]),
                 ("Period To",s["date_to"]),
-                ("Generated",datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"))]:
+                ("Generated",datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"))]:
         ws1.append(list(row))
     sh(ws1,2); aw(ws1)
 
@@ -880,7 +891,7 @@ def generate_export(
     """Generate comprehensive report (PDF/Excel) with filters."""
     data = _gather_export_data(db, req, current_user)
     fmt = req.format.lower()
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     if fmt == "pdf":
         content = _generate_pdf_report(data)
         return StreamingResponse(iter([content]), media_type="application/pdf",
