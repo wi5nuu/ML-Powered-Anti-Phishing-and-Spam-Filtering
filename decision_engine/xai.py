@@ -26,11 +26,13 @@ XAI_HUMAN_LABELS = {
 }
 
 
-def build_xai_header(features: EmailFeatures, spam_prob: float,
+def build_xai_header(features: EmailFeatures | None, spam_prob: float,
                      fused_score: float, label: str) -> str:
     """
     Bangun string X-Spam-Reason dari fitur dan skor.
     """
+    if features is None:
+        return f"SpamProb={spam_prob:.2f}; FusedScore={fused_score:.2f}"
     parts = [f"SpamProb={spam_prob:.2f}", f"FusedScore={fused_score:.2f}"]
 
     if spam_prob > 0.30:
@@ -56,10 +58,12 @@ def build_xai_header(features: EmailFeatures, spam_prob: float,
     return "; ".join(parts)
 
 
-def human_readable_reasons(features: EmailFeatures) -> list[str]:
+def human_readable_reasons(features: EmailFeatures | None) -> list[str]:
     """
     Kembalikan daftar alasan yang bisa dibaca manusia non-teknis.
     """
+    if features is None:
+        return []
     reasons = []
     if features.urgency_score > 0.3:
         reasons.append(XAI_HUMAN_LABELS["urgency_score"])
