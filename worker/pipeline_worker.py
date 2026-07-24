@@ -45,7 +45,13 @@ QUEUE_NAME         = os.getenv("REDIS_QUEUE_NAME", "email_pipeline")
 PUBSUB_CHANNEL     = os.getenv("PUBSUB_CHANNEL", "email:processed")
 CLASSIFIER_URL     = os.getenv("CLASSIFIER_URL", "http://classifier:8001")
 SA_HOST            = os.getenv("SPAMASSASSIN_HOST", "spamassassin")
-SA_PORT            = int(os.getenv("SPAMASSASSIN_PORT", "783"))
+try:
+    SA_PORT = int(os.getenv("SPAMASSASSIN_PORT", "783"))
+    if SA_PORT <= 0 or SA_PORT > 65535:
+        raise ValueError
+except (ValueError, TypeError):
+    logger.warning("Invalid SPAMASSASSIN_PORT=%r, falling back to 783", os.getenv("SPAMASSASSIN_PORT"))
+    SA_PORT = 783
 DB_URL             = (
     os.getenv("WORKER_DB_URL")
     or os.getenv("DB_ASYNC_URL")
@@ -61,9 +67,21 @@ if "sqlite" in DB_URL.lower():
     raise RuntimeError(
         "SQLite tidak didukung. Gunakan: postgresql+asyncpg://cogniuser:password@postgres:5432/cognimail"
     )
-WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "10"))
-MAX_ATTACHMENT_BYTES = int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024)))
-MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
+try:
+    WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "10"))
+except (ValueError, TypeError):
+    logger.warning("Invalid WORKER_CONCURRENCY=%r, falling back to 10", os.getenv("WORKER_CONCURRENCY"))
+    WORKER_CONCURRENCY = 10
+try:
+    MAX_ATTACHMENT_BYTES = max(0, min(int(os.getenv("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024))), 100 * 1024 * 1024))
+except (ValueError, TypeError):
+    logger.warning("Invalid MAX_ATTACHMENT_BYTES=%r, falling back to 10MB", os.getenv("MAX_ATTACHMENT_BYTES"))
+    MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+try:
+    MAX_STORED_ATTACHMENTS = int(os.getenv("MAX_STORED_ATTACHMENTS", "20"))
+except (ValueError, TypeError):
+    logger.warning("Invalid MAX_STORED_ATTACHMENTS=%r, falling back to 20", os.getenv("MAX_STORED_ATTACHMENTS"))
+    MAX_STORED_ATTACHMENTS = 20
 AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror", "permerror", "policy")
 THREAT_CATEGORIES = {"spam", "phishing", "malware"}
 
@@ -82,6 +100,16 @@ def normalize_addresses(values) -> list[str]:
         return list(dict.fromkeys(addresses))
     fallback = [str(value).strip().lower() for value in values if str(value).strip()]
     return list(dict.fromkeys(fallback))
+
+
+def _task_exception_handler(task: asyncio.Task) -> None:
+    """Log exceptions from background tasks."""
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        pass  # Task was cancelled, this is normal
+    except Exception as e:
+        logger.error("background_task_failed", error=str(e), exc_info=True)
 
 PHISHING_HINTS = (
     "phishing", "verify your account", "verify account", "confirm your account",
@@ -118,9 +146,15 @@ SPAM_STRONG_HINTS = (
 
 
 def _safe_html(content: str) -> str:
-    content = re.sub(r"(?is)<(script|iframe|object|embed|form|style)\b.*?</\1>", "", content or "")
-    content = re.sub(r"(?i)\son[a-z]+\s*=\s*(['\"]).*?\1", "", content)
-    content = re.sub(r"(?i)javascript:", "", content)
+    content = content or ""
+    content = re.sub(r"(?is)<(script|iframe|object|embed|form|style)\b.*?</\1>", "", content)
+    content = re.sub(r"(?is)<meta\b[^>]*>", "", content)
+    content = re.sub(r"(?i)\son[a-z]+\s*=\s*[^\s>\"']*(?:\s|>|$)", "", content)
+    content = re.sub(r'(?i)\son[a-z]+\s*=\s*"[^"]*"', "", content)
+    content = re.sub(r"(?i)\son[a-z]+\s*=\s*'[^']*'", "", content)
+    content = re.sub(r"(?i)javascript\s*:", "", content)
+    content = re.sub(r"(?i)data:\s*text/html", "", content)
+    content = re.sub(r"(?is)<svg\b[^>]*>.*?</svg>", "", content)
     return content
 
 
@@ -171,7 +205,7 @@ def derive_auth_results(raw_email: str, sender: str = "") -> dict:
         dkim_signature = False
 
     combined = f"{auth_headers} {received_spf}"
-    spf = _auth_value(combined, "spf")
+    spf = _auth_value(combined, "spf") or _auth_value(received_spf, "receiver")
     dkim = _auth_value(auth_headers, "dkim")
     dmarc = _auth_value(auth_headers, "dmarc")
 
@@ -183,7 +217,10 @@ def derive_auth_results(raw_email: str, sender: str = "") -> dict:
 
     domain_match = re.search(r"@([A-Za-z0-9.-]+)", sender or "")
     domain = domain_match.group(1).lower() if domain_match else ""
-    fallback = "LOCAL TEST" if domain.endswith(".test") or domain in {"local.test", "localhost", "example.test"} else "N/A"
+    fallback = "LOCAL TEST" if (
+        domain.endswith(".test") or domain in {"local.test", "localhost", "example.test"} or "@local" in (sender or "").lower() or
+        not re.search(r"(?im)^(from|to|subject|authentication-results|received-spf):", raw_email or "")
+    ) else "N/A"
     return {
         "spf_result": spf or fallback,
         "dkim_result": dkim or fallback,
@@ -271,11 +308,19 @@ def apply_content_guard(fusion: FusionResult, raw_email: str, ml_probability: fl
     return guarded, category
 
 
+def _parse_iso_datetime(s: str):
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return datetime.now(datetime.timezone.utc)
+
+
 def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
     try:
         msg = Parser(policy=policy.default).parsestr(raw_email)
     except Exception:
         return {
+            "message_id": "",
             "subject": "",
             "sender": payload.get("sender", ""),
             "recipients": payload.get("recipients", []),
@@ -283,6 +328,7 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
             "attachments": [],
         }
 
+    message_id = (msg.get("message-id", "") or "").strip().strip("<>")
     subject = str(msg.get("subject", "") or "")
     sender = str(msg.get("from", "") or payload.get("sender", "") or "")
     recipients = normalize_addresses(msg.get_all("to", []) or payload.get("recipients", []))
@@ -331,6 +377,7 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
         body_html = _linkify_plain_text(raw_email)
 
     return {
+        "message_id": message_id,
         "subject": subject,
         "sender": sender,
         "recipients": recipients,
@@ -410,15 +457,16 @@ async def score_with_ml(raw_email: str, email_id: str,
         return resp.json()
     except httpx.TimeoutException:
         logger.error("classifier_timeout", email_id=email_id)
-        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+        # Return sentinel -1.0 to indicate error (not legitimate 0.0)
+        return {"spam_probability": -1.0, "anomaly_score": -1.0,
                 "xai_summary": "Classifier timeout", "top_reasons": []}
     except httpx.HTTPStatusError as e:
         logger.error("classifier_http_error", status=e.response.status_code)
-        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+        return {"spam_probability": -1.0, "anomaly_score": -1.0,
                 "xai_summary": "Classifier error", "top_reasons": []}
     except Exception as e:
         logger.error("classifier_error", error=str(e))
-        return {"spam_probability": 0.0, "anomaly_score": 0.0,
+        return {"spam_probability": -1.0, "anomaly_score": -1.0,
                 "xai_summary": str(e), "top_reasons": []}
 
 
@@ -440,11 +488,25 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     ml_prob       = ml_result.get("spam_probability", 0.0)
     anomaly_score = ml_result.get("anomaly_score", 0.0)
     xai_str       = ml_result.get("xai_summary", "")
+    
+    # Handle classifier errors (sentinel -1.0): treat as moderate risk
+    if ml_prob < 0:
+        ml_prob = 0.50  # Treat errors conservatively
+        xai_str = f"Classifier unavailable ({xai_str})"
+    if anomaly_score < 0:
+        anomaly_score = 0.50
+    if sa_score < 0:
+        sa_score = 0.0
 
-    # Parse auth dari raw email untuk fusion
-    spf_pass   = "spf=pass"  in raw_email.lower()
-    dkim_pass  = "dkim=pass" in raw_email.lower()
-    dmarc_pass = "dmarc=pass" in raw_email.lower()
+    # Ekstrak subject/sender dari raw email (early, needed for auth parsing + fusion)
+    message_data = parse_message_for_storage(raw_email, payload)
+    sender = message_data["sender"]
+
+    # Parse auth dari raw email untuk fusion (proper header parsing)
+    auth_results = derive_auth_results(raw_email, sender)
+    spf_pass   = auth_results.get("spf_result", "").upper() == "PASS"
+    dkim_pass  = auth_results.get("dkim_result", "").upper() in {"PASS", "SIGNED"}
+    dmarc_pass = auth_results.get("dmarc_result", "").upper() == "PASS"
 
     # ── Decision Engine (3-way fusion) ──────────────────────────────────────
     fusion = fuse(
@@ -475,19 +537,18 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         elapsed_ms=round(elapsed_ms, 1),
     )
 
-    # ── Ekstrak subject/sender dari raw email ────────────────────────────
-    message_data = parse_message_for_storage(raw_email, payload)
+    # ── Pakai data yang sudah diekstrak di atas ─────────────────────────
+    email_message_id = message_data["message_id"]
     subject = message_data["subject"]
-    sender = message_data["sender"]
     recipients = message_data["recipients"]
-    auth_results = derive_auth_results(raw_email, sender)
     threat_category = guarded_category or infer_threat_category(raw_email, fusion.label, payload.get("category", ""))
 
     # ── Simpan ke DB ──────────────────────────────────────────────────────
     # Simpan semua email. Untuk email CLEAN, simpan konten minimal saja untuk menghemat DB space.
     quarantine_entry = QuarantineEmail(
         email_id=email_id,
-        received_at=datetime.fromisoformat(received_at) if isinstance(received_at, str) else received_at,
+        message_id=email_message_id,
+        received_at=_parse_iso_datetime(received_at) if isinstance(received_at, str) else received_at,
         label=fusion.label,
         fused_score=fusion.fused_score,
         sa_score=sa_score,
@@ -526,11 +587,9 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
             await redis_client.publish(PUBSUB_CHANNEL, pubsub_payload)
         else:
             # Fallback: open a one-shot connection if no shared client provided
-            r_pub = await aio_redis.from_url(REDIS_URL)
-            try:
+            # Use async with to ensure proper cleanup even on exception
+            async with aio_redis.from_url(REDIS_URL) as r_pub:
                 await r_pub.publish(PUBSUB_CHANNEL, pubsub_payload)
-            finally:
-                await r_pub.aclose()
     except Exception as e:
         logger.warning("pubsub_publish_failed", error=str(e))
 
@@ -548,7 +607,8 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
             xai_summary=xai_str,
             severity=severity,
         )
-        asyncio.create_task(alert_manager.send_all(alert_payload))
+        task = asyncio.create_task(alert_manager.send_all(alert_payload))
+        task.add_done_callback(_task_exception_handler)
 
     # ── Forward CLEAN/WARN ke tujuan mailbox ────────────────────────────
     # Fusion is the final routing decision. The heuristic category may still
@@ -564,9 +624,13 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
                 AdminMailbox.forward_to != "",
             )
         )
+        mailboxes_to_delete_entry = []
         for mailbox in result.scalars().all():
             if mailbox.email.lower() not in recipient_lowers:
                 continue
+            # Track mailboxes that want to delete the quarantine entry
+            if not getattr(mailbox, "forward_keep_copy", True):
+                mailboxes_to_delete_entry.append(mailbox)
             forward_payload = dict(payload)
             forward_recipients = [mailbox.forward_to]
             forward_payload["recipients"] = list(dict.fromkeys(
@@ -598,6 +662,16 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
                     mailbox=mailbox.email,
                     destination=mailbox.forward_to,
                 )
+        # Delete quarantine entry only after all forwards complete
+        if mailboxes_to_delete_entry:
+            await db_session.delete(quarantine_entry)
+            await db_session.commit()
+            logger.info(
+                "quarantine_entry_deleted",
+                email_id=email_id,
+                reason="forward_keep_copy=False",
+                mailbox_count=len(mailboxes_to_delete_entry),
+            )
     else:
         logger.info(
             "mailbox_forward_skipped",
@@ -643,6 +717,7 @@ async def run_worker():
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS spf_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dkim_result VARCHAR(32) DEFAULT ''"))
             await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
+            await conn.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS message_id VARCHAR(255) DEFAULT ''"))
         else:
             logger.warning("dialect_not_postgresql", dialect=dialect)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -665,23 +740,28 @@ async def run_worker():
 
     async with httpx.AsyncClient() as http_client:
         logger.info("worker_started", queue=QUEUE_NAME, concurrency=WORKER_CONCURRENCY)
-        while True:
-            try:
-                # Blocking pop dengan timeout 5 detik
-                item = await r.blpop(QUEUE_NAME, timeout=5)
-                if item is None:
-                    continue
-                _, raw_payload = item
-                payload = json.loads(raw_payload)
+        try:
+            while True:
+                try:
+                    # Blocking pop dengan timeout 5 detik
+                    item = await r.blpop(QUEUE_NAME, timeout=5)
+                    if item is None:
+                        continue
+                    _, raw_payload = item
+                    payload = json.loads(raw_payload)
 
-                # Spawn a task so the main loop keeps dequeuing while workers run
-                asyncio.create_task(_handle_with_sem(payload))
+                    # Spawn a task so the main loop keeps dequeuing while workers run
+                    task = asyncio.create_task(_handle_with_sem(payload))
+                    task.add_done_callback(_task_exception_handler)
 
-            except json.JSONDecodeError as e:
-                logger.error("json_decode_error", error=str(e))
-            except Exception as e:
-                logger.exception("worker_error", error=str(e))
-                await asyncio.sleep(1)  # Backoff kecil sebelum retry
+                except json.JSONDecodeError as e:
+                    logger.error("json_decode_error", error=str(e))
+                except Exception as e:
+                    logger.exception("worker_error", error=str(e))
+                    await asyncio.sleep(1)  # Backoff kecil sebelum retry
+        finally:
+            await r.aclose()
+            logger.info("worker_redis_connection_closed")
 
 
 if __name__ == "__main__":
