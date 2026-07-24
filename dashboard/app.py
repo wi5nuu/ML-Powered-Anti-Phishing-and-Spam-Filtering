@@ -71,7 +71,7 @@ from dashboard.config import get_configured_mail_domain, email_uses_configured_d
 from dashboard.rbac import (
     Permission, check_permission, check_role, get_user_permissions, has_permission_dict, ROLE_DESCRIPTIONS, UserRole as RBACUserRole
 )
-from dashboard import admin_routes
+from dashboard import admin_routes, training_routes
 from mail_delivery import deliver_direct_mx
 
 logger = logging.getLogger(__name__)
@@ -250,6 +250,7 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Register RBAC admin routes
 app.include_router(admin_routes.router)
+app.include_router(training_routes.router)
 
 
 
