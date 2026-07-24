@@ -23,6 +23,8 @@ import UserDashboardShell from './components/layout/UserDashboardShell'
 import UserMailboxPage from './pages/UserMailboxPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import SuperadminTrainingPage from './pages/SuperadminTrainingPage'
+import ApiKeysPage from './pages/ApiKeysPage'
+import PembelianPage from './pages/PembelianPage'
 import { removeMailboxLocalState } from './utils/mailbox'
 
 function dashboardPathForRole(role) {
@@ -237,7 +239,10 @@ export default function App() {
         <Route path="/super-admin" element={<RoleRedirect />} />
         <Route path="/super-admin/dashboard" element={<AdminRoute scope="superadmin"><AdminPage /></AdminRoute>} />
         <Route path="/super-admin/training" element={<AdminRoute scope="superadmin"><SuperadminTrainingPage /></AdminRoute>} />
+        <Route path="/super-admin/api-keys" element={<AdminRoute scope="superadmin"><ApiKeysPage /></AdminRoute>} />
+        <Route path="/admin/api-keys" element={<AdminRoute scope="admin"><ApiKeysPage /></AdminRoute>} />
         <Route path="/admin/dashboard" element={<AdminRoute scope="admin"><AdminPage /></AdminRoute>} />
+        <Route path="/pembelian" element={<RequireMailbox><MailboxRoute><PembelianPage /></MailboxRoute></RequireMailbox>} />
 
         {/* Fallback — redirect based on role */}
         <Route path="*" element={<RoleRedirect />} />
