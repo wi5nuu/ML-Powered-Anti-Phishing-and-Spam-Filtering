@@ -39,13 +39,22 @@ def _recipient_domain(recipient: str) -> str:
     clean = (recipient or "").strip().lower()
     if "@" not in clean:
         raise ValueError(f"Alamat penerima tidak valid: {recipient}")
-    return clean.rsplit("@", 1)[1].encode("idna").decode("ascii")
+    try:
+        return clean.rsplit("@", 1)[1].encode("idna").decode("ascii")
+    except (UnicodeError, IndexError):
+        raise ValueError(f"Alamat penerima tidak valid: {recipient}")
 
 
 def _resolve_mx_sync(domain: str) -> list[str]:
     resolver = dns.resolver.Resolver()
-    resolver.timeout = float(os.getenv("OUTBOUND_DNS_TIMEOUT", "5"))
-    resolver.lifetime = float(os.getenv("OUTBOUND_DNS_LIFETIME", "10"))
+    try:
+        resolver.timeout = float(os.getenv("OUTBOUND_DNS_TIMEOUT", "5"))
+    except (ValueError, TypeError):
+        resolver.timeout = 5.0
+    try:
+        resolver.lifetime = float(os.getenv("OUTBOUND_DNS_LIFETIME", "10"))
+    except (ValueError, TypeError):
+        resolver.lifetime = 10.0
     try:
         answers = resolver.resolve(domain, "MX")
         records = sorted(
@@ -83,11 +92,16 @@ async def deliver_direct_mx(
     if not envelope_from or "@" not in envelope_from:
         raise ValueError("Envelope sender outbound tidak valid")
 
+    failures: dict[str, str] = {}
     grouped: dict[str, list[str]] = defaultdict(list)
     for recipient in recipients:
-        grouped[_recipient_domain(recipient)].append(recipient.strip().lower())
+        try:
+            domain = _recipient_domain(recipient)
+            grouped[domain].append(recipient.strip().lower())
+        except ValueError:
+            failures[recipient] = "invalid address format"
     if not grouped:
-        raise ValueError("Penerima outbound tidak tersedia")
+        raise DirectDeliveryError(failures)
 
     raw_message = _message_bytes(message)
     helo = (
@@ -97,9 +111,11 @@ async def deliver_direct_mx(
         or os.getenv("HOSTNAME", "")
         or "mail.cognimail.local"
     ).strip()
-    timeout = float(os.getenv("OUTBOUND_SMTP_TIMEOUT", "30"))
+    try:
+        timeout = float(os.getenv("OUTBOUND_SMTP_TIMEOUT", "30"))
+    except (ValueError, TypeError):
+        timeout = 30.0
     delivered: dict[str, str] = {}
-    failures: dict[str, str] = {}
 
     for domain, domain_recipients in grouped.items():
         try:
