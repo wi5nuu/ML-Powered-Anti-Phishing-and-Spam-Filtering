@@ -60,8 +60,11 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("SHAP explainer init failed: %s", e)
             state.explainer = None
-        # Cache feature names (jangan panggil get_feature_names_out() per-request)
-        state.tfidf_feature_names = state.tfidf.get_feature_names_out().tolist()
+        # Cache feature names (jangan panggil per-request)
+        if hasattr(state.tfidf, "get_feature_names_out"):
+            state.tfidf_feature_names = state.tfidf.get_feature_names_out().tolist()
+        else:
+            state.tfidf_feature_names = state.tfidf.get_feature_names()
         state.all_feature_names = state.tfidf_feature_names + STRUCTURED_FEATURES
 
         # ── BUG-007: Validate model input dimension matches feature pipeline ──
@@ -89,6 +92,15 @@ async def lifespan(app: FastAPI):
             len(STRUCTURED_FEATURES),
             expected_n_features,
         )
+
+        # Validate all structured features exist on EmailFeatures at startup
+        from classifier.features import EmailFeatures
+        _missing = [f for f in STRUCTURED_FEATURES if not hasattr(EmailFeatures, f)]
+        if _missing:
+            raise RuntimeError(
+                f"STRUCTURED_FEATURES references fields not on EmailFeatures "
+                f"dataclass: {_missing}"
+            )
     except FileNotFoundError as e:
         logger.critical("Supervised model tidak ditemukan: %s", e)
         raise
@@ -205,7 +217,8 @@ def _predict_supervised_internal(raw_email: str, email_id: str) -> PredictRespon
 
     if state.explainer is not None:
         try:
-            X_dense = X.toarray()
+            import numpy as _np
+            X_dense = _np.asarray(X)
             shap_vals = state.explainer.shap_values(X_dense)[0]
         except Exception as e:
             logger.warning("SHAP failed: %s", e)
@@ -329,6 +342,10 @@ async def predict_dual(req: EmailPredictRequest):
     Worker pipeline — kedua skor dalam satu panggilan.
     Fungsi heavy (SHAP, XGBoost) di-offload ke thread biar gak blocking.
     """
+    if state.model is None:
+        raise HTTPException(503, "Model belum diload.")
+    if state.anomaly is None or not state.anomaly.is_fitted:
+        raise HTTPException(503, "Unsupervised model belum diload / belum di-train.")
     loop = asyncio.get_running_loop()
     supervised, unsupervised = await asyncio.gather(
         loop.run_in_executor(None, _predict_supervised_internal, req.raw_email, req.email_id),
