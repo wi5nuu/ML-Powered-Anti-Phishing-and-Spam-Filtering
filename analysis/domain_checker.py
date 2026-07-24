@@ -27,6 +27,12 @@ import os
 
 logger = logging.getLogger(__name__)
 
+try:
+    import whois as _whois
+    _WHOIS_AVAILABLE = True
+except ImportError:
+    _WHOIS_AVAILABLE = False
+
 # ─── Protected domains (from config / env) ──────────────────────────────────────
 
 DEFAULT_PROTECTED_DOMAINS = [
@@ -244,6 +250,8 @@ def extract_root_domain(domain: str) -> str:
 
 def extract_domain_from_url(url: str) -> str:
     """Extract hostname from URL string."""
+    if url is None:
+        return ""
     url = url.strip()
     if not url.startswith(("http://", "https://", "ftp://")):
         url = "http://" + url
@@ -261,9 +269,11 @@ def get_domain_age_days(domain: str) -> Optional[int]:
     Best-effort domain age check via WHOIS.
     Returns None if unavailable (don't block on DNS errors).
     """
+    if not _WHOIS_AVAILABLE:
+        logger.debug("python-whois not installed; skipping domain age check")
+        return None
     try:
-        import whois  # python-whois — optional dependency
-        w = whois.whois(domain)
+        w = _whois.whois(domain)
         creation_date = w.creation_date
         if creation_date is None:
             return None
