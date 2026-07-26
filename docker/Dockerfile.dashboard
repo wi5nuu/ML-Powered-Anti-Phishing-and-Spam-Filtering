@@ -1,0 +1,40 @@
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app/dashboard/frontend
+
+COPY dashboard/frontend/package*.json ./
+RUN npm ci
+
+COPY dashboard/frontend/ ./
+# No default — the build-time value MUST be supplied via --build-arg or
+# docker-compose build.args so a production domain is never accidentally
+# baked into an image destined for a different environment.
+ARG VITE_MAIL_DOMAIN
+ENV VITE_MAIL_DOMAIN=${VITE_MAIL_DOMAIN}
+RUN npm run build
+
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN python -c "import aiosmtplib, fastapi, httpx, itsdangerous, pydantic, redis, slowapi, sqlalchemy, reportlab, openpyxl, psycopg"
+
+COPY dashboard/ dashboard/
+COPY database/ database/
+COPY mail_delivery/ mail_delivery/
+COPY seed_data.py seed_data.py
+COPY scripts/ scripts/
+COPY --from=frontend-builder /app/dashboard/static/dist dashboard/static/dist
+
+EXPOSE 8080
+
+CMD ["uvicorn", "dashboard.app:app", "--host", "0.0.0.0", "--port", "8080"]

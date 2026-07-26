@@ -1,0 +1,351 @@
+.row {
+  display: grid;
+  grid-template-columns: 64px minmax(150px, 220px) minmax(240px, 1fr) 84px;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 18px 0 12px;
+  border-bottom: 1px solid var(--border-medium);
+  cursor: pointer;
+  background: var(--row-unread-bg);
+  color: var(--text);
+  font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
+  column-gap: 10px;
+  position: relative;
+}
+
+.row.read {
+  background: var(--row-read-bg);
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .row {
+  background: var(--row-unread-bg-dark);
+  color: var(--text);
+  border-bottom-color: var(--border-dark);
+}
+
+[data-theme='dark'] .row.read {
+  background: var(--row-read-bg-dark);
+  color: var(--text-secondary);
+}
+
+.row:hover {
+  background: var(--row-hover-bg);
+  box-shadow: inset 3px 0 0 #0b57d0, 0 2px 8px rgba(60, 64, 67, 0.12);
+  z-index: 1;
+}
+
+[data-theme='dark'] .row:hover {
+  background: var(--row-hover-bg-dark);
+  box-shadow: inset 1px 0 0 var(--border-medium), inset -1px 0 0 var(--border-medium);
+}
+
+.selected {
+  background: #c2e7ff !important;
+}
+
+/* Active row — the email currently open in the read pane */
+.activeRow {
+  background: #c2e7ff !important;
+  border-left: 3px solid #0b57d0 !important;
+}
+[data-theme='dark'] .activeRow {
+  background: #004a77 !important;
+  border-left: 3px solid #7cacf8 !important;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #0b57d0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+
+.checkboxWrap,
+.starBtn,
+.quickBtn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.starBtn,
+.quickBtn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.starBtn:hover,
+.quickBtn:hover {
+  background: var(--hover-light);
+  color: var(--text-muted);
+}
+
+.starActive {
+  color: var(--star-active);
+}
+
+.starBtn svg {
+  stroke-width: 1.8;
+}
+
+.senderCol {
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.sender,
+.subject,
+.time {
+  font-weight: 700;
+}
+
+.sender {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  line-height: 20px;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 20px;
+}
+
+.subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+.separator {
+  margin: 0 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.preview {
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.read .sender,
+.read .subject,
+.read .time {
+  font-weight: 400;
+}
+
+.read .preview,
+.read .separator {
+  color: var(--text-muted);
+}
+
+.quickActions {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 18px;
+  background: linear-gradient(90deg, transparent, #f2f6fc 18px, #f2f6fc);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.read .quickActions {
+  background: linear-gradient(90deg, transparent, #f2f6fc 18px, #f2f6fc);
+}
+
+.selected .quickActions {
+  background: linear-gradient(90deg, transparent, #c2dbff 18px, #c2dbff);
+}
+
+.row:hover .quickActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.time {
+  justify-self: end;
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 20px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachmentIcon {
+  color: var(--text-muted);
+}
+
+.read .time {
+  color: var(--text-muted);
+}
+
+.row:hover .time {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: 72px minmax(110px, 160px) minmax(160px, 1fr) 72px;
+  }
+}
+
+/* ── Phones: two-line Gmail-app style row ── */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 44px 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "actions sender time"
+      "actions body   body";
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 2px;
+    min-height: 68px;
+    padding: 10px 14px 10px 8px;
+  }
+
+  .actions {
+    grid-area: actions;
+    flex-direction: column;
+    gap: 10px;
+    align-self: center;
+  }
+
+  .senderCol {
+    grid-area: sender;
+    padding-right: 6px;
+    align-self: end;
+  }
+
+  .sender { font-size: 0.9375rem; }
+
+  .time {
+    grid-area: time;
+    align-self: end;
+    justify-self: end;
+    font-size: 0.75rem;
+  }
+
+  .body {
+    grid-area: body;
+    align-self: start;
+  }
+
+  .subject {
+    flex-shrink: 0;
+    max-width: 45%;
+  }
+
+  .preview {
+    display: block;
+  }
+
+  /* Touch devices don't hover — the desktop quick-action overlay is unreachable,
+     so keep it hidden and rely on the row tap + toolbar bulk actions. */
+  .quickActions { display: none; }
+
+  /* Time must stay visible since there is no hover state on touch */
+  .row:hover .time {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .starBtn,
+  .quickBtn {
+    width: 32px;
+    height: 32px;
+  }
+  .checkbox {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ── Thread count badge (e.g. "3") ─────────────────────────────────── */
+.threadCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 8px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadCountBadge {
+  background: var(--surface-dark);
+  color: var(--text);
+}
+
+/* ── Draft indicator on thread rows ────────────────────────────────── */
+.threadDraftIndicator {
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: 3px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .threadDraftIndicator {
+  color: var(--gmail-yellow);
+  background: var(--gmail-yellow-dark-bg);
+  border-color: var(--gmail-yellow-border);
+}
+

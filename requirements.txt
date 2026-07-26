@@ -1,0 +1,78 @@
+# Ingestion
+email-validator>=2.1.0
+python-dotenv>=1.0.0
+aiosmtpd>=1.4.6
+aiosmtplib>=3.0.0
+
+# Queue
+redis>=5.0.0
+
+# NLP & ML
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+pandas>=2.0.0
+numpy>=1.26.0,<2
+Sastrawi>=1.0.1
+langdetect>=1.0.9
+
+# Feature: URL & Domain Analysis
+tldextract>=5.1.0
+rapidfuzz>=3.6.0
+dnspython>=2.6.0
+dkimpy>=1.1.8
+
+# API & Web
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+pydantic>=2.9.0
+itsdangerous>=2.2.0
+python-multipart>=0.0.9
+aiofiles>=23.2.0
+
+# Database (PostgreSQL only — SQLite tidak didukung di production)
+sqlalchemy>=2.0.0
+
+# Serialization & Storage
+joblib>=1.4.0
+
+# Explainability
+
+# Monitoring
+prometheus-fastapi-instrumentator>=6.1.0
+
+# Logging
+structlog>=24.1.0
+
+# WebSocket
+websockets>=12.0
+
+# JWT Auth
+PyJWT[crypto]>=2.13.0
+passlib[bcrypt]>=1.7.4
+bcrypt<5
+
+# Image parsing
+pillow>=11.0.0
+
+# Rate Limiting
+slowapi>=0.1.9
+
+# Scientific computing
+scipy>=1.12.0
+
+# Report / Export
+reportlab>=4.0
+openpyxl>=3.1.0
+pypdf>=5.0.0
+
+# Threat Intelligence
+aiohttp>=3.9.0
+
+# Database migrations (Alembic required for schema versioning in production)
+alembic>=1.13.0
+
+# Async PostgreSQL (production)
+asyncpg>=0.29.0
+sqlalchemy[asyncio]>=2.0.0
+psycopg[binary]>=3.1.0
