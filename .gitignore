@@ -49,10 +49,20 @@ logs/*.log
 
 # Environment files are deployed separately, never committed.
 .env
+.env.*
+!.env.example
 # Cryptographic keys must be provisioned directly on the server.
 secrets/
+certs/
+letsencrypt/
+*.key
+*.pem
 *.private.pem
 *.dkim.key
+
+# Runtime/user-generated files are stored in Docker volumes or VPS storage.
+uploads/
+dashboard/static/avatars/
 
 # Large data files (thousands of small files)
 data/raw/enron/
