@@ -230,7 +230,9 @@ def calibrate_short_benign_message(
     """Prevent MIME/anomaly noise from quarantining trivial plain messages."""
     # SpamAssassin's default spam threshold is 5.0. A score below it is
     # corroborating non-spam evidence, while >=5.0 must never be auto-cleaned.
-    if classifier_error or sa_score < 0 or sa_score >= 5.0 or message_data.get("attachments"):
+    # SpamAssassin can legitimately return negative scores for trusted/benign
+    # mail (for example -0.10). Only -1.0 is our transport-error sentinel.
+    if classifier_error or sa_score == -1.0 or sa_score >= 5.0 or message_data.get("attachments"):
         return fusion
     visible = " ".join(
         str(message_data.get(key) or "") for key in ("subject", "body_text")

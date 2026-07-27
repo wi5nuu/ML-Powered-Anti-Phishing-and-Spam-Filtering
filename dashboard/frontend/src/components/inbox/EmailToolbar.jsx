@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '../../i18n/context'
 import { ChevronDown, MailCheck, MailOpen, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react'
-import { useDeleteEmail, useToggleReadEmail } from '../../api/emails'
+import { useBulkDeleteEmails, useToggleReadEmail } from '../../api/emails'
 import { useToast } from '../../hooks/useToast'
 import ConfirmDialog from '../common/ConfirmDialog'
 import styles from './EmailToolbar.module.css'
@@ -43,7 +43,7 @@ export default function EmailToolbar({
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
-  const { mutateAsync: deleteEmail } = useDeleteEmail()
+  const { mutateAsync: bulkDeleteEmails } = useBulkDeleteEmails()
   const { mutateAsync: toggleRead } = useToggleReadEmail()
   const { showToast } = useToast()
 
@@ -66,12 +66,12 @@ export default function EmailToolbar({
 
   const confirmBulkDelete = async () => {
     try {
-      const promises = Array.from(selected).map((id) => deleteEmail(id))
-      await Promise.all(promises)
+      const selectedIds = Array.from(selected)
+      await bulkDeleteEmails(selectedIds)
       if (isTrashFolder) showToast(t('toolbar.deletedPermanent').replace('{n}', selected.size), 'success')
       setDeleteDialogOpen(false)
       onSelectAll(false)
-      onRefresh()
+      await onRefresh?.()
     } catch (err) {
       showToast(t('toolbar.deleteError'), 'error')
     }

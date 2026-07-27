@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useToast } from './useToast'
 import { useQueryClient } from '@tanstack/react-query'
 
-const MAX_RETRIES = 10
 const BASE_DELAY_MS = 1000
 const MAX_DELAY_MS = 30000
 
@@ -37,23 +36,28 @@ export function useWebSocket({ enabled = false, mailboxEmail = '' } = {}) {
       ws.onopen = () => {
         // Reset retry counter on successful connection
         retriesRef.current = 0
+        qc.invalidateQueries({ queryKey: ['emails'], refetchType: 'active' })
+        qc.invalidateQueries({ queryKey: ['stats'], refetchType: 'active' })
       }
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          if (
-            data.type !== 'email_processed'
-            || String(data.label || '').toUpperCase() !== 'CLEAN'
-            || String(data.category || '').toLowerCase() !== 'clean'
-            || String(data.status || '').toLowerCase() !== 'released'
-          ) return
+          if (data.type !== 'email_processed') return
 
           const recipients = Array.isArray(data.recipients)
             ? data.recipients.map((recipient) => String(recipient).trim().toLowerCase())
             : []
           if (!recipients.includes(normalizedMailbox) || !data.email_id) return
-          if (window.sessionStorage.getItem(notificationKey) === data.email_id) return
+          qc.invalidateQueries({ queryKey: ['emails'], refetchType: 'active' })
+          qc.invalidateQueries({ queryKey: ['stats'], refetchType: 'active' })
+
+          const isClean = (
+            String(data.label || '').toUpperCase() === 'CLEAN'
+            && String(data.category || '').toLowerCase() === 'clean'
+            && String(data.status || '').toLowerCase() === 'released'
+          )
+          if (!isClean || window.sessionStorage.getItem(notificationKey) === data.email_id) return
           window.sessionStorage.setItem(notificationKey, data.email_id)
 
           showToast('Ada Email Baru', 'success', {
@@ -61,8 +65,6 @@ export function useWebSocket({ enabled = false, mailboxEmail = '' } = {}) {
             compact: true,
             duration: 2200,
           })
-          qc.invalidateQueries({ queryKey: ['emails'] })
-          qc.invalidateQueries({ queryKey: ['stats'] })
         } catch (_) {}
       }
 
@@ -71,11 +73,6 @@ export function useWebSocket({ enabled = false, mailboxEmail = '' } = {}) {
         if (intentionalCloseRef.current) return
         if (event.code === 4001) {
           console.warn('WebSocket closed: unauthorized. Not reconnecting.')
-          return
-        }
-
-        if (retriesRef.current >= MAX_RETRIES) {
-          console.warn('WebSocket max retries reached. Giving up.')
           return
         }
 

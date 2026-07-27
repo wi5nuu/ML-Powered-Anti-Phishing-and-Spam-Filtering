@@ -263,13 +263,13 @@ class ConnectionManager:
             del self.active_connections[websocket]
 
     async def broadcast(self, message: dict):
-        """Notify only the mailbox that received a newly released clean email."""
-        if (
-            message.get("type") != "email_processed"
-            or str(message.get("label", "")).upper() != "CLEAN"
-            or str(message.get("category", "")).lower() != "clean"
-            or str(message.get("status", "")).lower() != "released"
-        ):
+        """Refresh only the mailbox that received a processed email.
+
+        Every classification is delivered so the matching Inbox/WARN/Spam/
+        Phishing list can update immediately. The browser decides whether the
+        event also deserves a user notification (only released CLEAN mail).
+        """
+        if message.get("type") != "email_processed":
             return
 
         recipients = {
@@ -2862,9 +2862,12 @@ async def api_report_false_positive(
     }
 
 
-@app.delete("/api/emails/{email_id}")
-async def api_delete_email(email_id: str, request: Request, db: Session = Depends(get_db)):
-    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+def _delete_email_record(
+    db: Session,
+    email_id: str,
+    user_info: dict,
+    client_host: str | None,
+) -> str:
     email_record = db.query(QuarantineEmail).filter(
         QuarantineEmail.email_id == email_id
     ).first()
@@ -2874,9 +2877,8 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
         ensure_email_access(db, email_record, user_info)
         db.delete(email_record)
         log_audit(db, user_info["username"], "discard_draft", email_id,
-                  request.client.host if request.client else None)
-        db.commit()
-        return {"ok": True, "status": "deleted"}
+                  client_host)
+        return "deleted"
     ensure_email_access(db, email_record, user_info)
     if email_record.status == "trash" and not can_review_threats(user_info):
         raise HTTPException(
@@ -2897,7 +2899,52 @@ async def api_delete_email(email_id: str, request: Request, db: Session = Depend
         action = "move_to_trash"
         status = "trash"
     log_audit(db, user_info["username"], action, email_id,
-              request.client.host if request.client else None)
+              client_host)
+    return status
+
+
+class BulkDeleteEmailsRequest(BaseModel):
+    email_ids: list[str]
+
+
+@app.post("/api/emails/bulk-delete")
+async def api_bulk_delete_emails(
+    payload: BulkDeleteEmailsRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    email_ids = list(dict.fromkeys(
+        str(email_id).strip() for email_id in payload.email_ids if str(email_id).strip()
+    ))
+    if not email_ids:
+        raise HTTPException(status_code=400, detail="Pilih minimal satu email")
+    if len(email_ids) > 200:
+        raise HTTPException(status_code=400, detail="Maksimal 200 email per operasi")
+
+    client_host = request.client.host if request.client else None
+    statuses = [
+        _delete_email_record(db, email_id, user_info, client_host)
+        for email_id in email_ids
+    ]
+    db.commit()
+    return {
+        "ok": True,
+        "processed": len(statuses),
+        "moved_to_trash": statuses.count("trash"),
+        "deleted_permanently": statuses.count("deleted"),
+    }
+
+
+@app.delete("/api/emails/{email_id}")
+async def api_delete_email(email_id: str, request: Request, db: Session = Depends(get_db)):
+    user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
+    status = _delete_email_record(
+        db,
+        email_id,
+        user_info,
+        request.client.host if request.client else None,
+    )
     db.commit()
     return {"ok": True, "status": status}
 

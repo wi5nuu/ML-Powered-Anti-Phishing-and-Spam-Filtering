@@ -162,6 +162,38 @@ export const useDeleteEmail = () => {
   })
 }
 
+// Delete a selected page in one database transaction, then fetch the same
+// page once so remaining rows immediately fill the vacated slots.
+export const useBulkDeleteEmails = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (emailIds) => api.post('/emails/bulk-delete', { email_ids: emailIds }),
+    onMutate: async (emailIds) => {
+      await qc.cancelQueries({ queryKey: ['emails'] })
+      const previous = qc.getQueriesData({ queryKey: ['emails'] })
+      const selected = new Set(emailIds)
+      qc.setQueriesData({ queryKey: ['emails'] }, (old) => {
+        if (!old) return old
+        const removed = old.emails.filter((email) => selected.has(email.email_id)).length
+        return {
+          ...old,
+          emails: old.emails.filter((email) => !selected.has(email.email_id)),
+          total: Math.max(0, Number(old.total || 0) - removed),
+        }
+      })
+      return { previous }
+    },
+    onError: (_error, _emailIds, context) => {
+      context?.previous?.forEach(([queryKey, data]) => qc.setQueryData(queryKey, data))
+    },
+    onSettled: async (_data, _error, emailIds) => {
+      emailIds.forEach((emailId) => qc.removeQueries({ queryKey: ['email', emailId], exact: true }))
+      await qc.invalidateQueries({ queryKey: ['emails'], refetchType: 'active' })
+      await qc.invalidateQueries({ queryKey: ['stats'], refetchType: 'active' })
+    },
+  })
+}
+
 export const useRestoreEmail = () => {
   const qc = useQueryClient()
   return useMutation({

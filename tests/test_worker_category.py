@@ -16,7 +16,7 @@ from worker.pipeline_worker import (  # noqa: E402
 class WorkerCategoryTests(unittest.TestCase):
     def test_short_plain_gmail_test_is_not_quarantined_by_model_noise(self):
         quarantined = FusionResult(
-            sa_score=4.1,
+            sa_score=-0.1,
             ml_probability=0.998,
             anomaly_score=0.91,
             sa_normalized=0.04,
@@ -31,11 +31,29 @@ class WorkerCategoryTests(unittest.TestCase):
                 "body_text": "TEST",
                 "attachments": [],
             },
-            sa_score=4.1,
+            sa_score=-0.1,
         )
 
         self.assertEqual(calibrated.label, "CLEAN")
         self.assertIn("Short benign-message calibration", calibrated.routing_reason)
+
+    def test_spamassassin_error_sentinel_is_never_auto_cleaned(self):
+        quarantined = FusionResult(
+            sa_score=-1.0,
+            ml_probability=0.9997,
+            anomaly_score=0.7514,
+            sa_normalized=0.0,
+            fused_score=1.0,
+            label="QUARANTINE",
+            routing_reason="Classifier unavailable",
+        )
+        calibrated = calibrate_short_benign_message(
+            quarantined,
+            {"subject": "TEST", "body_text": "TEST 1", "attachments": []},
+            sa_score=-1.0,
+        )
+
+        self.assertIs(calibrated, quarantined)
 
     def test_short_message_with_login_link_is_never_auto_cleaned(self):
         quarantined = FusionResult(

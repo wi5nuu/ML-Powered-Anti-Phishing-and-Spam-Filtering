@@ -96,7 +96,7 @@ class DashboardUserFlowTests(unittest.TestCase):
                 seen[key] = route.name
         self.assertEqual(duplicates, [])
 
-    def test_new_email_websocket_notifies_only_matching_mailbox_for_clean_email(self):
+    def test_new_email_websocket_refreshes_matching_mailbox_for_every_category(self):
         notification_manager = ConnectionManager()
         matching_mailbox = AsyncMock()
         other_mailbox = AsyncMock()
@@ -130,13 +130,51 @@ class DashboardUserFlowTests(unittest.TestCase):
         superadmin_socket.send_json.assert_not_awaited()
 
         matching_mailbox.send_json.reset_mock()
-        for ignored_event in (
-            {"type": "ping"},
+        for processed_event in (
             {**clean_event, "email_id": "spam-test", "label": "QUARANTINE", "category": "spam", "status": "pending"},
             {**clean_event, "email_id": "phishing-test", "label": "QUARANTINE", "category": "phishing", "status": "pending"},
         ):
-            asyncio.run(notification_manager.broadcast(ignored_event))
+            asyncio.run(notification_manager.broadcast(processed_event))
+            matching_mailbox.send_json.assert_awaited_once_with(processed_event)
+            matching_mailbox.send_json.reset_mock()
+
+        asyncio.run(notification_manager.broadcast({"type": "ping"}))
         matching_mailbox.send_json.assert_not_awaited()
+
+    def test_bulk_delete_refills_first_page_with_remaining_emails(self):
+        messages = [
+            QuarantineEmail(
+                email_id=f"bulk-delete-{index:02d}",
+                subject=f"Message {index:02d}",
+                label="CLEAN",
+                category="clean",
+                status="released",
+                fused_score=0.1,
+                sender="sender@example.test",
+                recipient_list="recipient@example.test",
+            )
+            for index in range(70)
+        ]
+        self.db.add_all(messages)
+        self.db.commit()
+
+        first_page = self.client.get("/api/emails", params={"page": 1, "page_size": 50})
+        self.assertEqual(first_page.status_code, 200, first_page.text)
+        self.assertEqual(first_page.json()["total"], 70)
+        selected_ids = [row["email_id"] for row in first_page.json()["emails"]]
+
+        deleted = self.client.post(
+            "/api/emails/bulk-delete",
+            json={"email_ids": selected_ids},
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json()["processed"], 50)
+        self.assertEqual(deleted.json()["moved_to_trash"], 50)
+
+        refilled = self.client.get("/api/emails", params={"page": 1, "page_size": 50})
+        self.assertEqual(refilled.status_code, 200, refilled.text)
+        self.assertEqual(refilled.json()["total"], 20)
+        self.assertEqual(len(refilled.json()["emails"]), 20)
 
     def test_xai_never_turns_unverified_authentication_into_failure(self):
         email = QuarantineEmail(

@@ -103,6 +103,12 @@ export default function EmailList({ view = '', activeEmailId = null }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [setSearchParams])
 
+  useEffect(() => {
+    if (isLoading || !data) return
+    const lastPage = Math.max(1, Math.ceil(Number(data.total || 0) / PAGE_SIZE))
+    if (page > lastPage) handlePageChange(lastPage)
+  }, [data, handlePageChange, isLoading, page])
+
   const rowIds = useCallback((item) => (
     Array.isArray(item.thread_email_ids) && item.thread_email_ids.length > 0
       ? item.thread_email_ids
@@ -129,7 +135,7 @@ export default function EmailList({ view = '', activeEmailId = null }) {
 
   const handleRefresh = useCallback(() => {
     setSelected(new Set())
-    refetch()
+    return refetch()
   }, [refetch])
 
   const toggleStar = useCallback((id) => {
