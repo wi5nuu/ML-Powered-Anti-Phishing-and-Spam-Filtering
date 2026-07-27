@@ -173,6 +173,7 @@ class DashboardUserFlowTests(unittest.TestCase):
 
         refilled = self.client.get("/api/emails", params={"page": 1, "page_size": 50})
         self.assertEqual(refilled.status_code, 200, refilled.text)
+        self.assertIn("no-store", refilled.headers.get("cache-control", ""))
         self.assertEqual(refilled.json()["total"], 20)
         self.assertEqual(len(refilled.json()["emails"]), 20)
 

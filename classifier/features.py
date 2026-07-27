@@ -7,6 +7,7 @@ Kedua tipe digabung sebelum masuk ke XGBoost.
 
 import re
 import email
+import html as html_lib
 import hashlib
 import logging
 import os
@@ -343,10 +344,23 @@ class FeatureExtractor:
         )
 
         # ── HTML analysis ─────────────────────────────────────────────────
-        len_html = len(parsed.body_html)
-        len_text = len(parsed.body_text)
+        # Compare visible content, not raw HTML bytes. Gmail and other major
+        # providers add wrapper elements/classes that can make an ordinary
+        # multipart email's markup several times larger than its plain-text
+        # alternative. Treating that transport markup as message content was
+        # the main source of false positives for legitimate Gmail messages.
+        visible_html = re.sub(
+            r"(?is)<(?:script|style)\b[^>]*>.*?</(?:script|style)>",
+            " ",
+            parsed.body_html,
+        )
+        visible_html = html_lib.unescape(re.sub(r"(?s)<[^>]+>", " ", visible_html))
+        visible_html = " ".join(visible_html.split())
+        visible_text = " ".join(parsed.body_text.split())
         features.html_text_ratio = (
-            len_html / max(len_text, 1)
+            len(visible_html) / max(len(visible_text), 1)
+            if visible_html and visible_text
+            else (1.0 if visible_html else 0.0)
         )
 
         # Deteksi form dan JavaScript di HTML
@@ -381,14 +395,14 @@ class FeatureExtractor:
             "paypal", "google", "microsoft", "amazon", "apple",
             "cognimail", "gojek", "grab", "shopee", "tokopedia"
         }
-        if any(b in display_lower for b in known_brands):
+        displayed_brands = {
+            brand for brand in known_brands
+            if re.search(rf"(?<![a-z0-9]){re.escape(brand)}(?![a-z0-9])", display_lower)
+        }
+        if displayed_brands:
             sender_ext = tldextract.extract(parsed.sender_domain)
             sender_brand = sender_ext.domain.lower()
-            features.display_name_mismatch = not any(
-                re.search(rf"(?:^|\.){re.escape(b)}(?:$|\.)", sender_brand)
-                for b in known_brands
-                if b in display_lower
-            )
+            features.display_name_mismatch = sender_brand not in displayed_brands
 
         # Fake RE/FWD (subject mulai dengan RE: atau FWD: tapi bukan reply asli)
         subject_lower = parsed.subject.lower()

@@ -32,12 +32,20 @@ export const useEmails = (filter = 'all', searchQuery = '', options = {}) =>
       if (options.mailboxId) params.mailbox_id = options.mailboxId
       params.page = options.page || 1
       params.page_size = options.pageSize || 50
-      const { data } = await api.get('/emails', { params })
+      // A unique request value also protects the polling fallback from a
+      // reverse proxy that was configured to cache GET responses.
+      params._live = Date.now()
+      const { data } = await api.get('/emails', {
+        params,
+        headers: { 'Cache-Control': 'no-cache' },
+      })
       return data
     },
     // Each request is paginated, so polling keeps the mailbox current without
     // loading the entire table or inventing client-side counts.
-    refetchInterval: options.refetchInterval ?? 5000,
+    // WebSocket is immediate; this two-second poll is the production fallback
+    // when an external Nginx has not forwarded the Upgrade headers correctly.
+    refetchInterval: options.refetchInterval ?? 2000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: 3000,

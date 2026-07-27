@@ -2279,6 +2279,7 @@ def derive_auth_results(raw_content: str = "", sender: str = "") -> dict:
 @app.get("/api/emails")
 async def api_get_emails(
     request: Request,
+    response: Response,
     label: str = Query(None),
     category: str = Query(None),
     folder: str = Query(None),
@@ -2289,6 +2290,10 @@ async def api_get_emails(
     page_size: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
+    # Mailbox lists are live data. Prevent browser/reverse-proxy caches from
+    # returning an old first page while polling or after a WebSocket event.
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
     category = canonical_threat_category(category)
     review_access = can_review_threats(user_info)
