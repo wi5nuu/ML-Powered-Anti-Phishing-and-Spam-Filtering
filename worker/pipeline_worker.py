@@ -221,6 +221,42 @@ def apply_content_guard(fusion: FusionResult, raw_email: str, ml_probability: fl
     return guarded, category
 
 
+def calibrate_short_benign_message(
+    fusion: FusionResult,
+    message_data: dict,
+    sa_score: float,
+    classifier_error: bool = False,
+) -> FusionResult:
+    """Prevent MIME/anomaly noise from quarantining trivial plain messages."""
+    # SpamAssassin's default spam threshold is 5.0. A score below it is
+    # corroborating non-spam evidence, while >=5.0 must never be auto-cleaned.
+    if classifier_error or sa_score < 0 or sa_score >= 5.0 or message_data.get("attachments"):
+        return fusion
+    visible = " ".join(
+        str(message_data.get(key) or "") for key in ("subject", "body_text")
+    ).strip()
+    if not visible or len(visible) > 160 or len(visible.split()) > 20:
+        return fusion
+    if re.search(r"https?://|www\.|\b(?:password|login|otp|verify|verification|verifikasi|credential|rekening|transfer|invoice|hadiah|gratis|klik|click)\b", visible, re.I):
+        return fusion
+    if not re.fullmatch(r"[\w\s.,!?;:'\"()@+\-/]+", visible, re.UNICODE):
+        return fusion
+    if fusion.label == "CLEAN":
+        return fusion
+    return FusionResult(
+        sa_score=fusion.sa_score,
+        ml_probability=fusion.ml_probability,
+        anomaly_score=fusion.anomaly_score,
+        sa_normalized=fusion.sa_normalized,
+        fused_score=min(fusion.fused_score, 0.2999),
+        label="CLEAN",
+        routing_reason=(
+            "Short benign-message calibration: no URL, attachment, or threat "
+            f"language; SpamAssassin={sa_score:.2f}"
+        ),
+    )
+
+
 def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
     try:
         msg = Parser(policy=policy.default).parsestr(raw_email)
@@ -232,6 +268,8 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
             "message_id_header": "",
             "references_header": "",
             "body_html": _linkify_plain_text(raw_email),
+            "body_text": raw_email,
+            "analysis_content": raw_email,
             "attachments": [],
         }
 
@@ -284,6 +322,14 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
     else:
         body_html = _linkify_plain_text(raw_email)
 
+    body_text = plain_body.strip()
+    if not body_text and html_body:
+        body_text = html.unescape(re.sub(r"(?s)<[^>]+>", " ", html_body))
+        body_text = " ".join(body_text.split())
+    analysis_content = f"Subject: {subject}\n\n{body_text}".strip()
+    for attachment in attachments:
+        analysis_content += f'\nContent-Disposition: attachment; filename="{attachment["filename"]}"'
+
     thread_references = " ".join(dict.fromkeys(re.findall(
         r"<[^<>\s]+>",
         f'{msg.get("references", "") or ""} {msg.get("in-reply-to", "") or ""}',
@@ -296,6 +342,8 @@ def parse_message_for_storage(raw_email: str, payload: dict) -> dict:
         "message_id_header": str(msg.get("message-id", "") or "").strip(),
         "references_header": thread_references,
         "body_html": body_html,
+        "body_text": body_text,
+        "analysis_content": analysis_content,
         "attachments": attachments,
     }
 
@@ -398,6 +446,8 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     email_id   = payload.get("email_id", "unknown")
     raw_email  = payload.get("raw_email", "")
     received_at = payload.get("received_at", datetime.now(timezone.utc).isoformat())
+    message_data = parse_message_for_storage(raw_email, payload)
+    analysis_content = message_data.get("analysis_content") or raw_email
 
     start = time.monotonic()
 
@@ -447,11 +497,18 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     )
     fusion, guarded_category = apply_content_guard(
         fusion,
-        raw_email=raw_email,
+        raw_email=analysis_content,
         ml_probability=ml_prob,
         sa_score=sa_score,
         anomaly_score=anomaly_score,
     )
+    if not guarded_category:
+        fusion = calibrate_short_benign_message(
+            fusion,
+            message_data,
+            sa_score,
+            classifier_error=bool(ml_result.get("classifier_error")),
+        )
     if ml_result.get("classifier_error") and fusion.label == "CLEAN":
         # A classifier outage is uncertainty, not proof that an email is
         # clean. Hold the message for admin review and never forward it to the
@@ -482,7 +539,6 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     )
 
     # ── Ekstrak subject/sender dari raw email ────────────────────────────
-    message_data = parse_message_for_storage(raw_email, payload)
     subject = message_data["subject"]
     sender = message_data["sender"]
     recipients = message_data["recipients"]
@@ -495,7 +551,7 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     # a guarded spam result or a caller-supplied legacy value from bypassing
     # the malware -> phishing product rule.
     threat_category = infer_threat_category(
-        raw_email,
+        analysis_content,
         fusion.label,
         guarded_category or payload.get("category", ""),
     )

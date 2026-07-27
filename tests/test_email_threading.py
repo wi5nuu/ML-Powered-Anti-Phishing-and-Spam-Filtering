@@ -7,7 +7,12 @@ os.environ["ENV"] = "testing"
 os.environ["DASHBOARD_DB_URL"] = "sqlite:///:memory:"
 os.environ.setdefault("DASHBOARD_SECRET_KEY", "test-secret-key-that-is-long-enough")
 
-from dashboard.app import append_thread_context, email_body_preview  # noqa: E402
+from dashboard.app import (  # noqa: E402
+    append_thread_context,
+    email_body_preview,
+    email_thread_id,
+    renderable_email_body,
+)
 from worker.pipeline_worker import parse_message_for_storage  # noqa: E402
 
 
@@ -50,6 +55,44 @@ class EmailThreadingTests(unittest.TestCase):
             parsed["references_header"],
             "<original-1@example.org> <reply-1@example.org>",
         )
+
+    def test_gmail_multipart_boundary_is_not_rendered_as_message_body(self):
+        raw_email = (
+            "From: Sender <sender@gmail.com>\r\n"
+            "To: bantuan@zenime.my.id\r\n"
+            "Subject: TEST 1\r\n"
+            "Message-ID: <gmail-1@mail.gmail.com>\r\n"
+            "MIME-Version: 1.0\r\n"
+            'Content-Type: multipart/alternative; boundary="gmail-boundary"\r\n\r\n'
+            "--gmail-boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n"
+            "TEST\r\n--gmail-boundary\r\n"
+            "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+            '<div dir="ltr">TEST</div>\r\n--gmail-boundary--\r\n'
+        )
+
+        rendered = renderable_email_body(raw_email)
+        parsed = parse_message_for_storage(raw_email, {})
+
+        self.assertEqual(rendered.strip(), '<div dir="ltr">TEST</div>')
+        self.assertEqual(parsed["body_text"].strip(), "TEST")
+        self.assertNotIn("gmail-boundary", rendered)
+        self.assertNotIn("Content-Type", rendered)
+
+    def test_independent_messages_receive_different_thread_ids(self):
+        first = SimpleNamespace(
+            email_id="smtp-1", references_header="", message_id_header="<one@gmail.com>"
+        )
+        second = SimpleNamespace(
+            email_id="smtp-2", references_header="", message_id_header="<two@gmail.com>"
+        )
+        reply = SimpleNamespace(
+            email_id="sent-1",
+            references_header="<one@gmail.com>",
+            message_id_header="<reply@zenime.my.id>",
+        )
+
+        self.assertNotEqual(email_thread_id(first), email_thread_id(second))
+        self.assertEqual(email_thread_id(first), email_thread_id(reply))
 
     def test_preview_decodes_legacy_html_and_hides_quoted_history(self):
         legacy = (

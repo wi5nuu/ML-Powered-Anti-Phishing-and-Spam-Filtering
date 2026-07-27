@@ -79,6 +79,13 @@ export function getThreadKey(email, mailboxId = '') {
     return `${mbx}::parent::${String(parentId)}`
   }
 
+  // Independent deliveries are independent conversations. Grouping every
+  // message with the same subject and participants merged unrelated Gmail
+  // messages (for example two separate emails both titled "TEST").
+  if (email.email_id) {
+    return `${mbx}::message::${String(email.email_id)}`
+  }
+
   // Priority 3: subject + participants fallback
   const normalSubject = normalizeSubject(email.subject || '')
 

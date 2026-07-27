@@ -7,12 +7,58 @@ os.environ["WORKER_DB_URL"] = "postgresql+asyncpg://test:test@localhost:5432/tes
 from decision_engine.fusion import FusionResult  # noqa: E402
 from worker.pipeline_worker import (  # noqa: E402
     apply_content_guard,
+    calibrate_short_benign_message,
     infer_threat_category,
     parse_message_for_storage,
 )
 
 
 class WorkerCategoryTests(unittest.TestCase):
+    def test_short_plain_gmail_test_is_not_quarantined_by_model_noise(self):
+        quarantined = FusionResult(
+            sa_score=4.1,
+            ml_probability=0.998,
+            anomaly_score=0.91,
+            sa_normalized=0.04,
+            fused_score=1.0,
+            label="QUARANTINE",
+            routing_reason="Model hard threshold",
+        )
+        calibrated = calibrate_short_benign_message(
+            quarantined,
+            {
+                "subject": "TEST 1",
+                "body_text": "TEST",
+                "attachments": [],
+            },
+            sa_score=4.1,
+        )
+
+        self.assertEqual(calibrated.label, "CLEAN")
+        self.assertIn("Short benign-message calibration", calibrated.routing_reason)
+
+    def test_short_message_with_login_link_is_never_auto_cleaned(self):
+        quarantined = FusionResult(
+            sa_score=0.8,
+            ml_probability=0.998,
+            anomaly_score=0.91,
+            sa_normalized=0.04,
+            fused_score=1.0,
+            label="QUARANTINE",
+            routing_reason="Model hard threshold",
+        )
+        calibrated = calibrate_short_benign_message(
+            quarantined,
+            {
+                "subject": "Login sekarang",
+                "body_text": "Klik https://evil.example/login",
+                "attachments": [],
+            },
+            sa_score=0.8,
+        )
+
+        self.assertIs(calibrated, quarantined)
+
     def test_legacy_malware_category_is_phishing(self):
         self.assertEqual(
             infer_threat_category("", "QUARANTINE", "malware"),

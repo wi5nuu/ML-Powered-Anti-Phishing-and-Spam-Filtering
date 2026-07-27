@@ -25,7 +25,7 @@ from email import policy
 from email.parser import Parser
 
 import aiosmtplib
-from email.utils import getaddresses
+from email.utils import formatdate, getaddresses, make_msgid
 from mail_delivery import deliver_direct_mx, sign_outbound_message
 
 logger = logging.getLogger(__name__)
@@ -116,11 +116,13 @@ def _prepare_forward_message(
     fused_score: float,
     xai_reason: str = "",
 ) -> bytes:
-    """Rewrite forwarding headers so SPF can align with RFC5322 From.
+    """Prepare an RFC-compliant transparent forward.
 
-    Keeping the original external From while using a CogniMail envelope sender
-    causes DMARC alignment failures. Reply-To and X-CogniMail-Original-From
-    preserve the actual author for replies and auditing.
+    Preserve the original From, To, Message-ID and DKIM-Signature. Rewriting
+    those signed headers invalidates Gmail's DKIM result and materially raises
+    the chance that an otherwise legitimate forwarded message lands in Spam.
+    The local mailbox is used only as the SMTP envelope sender and in Resent-*
+    trace headers.
     """
     message = Parser(policy=policy.SMTP).parsestr(raw_email)
     original_from = str(message.get("From", "")).strip()
@@ -131,24 +133,20 @@ def _prepare_forward_message(
         "Bcc",
         "X-CogniMail-Original-From",
         "X-CogniMail-Forwarded-By",
-        "DKIM-Signature",
+        "Resent-From",
+        "Resent-To",
+        "Resent-Date",
+        "Resent-Message-ID",
         SPAM_HEADER,
         CLASSIFICATION_HEADER,
     ):
         while header in message:
             del message[header]
-    for header in ("To", "Cc"):
-        while header in message:
-            del message[header]
-
-    if "From" in message:
-        message.replace_header("From", envelope_from)
-    else:
-        message["From"] = envelope_from
-    message["To"] = ", ".join(recipients)
+    message["Resent-From"] = envelope_from
+    message["Resent-To"] = ", ".join(recipients)
+    message["Resent-Date"] = formatdate(localtime=False, usegmt=True)
+    message["Resent-Message-ID"] = make_msgid(domain=envelope_from.rsplit("@", 1)[-1])
     if original_from:
-        if "Reply-To" not in message:
-            message["Reply-To"] = original_from
         message["X-CogniMail-Original-From"] = original_from
     message["X-CogniMail-Forwarded-By"] = envelope_from
     if fusion_label == "WARN":

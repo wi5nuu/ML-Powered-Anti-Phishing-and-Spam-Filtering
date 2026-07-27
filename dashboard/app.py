@@ -1794,8 +1794,53 @@ def linkify_plain_text(content: str) -> str:
     return linked.replace("\n", "<br>")
 
 
+def renderable_email_body(content: str = "") -> str:
+    """Decode the visible MIME body while keeping raw RFC data server-side."""
+    source = (content or "").replace("\x00", "")
+    normalized = source.replace("\r\n", "\n").replace("\r", "\n")
+    header_block = normalized.split("\n\n", 1)[0]
+    if not re.search(
+        r"(?im)^(?:from|to|subject|date|message-id|mime-version|content-type):\s*",
+        header_block,
+    ):
+        return source
+
+    try:
+        message = Parser(policy=policy.default).parsestr(source)
+    except Exception:
+        return source
+
+    plain_parts: list[str] = []
+    html_parts: list[str] = []
+    for part in message.walk():
+        if part.is_multipart():
+            continue
+        if (part.get_content_disposition() or "").lower() in {"attachment", "inline"}:
+            continue
+        if part.get_filename():
+            continue
+        content_type = part.get_content_type()
+        if content_type not in {"text/plain", "text/html"}:
+            continue
+        try:
+            decoded = str(part.get_content())
+        except Exception:
+            raw_part = part.get_payload(decode=True) or b""
+            decoded = raw_part.decode(part.get_content_charset() or "utf-8", errors="replace")
+        (html_parts if content_type == "text/html" else plain_parts).append(decoded)
+
+    if html_parts:
+        rendered = "\n".join(html_parts)
+        rendered = re.sub(r"(?is)<(script|iframe|object|embed|form|style)\b.*?</\1>", "", rendered)
+        rendered = re.sub(r"(?i)\son[a-z]+\s*=\s*(['\"]).*?\1", "", rendered)
+        return re.sub(r"(?i)javascript:", "", rendered)
+    if plain_parts:
+        return linkify_plain_text("\n".join(plain_parts).strip())
+    return ""
+
+
 def plain_email_body(content: str = "") -> str:
-    body = (content or "").replace("\r\n", "\n")
+    body = renderable_email_body(content).replace("\r\n", "\n")
 
     # Some legacy rows contain an entire MIME message wrapped in <pre>/<div>
     # instead of the already-decoded body. Decode that structure before it is
@@ -1854,7 +1899,7 @@ def plain_email_body(content: str = "") -> str:
 
 def email_body_preview(content: str = "", limit: int = 180) -> str:
     """Build a plain, quote-free mailbox preview, including legacy rows."""
-    body = (content or "").replace("\r\n", "\n")
+    body = renderable_email_body(content).replace("\r\n", "\n")
     for _ in range(3):
         decoded = html.unescape(body)
         if decoded == body:
@@ -1976,6 +2021,17 @@ def thread_sort_value(email_record: QuarantineEmail) -> float:
     return 0.0
 
 
+def email_thread_id(email_record: QuarantineEmail) -> str:
+    """Build a conversation id from RFC headers, never from subject alone."""
+    references = message_id_tokens(getattr(email_record, "references_header", "") or "")
+    if references:
+        return references[0].lower()
+    own_ids = message_id_tokens(getattr(email_record, "message_id_header", "") or "")
+    if own_ids:
+        return own_ids[0].lower()
+    return f"message:{email_record.email_id}"
+
+
 def thread_message_payload(email_record: QuarantineEmail) -> dict:
     timestamp = email_record.received_at.isoformat() if hasattr(email_record.received_at, "isoformat") else str(email_record.received_at) if email_record.received_at else None
     label = (email_record.label or "").upper()
@@ -1989,7 +2045,8 @@ def thread_message_payload(email_record: QuarantineEmail) -> dict:
         "is_read": getattr(email_record, "is_read", False),
         "direction": "draft" if label == "DRAFT" else "sent" if label == "SENT" else "incoming",
         "received_at": timestamp,
-        "raw_content": email_record.raw_content,
+        "raw_content": renderable_email_body(email_record.raw_content),
+        "thread_id": email_thread_id(email_record),
         "recipient_list": email_record.recipient_list,
         "attachments": attachment_summaries(email_record),
     }
@@ -2040,10 +2097,9 @@ def find_thread_messages(db: Session, email_record: QuarantineEmail) -> list[Qua
         # Strict check: candidate must share ALL parties (sender+recipients)
         # with the anchor email — prevents unrelated emails with same subject
         # from being bundled together.
-        cand_parties = _norm_addr(candidate.sender) | _norm_addr(candidate.recipient_list)
         cand_tokens = _thread_tokens(candidate)
         linked_by_headers = bool(known_tokens.intersection(cand_tokens))
-        if not linked_by_headers and anchor_parties and cand_parties and anchor_parties != cand_parties:
+        if not linked_by_headers:
             continue
         seen.add(candidate.email_id)
         messages.append(candidate)
@@ -2433,6 +2489,7 @@ async def api_get_emails(
             "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
             "recipient_list": email.recipient_list,
             "is_read": getattr(email, "is_read", False),
+            "thread_id": email_thread_id(email),
         })
     
     return {"emails": emails_data, "total": total}
@@ -2549,6 +2606,8 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         "dkim_result": email_record.dkim_result or "N/A",
         "dmarc_result": email_record.dmarc_result or "N/A",
     }
+
+
     thread_messages = find_thread_messages(db, email_record)
     if is_regular_user:
         thread_messages = [message for message in thread_messages if email_is_visible_to_mailbox_user(message)]
@@ -2581,7 +2640,8 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         # Exact X-Spam-Reason value generated by the worker. This is persisted
         # pipeline evidence, not a dashboard-generated explanation.
         "warning_xai_header": warning_xai_header,
-        "raw_content": email_record.raw_content,
+        "raw_content": renderable_email_body(email_record.raw_content),
+        "thread_id": email_thread_id(email_record),
         "recipient_list": email_record.recipient_list,
         "is_read": getattr(email_record, "is_read", False),
         "thread_has_unread": thread_has_unread,
@@ -3070,7 +3130,11 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
         if not original_email:
             raise HTTPException(status_code=404, detail="Original email not found")
         ensure_email_access(db, original_email, user_info)
-        final_body = append_thread_context(final_body, original_email, req.action)
+        # A reply is linked by RFC headers; the previous body already exists in
+        # the conversation and must not be duplicated visibly at the receiver.
+        # Forwarding is different and intentionally carries the original body.
+        if req.action == "forward":
+            final_body = append_thread_context(final_body, original_email, req.action)
         
     stored_attachments = []
     for file_index, upload in enumerate(uploaded_files[:20]):
@@ -3105,7 +3169,13 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
         msg["Message-ID"] = outbound_message_id
         msg["Reply-To"] = smtp_from
         msg["X-Mailer"] = "CogniMail"
-        if req.action == "reply" and original_email:
+        is_same_subject_reply = bool(
+            req.action == "reply"
+            and original_email
+            and normalize_thread_subject(final_subject)
+            == normalize_thread_subject(original_email.subject)
+        )
+        if is_same_subject_reply:
             try:
                 original_message_ids = message_id_tokens(
                     getattr(original_email, "message_id_header", "") or ""

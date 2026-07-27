@@ -6,11 +6,12 @@ from worker.email_forwarder import _prepare_forward_message, build_warning_xai_h
 
 
 class ForwardMessageTests(unittest.TestCase):
-    def test_rewrites_sender_for_dmarc_and_preserves_reply_address(self):
+    def test_preserves_signed_sender_headers_and_adds_resent_trace(self):
         raw = (
             "From: Sender <sender@example.net>\r\n"
             "To: bantuan@zenime.my.id\r\n"
             "Return-Path: <bounce@example.net>\r\n"
+            "DKIM-Signature: v=1; d=example.net; s=test; bh=abc; b=def\r\n"
             "Subject: Test\r\n\r\nHello"
         )
 
@@ -23,9 +24,12 @@ class ForwardMessageTests(unittest.TestCase):
         )
         message = BytesParser(policy=policy.default).parsebytes(forwarded)
 
-        self.assertEqual(message["From"], "bantuan@zenime.my.id")
-        self.assertEqual(message["To"], "destination@gmail.com")
-        self.assertEqual(message["Reply-To"], "Sender <sender@example.net>")
+        self.assertEqual(message["From"], "Sender <sender@example.net>")
+        self.assertEqual(message["To"], "bantuan@zenime.my.id")
+        self.assertEqual(message["Resent-From"], "bantuan@zenime.my.id")
+        self.assertEqual(message["Resent-To"], "destination@gmail.com")
+        self.assertIsNotNone(message["Resent-Message-ID"])
+        self.assertIsNotNone(message["DKIM-Signature"])
         self.assertEqual(
             message["X-CogniMail-Original-From"],
             "Sender <sender@example.net>",
