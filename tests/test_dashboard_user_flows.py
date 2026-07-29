@@ -295,7 +295,7 @@ class DashboardUserFlowTests(unittest.TestCase):
         finally:
             mailbox_client.close()
 
-    def test_mailbox_user_cannot_see_threats_until_admin_releases_them(self):
+    def test_mailbox_user_cannot_see_threats_or_warnings_until_admin_releases_them(self):
         mailbox = AdminMailbox(
             email="safe-only@example.test",
             domain="example.test",
@@ -386,17 +386,11 @@ class DashboardUserFlowTests(unittest.TestCase):
             category = mailbox_client.get("/api/emails", params={"category": "phishing"})
             self.assertEqual(category.status_code, 403, category.text)
             warning_category = mailbox_client.get("/api/emails", params={"category": "warn"})
-            self.assertEqual(warning_category.status_code, 200, warning_category.text)
-            self.assertEqual(
-                [row["email_id"] for row in warning_category.json()["emails"]],
-                [delivered_warning.email_id],
-            )
+            self.assertEqual(warning_category.status_code, 403, warning_category.text)
+            warning_label = mailbox_client.get("/api/emails", params={"label": "WARN"})
+            self.assertEqual(warning_label.status_code, 403, warning_label.text)
             warning_detail = mailbox_client.get(f"/api/emails/{delivered_warning.email_id}")
-            self.assertEqual(warning_detail.status_code, 200, warning_detail.text)
-            self.assertEqual(
-                warning_detail.json()["warning_xai_header"],
-                "CogniMail WARN; Fused=0.7200; ML=0.8100",
-            )
+            self.assertEqual(warning_detail.status_code, 404, warning_detail.text)
             pending_warning_detail = mailbox_client.get(f"/api/emails/{pending_warning.email_id}")
             self.assertEqual(pending_warning_detail.status_code, 404, pending_warning_detail.text)
             detail = mailbox_client.get(f"/api/emails/{threat.email_id}")
@@ -407,10 +401,10 @@ class DashboardUserFlowTests(unittest.TestCase):
             self.assertEqual(inconsistent_detail.status_code, 404, inconsistent_detail.text)
             stats = mailbox_client.get("/api/stats")
             self.assertEqual(stats.status_code, 200, stats.text)
-            self.assertEqual(stats.json()["total"], 2)
+            self.assertEqual(stats.json()["total"], 1)
             self.assertEqual(stats.json()["quarantine"], 0)
-            self.assertEqual(stats.json()["warn"], 1)
-            self.assertEqual(stats.json()["categories"]["warn"], 1)
+            self.assertEqual(stats.json()["warn"], 0)
+            self.assertNotIn("warn", stats.json()["categories"])
             self.assertNotIn("phishing", stats.json()["categories"])
 
             admin_list = self.client.get(

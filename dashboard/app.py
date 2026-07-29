@@ -1417,23 +1417,24 @@ async def api_stats(
     categories["warn"] = warn_count
     categories["draft"] = draft_count
     if not review_access:
-        # WARN is delivered to the mailbox's dedicated Peringatan view. The
-        # detailed review telemetry remains restricted, while its count and
-        # message itself are visible to the intended recipient.
-        total = clean_count + warn_count
+        # Warning and quarantine telemetry are review-only. Mailbox and end
+        # user sessions receive only released CLEAN mail and their own
+        # outgoing/draft metadata.
+        total = clean_count
         trash_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
             QuarantineEmail.status == "trash",
             QuarantineEmail.label.in_(["CLEAN", "SENT", "DRAFT"]),
         )).scalar() or 0
         quarantine_count = 0
+        warn_count = 0
         starred_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
             QuarantineEmail.is_starred == True,
             QuarantineEmail.status != "trash",
-            QuarantineEmail.label.in_(["CLEAN", "WARN"]),
+            QuarantineEmail.label == "CLEAN",
         )).scalar() or 0
         avg_anomaly = 0
         avg_fused = 0
-        categories = {"warn": warn_count, "draft": draft_count}
+        categories = {"draft": draft_count}
     return {
         "total": total,
         "trash": trash_count,
@@ -1516,8 +1517,6 @@ def email_is_visible_to_mailbox_user(email_record: QuarantineEmail) -> bool:
         return False
     if label == "CLEAN":
         return status == "released"
-    if label == "WARN":
-        return status == "warn_delivered"
     if label in {"SENT", "DRAFT"}:
         return status not in {"quarantined", "pending", "blocked"}
     return False
@@ -1531,7 +1530,6 @@ def mailbox_visible_email_clause():
         status != "trash",
         or_(
             and_(label == "CLEAN", status == "released"),
-            and_(label == "WARN", status == "warn_delivered"),
             and_(
                 label.in_(["SENT", "DRAFT"]),
                 ~status.in_(["quarantined", "pending", "blocked"]),
@@ -2377,7 +2375,7 @@ async def api_get_emails(
     
     query = db.query(QuarantineEmail)
     if not review_access:
-        if (category or "").lower() in {"spam", "phishing", "malware"} or (label or "").upper() == "QUARANTINE":
+        if (category or "").lower() in {"spam", "phishing", "malware", "warn"} or (label or "").upper() in {"QUARANTINE", "WARN"}:
             raise HTTPException(status_code=403, detail="Threat review is only available to admin or superadmin")
         # This filter is deliberately applied before search/folder filters so
         # crafted queries cannot disclose quarantined messages.

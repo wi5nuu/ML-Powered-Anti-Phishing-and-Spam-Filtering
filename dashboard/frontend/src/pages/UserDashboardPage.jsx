@@ -37,7 +37,6 @@ export default function UserDashboardPage() {
 
   const total = stats?.total ?? 0
   const clean = stats?.clean ?? 0
-  const warned = stats?.warn ?? 0
   const quarantined = stats?.quarantine ?? 0
   const safeRate = total > 0 ? Math.round((clean / total) * 100) : 0
 
@@ -73,10 +72,6 @@ export default function UserDashboardPage() {
           <span className={`${styles.statValue} ${styles.statClean}`}>{clean}</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>{t('userDashboard.needsAttention')}</span>
-          <span className={`${styles.statValue} ${styles.statWarning}`}>{warned}</span>
-        </div>
-        <div className={styles.statCard}>
           <span className={styles.statLabel}>{t('overview.quarantine')}</span>
           <span className={`${styles.statValue} ${styles.statDanger}`}>{quarantined}</span>
         </div>
@@ -103,10 +98,6 @@ export default function UserDashboardPage() {
                 <div className={styles.scoreStatRow}>
                   <span className={styles.scoreStatLabel}>{t('userDashboard.threatsDetected')}</span>
                   <span className={styles.scoreStatVal}>{quarantined}</span>
-                </div>
-                <div className={styles.scoreStatRow}>
-                  <span className={styles.scoreStatLabel}>{t('userDashboard.needsReview')}</span>
-                  <span className={styles.scoreStatVal}>{warned}</span>
                 </div>
               </div>
             </div>

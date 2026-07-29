@@ -9,7 +9,7 @@ import logoImg from '../../assets/logo.png'
 import {
   Menu, Search, Settings, Sun, Moon, User,
   Pencil, Inbox, Send,
-  Shield, ShieldAlert, Flag,
+  Shield, Flag,
   Star, FileText, Mail, Trash2, ChevronDown, ChevronRight
 } from 'lucide-react'
 import ComposeModal from './ComposeModal'
@@ -189,8 +189,8 @@ export default function GmailShell({ children }) {
   useEffect(() => {
     if (!user || canReviewThreats) return
     const mailSection = location.pathname.match(/^\/mail\/[^/]+\/([^/]+)/)?.[1] || ''
-    const isThreatRoute = ['spam', 'phishing', 'malware'].includes(mailSection)
-      || ['spam', 'phishing'].includes(canonicalEmailCategory(searchParams.get('category')))
+    const isThreatRoute = ['spam', 'phishing', 'warn', 'malware'].includes(mailSection)
+      || ['spam', 'phishing', 'warn'].includes(canonicalEmailCategory(searchParams.get('category')))
     if (isThreatRoute) {
       navigate(withMailbox('/inbox', mailboxIdentity, mailboxId), { replace: true })
     }
@@ -246,7 +246,7 @@ export default function GmailShell({ children }) {
         ? canonicalEmailCategory(mailSection)
         : canonicalEmailCategory(baseParams.get('category'))
       if (folder) params.set('folder', folder)
-      if (category && (canReviewThreats || category === 'warn')) params.set('category', category)
+      if (category && canReviewThreats) params.set('category', category)
     }
 
     return { searchBase, params }
@@ -535,8 +535,6 @@ export default function GmailShell({ children }) {
               {navItem('/draft', <FileText size={18} color="#444746" />, 'Draf')}
               {canReviewThreats && navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Semua Email')}
               {canReviewThreats && navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'))}
-              {!canReviewThreats && navItem('/inbox?category=warn', <ShieldAlert size={18} color="#b06000" />, t('gmail.warn'))}
-
               {canReviewThreats && (
                 <>
                   <div className={styles.divider} />

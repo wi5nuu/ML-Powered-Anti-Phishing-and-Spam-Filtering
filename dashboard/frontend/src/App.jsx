@@ -70,8 +70,11 @@ function MailboxRoute({ children }) {
   const mailboxPath = location.pathname.match(/^\/mail\/([^/]+)\//)
   const routeMailboxId = mailboxPath?.[1] ? decodeURIComponent(mailboxPath[1]) : ''
   const requestedFolder = new URLSearchParams(location.search).get('folder') || ''
+  const requestedCategory = new URLSearchParams(location.search).get('category') || ''
   const requestsTrash = /\/mail\/[^/]+\/trash\/?$/.test(location.pathname)
     || requestedFolder.toLowerCase() === 'trash'
+  const requestsThreatReview = /\/mail\/[^/]+\/(?:spam|phishing|warn|malware)\/?$/.test(location.pathname)
+    || ['spam', 'phishing', 'warn', 'malware'].includes(requestedCategory.toLowerCase())
   const shouldValidateMailbox = Boolean(data?.authenticated && routeMailboxId)
   const mailboxAccess = useQuery({
     queryKey: ['mailbox-access', routeMailboxId],
@@ -113,7 +116,11 @@ function MailboxRoute({ children }) {
     )
   }
 
-  if (data?.authenticated && requestsTrash && !['admin', 'superadmin'].includes(data?.user?.role)) {
+  if (
+    data?.authenticated
+    && (requestsTrash || requestsThreatReview)
+    && !['admin', 'superadmin'].includes(data?.user?.role)
+  ) {
     const target = routeMailboxId
       ? `/mail/${encodeURIComponent(routeMailboxId)}/inbox`
       : '/inbox'
