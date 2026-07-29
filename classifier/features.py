@@ -20,6 +20,7 @@ import tldextract
 from rapidfuzz.distance import Levenshtein
 from langdetect import detect, DetectorFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from classifier.evasion_detection import detect_evasion_techniques
 
 # Seed langdetect supaya deterministik
 DetectorFactory.seed = 42
@@ -88,6 +89,8 @@ STRUCTURED_FEATURES = [
     "entropy_of_links",
     "num_forms",
     "javascript_present",
+    "evasion_detected",
+    "evasion_confidence",
 ]
 
 # ─── Data Model ──────────────────────────────────────────────────────────────
@@ -134,6 +137,10 @@ class EmailFeatures:
     request_for_transfer: bool = False # Asks for wire transfer / payment
     ceo_impersonation: bool = False    # Sender pretends to be C-level
     business_context_weight: float = 0.5  # Overall business relevance 0-1
+    
+    # ── Advanced evasion detection ─────────────────────────────────────────
+    evasion_detected: bool = False          # Whether evasion techniques found
+    evasion_confidence: float = 0.0          # Confidence score 0-1
 
 
 @dataclass
@@ -522,6 +529,16 @@ class FeatureExtractor:
             1.0 - features.ceo_impersonation,
         ]
         features.business_context_weight = float(np.mean(biz_features))
+
+        # ── Advanced evasion detection ──────────────────────────────────────
+        evasion_result = detect_evasion_techniques(
+            subject=parsed.subject,
+            body_text=parsed.body_text,
+            body_html=parsed.body_html,
+            urls=parsed.urls
+        )
+        features.evasion_detected = evasion_result.is_evasion_detected
+        features.evasion_confidence = evasion_result.overall_confidence
 
         return features
 
