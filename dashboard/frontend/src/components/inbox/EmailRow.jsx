@@ -164,6 +164,7 @@ export default function EmailRow({
           <input
             type="checkbox"
             checked={isSelected}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => { e.stopPropagation(); onToggleSelect(email.email_id) }}
             className={styles.checkbox}
           />
