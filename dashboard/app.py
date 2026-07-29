@@ -45,7 +45,7 @@ from email.utils import formatdate, format_datetime, getaddresses, make_msgid
 from pydantic import BaseModel
 import csv
 import io
-from fastapi import FastAPI, Request, Depends, Form, File, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile
+from fastapi import FastAPI, Request, Depends, Form, File, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
@@ -6930,12 +6930,21 @@ async def api_get_training_stats(
 @app.post("/api/admin/training/retrain")
 async def api_trigger_retrain(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Reject retraining until a real training worker is configured.
-
-    Approved samples must not be marked as trained unless a model artifact was
-    actually produced. This keeps the dashboard status truthful.
+    """
+    Trigger ML model retraining with approved training samples.
+    
+    This endpoint initiates the retraining pipeline that:
+    1. Fetches approved training samples from database
+    2. Extracts features and prepares training data
+    3. Trains new XGBoost model with validation
+    4. Validates new model against production model
+    5. Deploys if validation passes
+    6. Marks samples as used_in_training
+    
+    The retraining runs asynchronously in the background.
     """
     user_info = get_authenticated_api_user(request, db)
     
@@ -6943,20 +6952,57 @@ async def api_trigger_retrain(
         raise HTTPException(status_code=403, detail="Superadmin access required")
     
     # Count approved samples
-    approved_samples = db.query(TrainingSample).filter(
+    approved_count = db.query(func.count(TrainingSample.id)).filter(
         TrainingSample.status == "approved"
-    ).all()
+    ).scalar() or 0
     
-    if not approved_samples:
+    if approved_count == 0:
         raise HTTPException(status_code=400, detail="No approved training samples available")
     
-    raise HTTPException(
-        status_code=503,
-        detail=(
-            "Model retraining worker is not configured. "
-            f"{len(approved_samples)} approved samples remain available and unchanged."
-        ),
+    # Check minimum samples threshold
+    min_samples = int(os.getenv("RETRAINING_MIN_SAMPLES", "100"))
+    if approved_count < min_samples:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient training samples: {approved_count} < {min_samples} required"
+        )
+    
+    # Import retraining worker
+    try:
+        from worker.ml_retraining_worker import run_retraining
+    except ImportError as e:
+        logger.error(f"Failed to import retraining worker: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Retraining worker module not available. Ensure worker/ml_retraining_worker.py exists."
+        )
+    
+    # Log audit trail
+    log_audit(
+        db, user_info["username"], "trigger_retrain", "ml_model",
+        request.client.host if request.client else None,
+        f"Triggered retraining with {approved_count} approved samples"
     )
+    db.commit()
+    
+    # Run retraining in background
+    def run_retraining_task():
+        """Background task wrapper for retraining."""
+        try:
+            result = run_retraining()
+            logger.info(f"Background retraining completed: {result.get('status')}")
+        except Exception as e:
+            logger.error(f"Background retraining failed: {e}")
+    
+    background_tasks.add_task(run_retraining_task)
+    
+    return {
+        "ok": True,
+        "message": "Retraining initiated in background",
+        "approved_samples": approved_count,
+        "status": "processing",
+        "note": "Check audit logs or training stats endpoint for progress"
+    }
 
 
 # Catch-all Route to serve React SPA
