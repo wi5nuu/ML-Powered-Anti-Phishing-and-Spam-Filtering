@@ -62,6 +62,91 @@ flowchart TB
 
 ---
 
+## 2b. Relasi Admin ↔ Mailbox (WAJIB PAHAM)
+
+Ini adalah **konsep paling penting** di sistem ini. Setiap **Mailbox** (kotak email seperti `inbox@zenime.my.id`) harus ditugaskan ke seorang **Admin**. Tanpa assignment, admin tidak bisa mengelola mailbox tersebut.
+
+### Struktur Tabel
+
+```
+Tabel: users
+| id | username  | role      | organization_id |
+|----|-----------|-----------|-----------------|
+| 1  | super     | superadmin| NULL            |
+| 2  | admin_andi| admin     | 1               |
+| 3  | admin_budi| admin     | 2               |
+
+Tabel: admin_mailbox
+| id | email                  | assigned_to | domain        | is_active |
+|----|------------------------|-------------|---------------|-----------|
+| 1  | inbox@zenime.my.id     | admin_andi  | zenime.my.id  | true      |
+| 2  | it-support@zenime.my.id| admin_andi  | zenime.my.id  | true      |
+| 3  | info@company.com       | admin_budi  | company.com   | true      |
+| 4  | sales@company.com      | admin_budi  | company.com   | true      |
+
+Tabel: admin_mailbox_access (grant akses tambahan — jarang dipakai)
+| mailbox_id | username    |
+|------------|-------------|
+| 1          | admin_andi  |
+| 2          | admin_andi  |
+```
+
+### Aturan Assignment
+
+| Aturan | Penjelasan |
+|--------|------------|
+| **1 Mailbox = 1 Admin** | Setiap mailbox punya SATU admin penanggung jawab (field `assigned_to`) |
+| **1 Admin bisa pegang BANYAK mailbox** | Admin_andi bisa pegang inbox@ dan it-support@ sekaligus |
+| **Admin hanya lihat mailbox miliknya** | Admin_andi **TIDAK** bisa lihat info@company.com (milik admin_budi) |
+| **Super admin lihat SEMUA** | Super admin bisa lihat dan kelola SEMUA mailbox |
+| **Access grant** | Tabel `admin_mailbox_access` menyimpan izin tambahan (jarang diubah manual) |
+
+### Contoh Skenario
+
+```
+PT Zenime (Organisasi 1)
+├── Admin: andi
+│   ├── Mengelola: inbox@zenime.my.id
+│   ├── Mengelola: it-support@zenime.my.id
+│   └── Bisa lihat: email kedua mailbox itu, karantina, stats
+│
+├── Admin: (tidak ada — andi pegang semua)
+│
+└── User: (pegawai biasa — akses webmail sendiri)
+
+PT Company (Organisasi 2)
+├── Admin: budi
+│   ├── Mengelola: info@company.com
+│   ├── Mengelola: sales@company.com
+│   └── Bisa lihat: email kedua mailbox itu
+│
+└── User: (pegawai biasa)
+```
+
+### Dampak Assignment di Setiap Fitur
+
+| Fitur | Super Admin | Admin andi | Admin budi |
+|-------|-------------|------------|------------|
+| Overview | Lihat statistik SEMUA mailbox | Lihat statistik inbox@ + it-support@ saja | Lihat statistik info@ + sales@ saja |
+| Manajemen Email | Lihat, buat, edit SEMUA mailbox | Lihat, buat, edit inbox@ + it-support@ saja | Lihat, buat, edit info@ + sales@ saja |
+| Review Karantina | Lihat SEMUA email karantina | Lihat karantina inbox@ + it-support@ saja | Lihat karantina info@ + sales@ saja |
+| Email Analytics | Pilih mailbox MANAPUN | Hanya bisa pilih mailbox miliknya | Hanya bisa pilih mailbox miliknya |
+| Detection Logs | SEMUA email | Email inbox@ + it-support@ | Email info@ + sales@ |
+| Report (Laporan) | SEMUA laporan | Laporan dari user inbox@ + it-support@ | Laporan dari user info@ + sales@ |
+
+### Cara Super Admin Mengatur Assignment
+
+Di menu **Manajemen Email** → saat buat/edit mailbox, ada field **"Assign ke Admin"**:
+
+1. **Saat buat mailbox baru:** Pilih admin dari dropdown → otomatis `assigned_to` terisi
+2. **Saat edit mailbox:** Bisa ganti `assigned_to` ke admin lain
+3. **Cek assignment:** Di tabel daftar mailbox, kolom "Assigned To" menunjukkan admin penanggung jawab
+4. **Hapus admin:** Harus pindahkan dulu semua mailbox-nya ke admin lain, baru bisa nonaktifkan
+
+Teknis: fungsi `_assign_mailbox_manager()` di `app.py` yang mengatur assignment + sync `admin_mailbox_access`.
+
+---
+
 ## 3. SUPER ADMIN — Semua Fitur Sidebar Detail
 
 Login: `POST /api/auth/login` → JWT disimpan di cookie `access_token` (httponly, 480 menit).
