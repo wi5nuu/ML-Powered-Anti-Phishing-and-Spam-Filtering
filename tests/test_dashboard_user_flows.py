@@ -2180,6 +2180,109 @@ class DashboardUserFlowTests(unittest.TestCase):
         finally:
             admin_client.close()
 
+    def test_threat_breakdown_excludes_test_and_non_mailbox_data_by_default(self):
+        mailbox = AdminMailbox(
+            email="report-scope@example.test",
+            domain="example.test",
+            created_by=self.superadmin.username,
+            is_active=True,
+        )
+        real_phishing = QuarantineEmail(
+            email_id="report-real-phishing",
+            label="QUARANTINE",
+            category="phishing",
+            status="quarantined",
+            fused_score=0.95,
+            subject="Unexpected access warning",
+            sender="sender@example.test",
+            recipient_list=mailbox.email,
+        )
+        legacy_spam_category = QuarantineEmail(
+            email_id="report-legacy-spam-category",
+            label="QUARANTINE",
+            category="bulk_marketing",
+            status="quarantined",
+            fused_score=0.75,
+            subject="Marketing message",
+            sender="marketing@example.test",
+            recipient_list=mailbox.email,
+        )
+        detected_clean = QuarantineEmail(
+            email_id="report-detected-clean",
+            label="CLEAN",
+            category="clean",
+            status="released",
+            fused_score=0.05,
+            subject="Routine operational update",
+            sender="colleague@example.test",
+            recipient_list=mailbox.email,
+        )
+        synthetic = QuarantineEmail(
+            email_id="report-synthetic-test",
+            label="QUARANTINE",
+            category="phishing",
+            status="quarantined",
+            fused_score=0.99,
+            subject="Validation P001 - FINAL250-20260729",
+            sender="tester@example.test",
+            recipient_list=mailbox.email,
+        )
+        non_mailbox_legacy = QuarantineEmail(
+            email_id="report-non-mailbox-legacy",
+            label="WARN",
+            category="warn",
+            status="warning",
+            fused_score=0.55,
+            subject="Legacy SMTP probe",
+            sender="probe@example.test",
+            recipient_list="external-recipient@example.net",
+        )
+        self.db.add_all([
+            mailbox,
+            real_phishing,
+            legacy_spam_category,
+            detected_clean,
+            synthetic,
+            non_mailbox_legacy,
+        ])
+        self.db.commit()
+
+        response = self.client.get("/api/admin/threat-breakdown", params={"days": 7})
+        self.assertEqual(response.status_code, 200, response.text)
+        data = response.json()
+        self.assertEqual(data["category_counts"]["phishing"], 1)
+        self.assertEqual(data["category_counts"]["spam"], 1)
+        self.assertEqual(data["category_counts"]["warn"], 0)
+        self.assertEqual(data["category_counts"]["quarantine"], 2)
+        self.assertEqual(data["category_counts"]["clean"], 1)
+        self.assertEqual(data["scope"]["identified_test_records"], 1)
+        self.assertEqual(data["scope"]["excluded_test_records"], 1)
+        self.assertFalse(data["scope"]["include_test_data"])
+        self.assertEqual(data["scope"]["included_mailboxes"], 1)
+        self.assertEqual(
+            data["top_recipients"],
+            [{
+                "recipient": mailbox.email,
+                "total": 2,
+                "phishing": 1,
+                "spam": 1,
+                "malware": 0,
+                "warn": 0,
+                "quarantined": 2,
+            }],
+        )
+
+        with_test_data = self.client.get(
+            "/api/admin/threat-breakdown",
+            params={"days": 7, "include_test_data": True},
+        )
+        self.assertEqual(with_test_data.status_code, 200, with_test_data.text)
+        included = with_test_data.json()
+        self.assertEqual(included["category_counts"]["phishing"], 2)
+        self.assertTrue(included["scope"]["include_test_data"])
+        self.assertEqual(included["scope"]["identified_test_records"], 1)
+        self.assertEqual(included["scope"]["excluded_test_records"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -164,14 +164,26 @@ export default function ThreatReportPage() {
         <div className={styles.loading}>{t('report.loading', 'Memuat data ancaman...')}</div>
       ) : !data ? null : (
         <>
+          {data.scope && !data.scope.include_test_data && (
+            <div className={styles.scopeNotice}>
+              <CheckCircle size={15} />
+              <span>{t('report.productionScope', 'Hanya menghitung email ke mailbox aktif.')}</span>
+              {(data.scope.excluded_test_records || 0) > 0 && (
+                <strong>
+                  {data.scope.excluded_test_records} {t('report.testRecordsExcluded', 'email pengujian dikecualikan.')}
+                </strong>
+              )}
+            </div>
+          )}
+
           {/* ── Summary cards ── */}
           <div className={styles.summaryGrid}>
             {[
-              { label: t('report.totalThreats', 'Total Ancaman'), value: totalThreats,       icon: <ShieldAlert size={16} color="#ea4335" />, cls: styles.cardRed },
-              { label: t('report.phishing', 'Phishing'),      value: cc.phishing ?? 0,   icon: <AlertTriangle size={16} color="#c5221f" />, cls: styles.cardRed },
-              { label: t('report.spam', 'Spam'),          value: cc.spam ?? 0,        icon: <Mail size={16} color="#856404" />, cls: styles.cardYellow },
+              { label: t('report.totalThreats', 'Total Terdeteksi Ancaman'), value: totalThreats,       icon: <ShieldAlert size={16} color="#ea4335" />, cls: styles.cardRed },
+              { label: t('report.phishing', 'Terdeteksi Phishing'),      value: cc.phishing ?? 0,   icon: <AlertTriangle size={16} color="#c5221f" />, cls: styles.cardRed },
+              { label: t('report.spam', 'Terdeteksi Spam'),          value: cc.spam ?? 0,        icon: <Mail size={16} color="#856404" />, cls: styles.cardYellow },
               { label: t('report.warning', 'Peringatan'),    value: cc.warn ?? 0,        icon: <AlertTriangle size={16} color="#b06000" />, cls: styles.cardYellow },
-              { label: t('report.clean', 'Bersih'),        value: cc.clean ?? 0,       icon: <CheckCircle size={16} color="#137333" />, cls: styles.cardGreen },
+              { label: t('report.clean', 'Terdeteksi Bersih'),        value: cc.clean ?? 0,       icon: <CheckCircle size={16} color="#137333" />, cls: styles.cardGreen },
             ].map((item) => (
               <div key={item.label} className={`${styles.summaryCard} ${item.cls}`}>
                 <div className={styles.summaryCardTop}>
@@ -210,7 +222,7 @@ export default function ThreatReportPage() {
 
             <div className={styles.panel}>
               <h3 className={styles.panelTitle}>
-                <Users size={15} /> {t('report.topRecipients', 'Top Penerima Terbanyak')}
+                <Users size={15} /> {t('report.topRecipients', 'Penerima Ancaman Terbanyak')}
               </h3>
               {recipients.length === 0 ? (
                 <p className={styles.panelEmpty}>{t('report.noData', 'Tidak ada data')}</p>
@@ -237,7 +249,7 @@ export default function ThreatReportPage() {
           {/* ── Top senders table ── */}
           <div className={styles.panel} style={{ marginBottom: 24 }}>
             <h3 className={styles.panelTitle}>
-              <ShieldAlert size={15} color="#ea4335" /> {t('report.topSenders', 'Top 10 Pengirim Berbahaya')}
+              <ShieldAlert size={15} color="#ea4335" /> {t('report.topSenders', 'Top 10 Alamat Pengirim Terdeteksi Ancaman')}
             </h3>
             {senders.length === 0 ? (
               <p className={styles.panelEmpty}>{t('report.noSenders', 'Tidak ada data pengirim berbahaya')}</p>
