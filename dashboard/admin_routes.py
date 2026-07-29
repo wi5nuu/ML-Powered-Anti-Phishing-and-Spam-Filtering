@@ -27,6 +27,8 @@ import datetime
 import csv
 import io
 import json
+import os
+from zoneinfo import ZoneInfo
 from email.utils import getaddresses
 from html import escape
 
@@ -34,7 +36,7 @@ from database.models import User, UserRole, AdminMailbox, AdminMailboxAccess, Au
 from dashboard.database import get_db
 from dashboard.auth import get_current_user_cookie, hash_password, log_audit
 from dashboard.config import get_configured_mail_domain, email_uses_configured_domain, is_valid_email_address
-from sqlalchemy import func, or_
+from sqlalchemy import DateTime, String, case, cast, func, or_
 
 # Import libraries for PDF and Excel export
 try:
@@ -446,13 +448,46 @@ class ExportRequest(BaseModel):
     include_emails: bool = True
 
 
+def _report_timezone() -> ZoneInfo:
+    try:
+        return ZoneInfo(os.getenv("APP_TIMEZONE", "Asia/Jakarta"))
+    except Exception:
+        return ZoneInfo("UTC")
+
+
 def _parse_date(s: Optional[str]) -> Optional[datetime.datetime]:
     if not s:
         return None
     try:
-        return datetime.datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc)
+        local_date = datetime.datetime.strptime(s, "%Y-%m-%d").date()
+        local_midnight = datetime.datetime.combine(
+            local_date,
+            datetime.time.min,
+            tzinfo=_report_timezone(),
+        )
+        return local_midnight.astimezone(datetime.timezone.utc)
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail=f"Invalid date: {s}. Use YYYY-MM-DD.")
+
+
+def _report_received_at_expression(db: Session):
+    """Return a comparable timestamp for both current and legacy schemas.
+
+    Some deployed databases predate the SQLAlchemy DateTime declaration and
+    still store ``received_at`` as VARCHAR. PostgreSQL cannot compare that
+    column directly with timezone-aware report boundaries. Cast only strings
+    that begin with an ISO date so a malformed legacy value does not make the
+    complete report fail.
+    """
+    dialect = getattr(getattr(db, "bind", None), "dialect", None)
+    if getattr(dialect, "name", "") != "postgresql":
+        return QuarantineEmail.received_at
+    received_text = cast(QuarantineEmail.received_at, String)
+    looks_like_iso_date = received_text.op("~")(r"^\d{4}-\d{2}-\d{2}")
+    return case(
+        (looks_like_iso_date, cast(received_text, DateTime(timezone=True))),
+        else_=None,
+    )
 
 
 def _addresses(value: str) -> set[str]:
@@ -521,18 +556,19 @@ def _gather_export_data(db: Session, req: ExportRequest, current_user: User) -> 
         QuarantineEmail.label.notin_(["SENT", "DRAFT"]),
         or_(QuarantineEmail.status.is_(None), QuarantineEmail.status != "trash"),
     )
+    received_at_expr = _report_received_at_expression(db)
     if dt_from:
-        email_q = email_q.filter(QuarantineEmail.received_at >= dt_from)
+        email_q = email_q.filter(received_at_expr >= dt_from)
     if dt_to:
-        email_q = email_q.filter(QuarantineEmail.received_at < dt_to + datetime.timedelta(days=1))
+        email_q = email_q.filter(received_at_expr < dt_to + datetime.timedelta(days=1))
 
     log_q = db.query(AuditLog)
     if dt_from:
         log_q = log_q.filter(AuditLog.created_at >= dt_from)
     if dt_to:
-        log_q = log_q.filter(AuditLog.created_at <= dt_to + datetime.timedelta(days=1))
+        log_q = log_q.filter(AuditLog.created_at < dt_to + datetime.timedelta(days=1))
 
-    candidates = email_q.order_by(QuarantineEmail.received_at.desc().nullslast()).all()
+    candidates = email_q.order_by(received_at_expr.desc().nullslast()).all()
     all_emails = [email for email in candidates if _email_matches_recipient(email, mailbox_identities)]
     total_email = len(all_emails)
     total_clean = sum(1 for e in all_emails if e.label == "CLEAN")

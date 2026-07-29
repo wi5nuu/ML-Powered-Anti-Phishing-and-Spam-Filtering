@@ -54,7 +54,12 @@ export default function ExportModal({ open, onClose, userRole }) {
   const handlePeriodChange = (val) => {
     setPeriod(val)
     const now = new Date()
-    const fmt = (d) => d.toISOString().slice(0, 10)
+    const fmt = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
     if (val === 'today') {
       setDateFrom(fmt(now))
       setDateTo(fmt(now))
@@ -108,6 +113,14 @@ export default function ExportModal({ open, onClose, userRole }) {
 
   const handleGenerate = async () => {
     setError('')
+    if (period !== 'all' && (!dateFrom || !dateTo)) {
+      setError(t('export.selectDateRange', 'Pilih tanggal awal dan tanggal akhir.'))
+      return
+    }
+    if (period !== 'all' && dateFrom > dateTo) {
+      setError(t('export.invalidDateRange', 'Tanggal awal tidak boleh melewati tanggal akhir.'))
+      return
+    }
     if (isSuper && adminMode === 'select' && selectedAdminIds.length === 0) {
       setError(t('export.selectAtLeastOneAdmin', 'Select at least one admin.'))
       return

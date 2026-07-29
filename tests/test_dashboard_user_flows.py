@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import io
 import os
 import re
@@ -1844,6 +1845,7 @@ class DashboardUserFlowTests(unittest.TestCase):
             dmarc_result="FAIL",
             routing_reason="DMARC failed and fused score exceeded the quarantine threshold",
             model_version="report-test-v1",
+            received_at=datetime.datetime(2026, 7, 29, 1, 0, tzinfo=datetime.timezone.utc),
         )
         sent = QuarantineEmail(
             email_id="sent-must-not-be-reported",
@@ -1928,6 +1930,33 @@ class DashboardUserFlowTests(unittest.TestCase):
         self.assertIn(f"Mailbox Report: {mailbox.email}", pdf_text)
         self.assertIn(inbound.subject, re.sub(r"\s+", " ", pdf_text))
         self.assertNotIn(other_mailbox.email, pdf_text)
+
+        period_ranges = {
+            "today": ("2026-07-29", "2026-07-29"),
+            "week": ("2026-07-26", "2026-07-29"),
+            "month": ("2026-07-01", "2026-07-29"),
+            "custom": ("2026-07-28", "2026-07-29"),
+        }
+        for period_name, (date_from, date_to) in period_ranges.items():
+            for report_format, expected_prefix in (("pdf", b"%PDF"), ("excel", b"PK")):
+                period_response = self.client.post(
+                    "/api/admin/export/generate",
+                    json={
+                        **payload,
+                        "format": report_format,
+                        "date_from": date_from,
+                        "date_to": date_to,
+                    },
+                )
+                self.assertEqual(
+                    period_response.status_code,
+                    200,
+                    f"{period_name}/{report_format}: {period_response.text}",
+                )
+                self.assertTrue(
+                    period_response.content.startswith(expected_prefix),
+                    f"Invalid {report_format} output for {period_name}",
+                )
 
     def test_email_analytics_uses_real_mailboxes_and_enforces_admin_scope(self):
         password = "Analytics-password-123"
