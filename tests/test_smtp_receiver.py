@@ -8,7 +8,7 @@ from worker import smtp_receiver
 class SmtpRecipientValidationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.handler = smtp_receiver.EmailReceiverHandler()
-        self.session = SimpleNamespace(peer=("203.0.113.10", 12345))
+        self.session = SimpleNamespace(peer=("203.0.113.10", 12345), ssl=True)
         self.envelope = SimpleNamespace(rcpt_tos=[])
 
     async def test_rejects_recipient_outside_local_domains(self):

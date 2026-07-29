@@ -25,6 +25,7 @@ import os
 import re
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env.local'), override=True)
 import secrets as _secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -170,6 +171,9 @@ static_dir = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
     # ── Startup ──────────────────────────────────────────────────────────────
+    from dashboard.database import init_db
+    init_db()
+    seed_admin()
     app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge())
     yield
     # ── Shutdown ─────────────────────────────────────────────────────────────
@@ -576,8 +580,6 @@ def seed_admin():
 
     db.commit()
     db.close()
-
-seed_admin()
 
 
 # ─── Auth Endpoints ─────────────────────────────────────────────────────────────
@@ -1219,7 +1221,7 @@ async def security_txt():
 async def api_health(db: Session = Depends(get_db)):
     # Database check
     try:
-        db.execute(func.count(QuarantineEmail.id))
+        db.query(func.count(QuarantineEmail.id)).scalar()
         db_status = "connected"
     except Exception:
         db_status = "error"
@@ -6046,7 +6048,7 @@ async def api_system_health(request: Request, db: Session = Depends(get_db)):
 
     # 1. PostgreSQL
     try:
-        db.execute(func.count(QuarantineEmail.id))
+        db.query(func.count(QuarantineEmail.id)).scalar()
         services["postgresql"] = {"status": "healthy", "detail": "Database connected"}
     except Exception as e:
         services["postgresql"] = {"status": "down", "detail": str(e)}

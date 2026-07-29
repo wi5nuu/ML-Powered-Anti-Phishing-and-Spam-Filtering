@@ -370,7 +370,7 @@ def _generate_pdf_export(audit_records):
     ts = ParagraphStyle('T',parent=styles['Heading1'],fontSize=18,
                          textColor=colors.HexColor('#1a73e8'),spaceAfter=30,alignment=1)
     el.append(Paragraph("User Activity Tracking Report", ts))
-    el.append(Paragraph(f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC", styles['Normal']))
+    el.append(Paragraph(f"Generated: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC", styles['Normal']))
     el.append(Spacer(1,20))
     td = [["ID","Timestamp","User","Action","Email ID"]]
     for r in audit_records:
@@ -418,7 +418,7 @@ def export_audit_trail(
             # organization-scoped audit records to export.
             audit_query = audit_query.filter(False)
     audit_records = audit_query.order_by(AuditLog.created_at.desc()).limit(500).all()
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     fl = format.lower()
     if fl == "csv":
         content = _generate_csv_export(audit_records)
@@ -788,7 +788,7 @@ def _generate_pdf_report_legacy(data: dict):
                          textColor=colors.grey,alignment=1,spaceAfter=20)
 
     el.append(Paragraph("CogniMail — Comprehensive Report", ts))
-    el.append(Paragraph(f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC | Period: {s['date_from']} — {s['date_to']}", ss))
+    el.append(Paragraph(f"Generated: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC | Period: {s['date_from']} — {s['date_to']}", ss))
 
     # Summary table
     st = Table([["Metric","Value"],

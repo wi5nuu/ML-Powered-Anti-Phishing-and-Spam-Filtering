@@ -7,7 +7,7 @@ Testing: set ENV=testing to allow SQLite in-memory databases.
 """
 import logging
 import os
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
 log = logging.getLogger(__name__)
@@ -47,11 +47,13 @@ if "sqlite" in DB_URL.lower() and not _is_testing:
 
 # SQLite needs check_same_thread=False for multi-threaded test runners
 _connect_args = {"check_same_thread": False} if "sqlite" in DB_URL.lower() else {}
-engine = create_engine(DB_URL, connect_args=_connect_args)
+
+_engine: Engine | None = None
+_SessionLocal: sessionmaker | None = None
 
 
 def _ensure_schema_compatibility():
-    # Single authoritative create_all — called once below after all helpers
+    engine = get_engine()
     Base.metadata.create_all(engine)
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
@@ -161,7 +163,7 @@ def _ensure_schema_compatibility():
 
 
 def _seed_mailbox_access():
-    with Session(engine) as db:
+    with Session(get_engine()) as db:
         rows = db.query(AdminMailbox).all()
         changed = False
 
@@ -198,14 +200,69 @@ def _seed_mailbox_access():
             db.commit()
 
 
-_ensure_schema_compatibility()
-_seed_mailbox_access()
-SessionLocal = sessionmaker(bind=engine)
+# ── Lazy initialisation ───────────────────────────────────────────────────────
+# engine / SessionLocal are resolved on first access so the module can be
+# imported without a live database (needed for localhost development).
+_init_done = False
+
+
+def _lazy_init():
+    global _init_done
+    if _init_done:
+        return
+    _ensure_schema_compatibility()
+    _seed_mailbox_access()
+    _init_done = True
+
+
+def get_engine() -> Engine:
+    global _engine
+    if _engine is None:
+        _engine = create_engine(DB_URL, connect_args=_connect_args)
+    return _engine
+
+
+def get_session_local() -> sessionmaker:
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(bind=get_engine())
+    return _SessionLocal
+
+
+def init_db() -> None:
+    """Call once at app startup to create tables, run migrations, seed access.
+    Safe to call multiple times — only runs on first invocation.
+    """
+    _lazy_init()
 
 
 def get_db():
-    db = SessionLocal()
+    db = get_session_local()()
     try:
         yield db
     finally:
         db.close()
+
+
+# ── Backward-compatible lazy proxies ──────────────────────────────────────────
+# These let   from dashboard.database import engine, SessionLocal   work at
+# module level without connecting to the database until first real use.
+
+class _LazyEngineProxy:
+    def __getattr__(self, name: str):
+        return getattr(get_engine(), name)
+
+    def __bool__(self) -> bool:
+        return get_engine() is not None
+
+
+class _LazySessionLocalProxy:
+    def __call__(self):
+        return get_session_local()()
+
+    def __getattr__(self, name: str):
+        return getattr(get_session_local(), name)
+
+
+engine: Engine = _LazyEngineProxy()           # type: ignore[assignment]
+SessionLocal: sessionmaker = _LazySessionLocalProxy()  # type: ignore[assignment]
