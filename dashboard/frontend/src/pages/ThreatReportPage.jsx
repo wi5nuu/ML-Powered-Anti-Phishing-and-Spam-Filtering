@@ -164,18 +164,6 @@ export default function ThreatReportPage() {
         <div className={styles.loading}>{t('report.loading', 'Memuat data ancaman...')}</div>
       ) : !data ? null : (
         <>
-          {data.scope && !data.scope.include_test_data && (
-            <div className={styles.scopeNotice}>
-              <CheckCircle size={15} />
-              <span>{t('report.productionScope', 'Hanya menghitung email ke mailbox aktif.')}</span>
-              {(data.scope.excluded_test_records || 0) > 0 && (
-                <strong>
-                  {data.scope.excluded_test_records} {t('report.testRecordsExcluded', 'email pengujian dikecualikan.')}
-                </strong>
-              )}
-            </div>
-          )}
-
           {/* ── Summary cards ── */}
           <div className={styles.summaryGrid}>
             {[

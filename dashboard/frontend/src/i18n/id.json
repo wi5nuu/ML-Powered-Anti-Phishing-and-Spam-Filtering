@@ -168,8 +168,6 @@
   "report.phish": "phish",
   "report.spamLabel": "spam",
   "report.topSenders": "Top 10 Alamat Pengirim Terdeteksi Ancaman",
-  "report.productionScope": "Hanya menghitung email ke mailbox aktif.",
-  "report.testRecordsExcluded": "email pengujian yang teridentifikasi dikecualikan.",
   "report.noSenders": "Tidak ada data pengirim berbahaya",
   "report.tableHash": "#",
   "report.tableTotal": "Total",

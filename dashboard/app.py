@@ -130,24 +130,6 @@ def _assign_mailbox_manager(db: Session, mailbox: AdminMailbox, username: str) -
 
 THREAT_RETENTION_DAYS = int(os.getenv("MAX_QUARANTINE_DAYS", "30"))
 THREAT_CATEGORIES = ["spam", "phishing", "malware"]
-THREAT_REPORT_TEST_MARKERS = tuple(
-    marker.strip()
-    for marker in os.getenv(
-        "THREAT_REPORT_TEST_MARKERS",
-        ",".join([
-            "FINAL250-",
-            "BULK250W2-",
-            "CLEAN250-",
-            "SPAM250-",
-            "PHISH250-",
-            "WARN250-",
-            "Routine Inbox Delivery Validation",
-            "Mailbox Security Verification Validation",
-            "Global Rewards Collection Instructions",
-        ]),
-    ).split(",")
-    if marker.strip()
-)
 
 
 def canonical_threat_category(category: str | None) -> str:
@@ -1856,20 +1838,6 @@ def display_category(email: QuarantineEmail) -> str:
     if label == "QUARANTINE" and category not in {"spam", "phishing", "malware"}:
         return "spam"
     return category or label.lower()
-
-
-def threat_report_test_email_clause():
-    """Identify explicitly marked or known synthetic validation messages."""
-    marker_filters = [
-        func.coalesce(QuarantineEmail.subject, "").ilike(f"%{marker}%")
-        for marker in THREAT_REPORT_TEST_MARKERS
-    ]
-    marker_filters.append(
-        func.coalesce(QuarantineEmail.raw_content, "").ilike(
-            "%X-CogniMail-Test: true%"
-        )
-    )
-    return or_(*marker_filters)
 
 
 def quarantine_spam_clause():
@@ -5718,7 +5686,6 @@ async def api_threat_breakdown(
     days: int = Query(default=14, ge=1, le=365),
     date_from: str = Query(default=None),
     date_to:   str = Query(default=None),
-    include_test_data: bool = Query(default=False),
 ):
     """
     Returns:
@@ -5729,7 +5696,6 @@ async def api_threat_breakdown(
     Query params:
     - days: 1 | 7 | 14 | 30 | 90  (default 14)
     - date_from / date_to: YYYY-MM-DD for custom range (overrides days)
-    - include_test_data: include identified validation messages (default false)
     """
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.VIEW_ALL_REPORTS) and \
@@ -5786,10 +5752,6 @@ async def api_threat_breakdown(
         if mailbox_filters
         else unscoped_base.filter(False)
     )
-    test_clause = threat_report_test_email_clause()
-    excluded_test_count = base.filter(test_clause).count()
-    if not include_test_data:
-        base = base.filter(~test_clause)
 
     # ── Category counts ──────────────────────────────────────────────────
     from sqlalchemy import case as sa_case
@@ -5890,9 +5852,6 @@ async def api_threat_breakdown(
         "daily_trend": daily_trend,
         "scope": {
             "active_mailboxes_only": True,
-            "include_test_data": include_test_data,
-            "identified_test_records": excluded_test_count,
-            "excluded_test_records": excluded_test_count if not include_test_data else 0,
             "included_mailboxes": len(managed_identities),
         },
     }

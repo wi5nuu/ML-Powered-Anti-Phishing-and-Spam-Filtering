@@ -184,24 +184,6 @@
   font-size: 0.8125rem;
 }
 
-.scopeNotice {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  background: #e8f5e9;
-  border: 1px solid #b7dfbd;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  color: #137333;
-  font-size: 0.8125rem;
-}
-
-.scopeNotice strong {
-  font-weight: 700;
-}
-
 /* ── Loading ── */
 .loading {
   padding: 48px;

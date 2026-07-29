@@ -168,8 +168,6 @@
   "report.phish": "phish",
   "report.spamLabel": "spam",
   "report.topSenders": "Top 10 Sender Addresses in Detected Threats",
-  "report.productionScope": "Only email delivered to active mailboxes is counted.",
-  "report.testRecordsExcluded": "identified test emails excluded.",
   "report.noSenders": "No dangerous senders data",
   "report.tableHash": "#",
   "report.tableTotal": "Total",
