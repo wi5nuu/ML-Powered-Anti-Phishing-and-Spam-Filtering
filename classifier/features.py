@@ -89,8 +89,6 @@ STRUCTURED_FEATURES = [
     "entropy_of_links",
     "num_forms",
     "javascript_present",
-    "evasion_detected",
-    "evasion_confidence",
 ]
 
 # ─── Data Model ──────────────────────────────────────────────────────────────
