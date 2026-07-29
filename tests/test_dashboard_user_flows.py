@@ -1527,7 +1527,27 @@ class DashboardUserFlowTests(unittest.TestCase):
             raw_content="Incoming copy",
             message_id_header=shared_message_id,
         )
-        self.db.add_all([sent_record, incoming_record])
+        sender_trash = QuarantineEmail(
+            email_id="sent-trash-direction-test",
+            label="SENT",
+            fused_score=0.0,
+            status="trash",
+            category="sent",
+            subject="Sender trash copy",
+            sender=sender_mailbox.email,
+            recipient_list=recipient_mailbox.email,
+        )
+        recipient_trash = QuarantineEmail(
+            email_id="incoming-trash-direction-test",
+            label="CLEAN",
+            fused_score=0.0,
+            status="trash",
+            category="clean",
+            subject="Recipient trash copy",
+            sender=sender_mailbox.email,
+            recipient_list=recipient_mailbox.email,
+        )
+        self.db.add_all([sent_record, incoming_record, sender_trash, recipient_trash])
         self.db.commit()
 
         def login_mailbox(address):
@@ -1569,8 +1589,41 @@ class DashboardUserFlowTests(unittest.TestCase):
             self.assertEqual(recipient_stats.json()["clean"], 1)
             self.assertEqual(recipient_stats.json()["sent"], 0)
 
+            sender_trash_list = self.client.get(
+                "/api/emails",
+                params={"mailbox_id": sender_mailbox.id, "folder": "trash"},
+            )
+            recipient_trash_list = self.client.get(
+                "/api/emails",
+                params={"mailbox_id": recipient_mailbox.id, "folder": "trash"},
+            )
+            self.assertEqual(
+                [row["email_id"] for row in sender_trash_list.json()["emails"]],
+                [sender_trash.email_id],
+            )
+            self.assertEqual(
+                [row["email_id"] for row in recipient_trash_list.json()["emails"]],
+                [recipient_trash.email_id],
+            )
+            self.assertEqual(
+                self.client.get("/api/stats", params={"mailbox_id": sender_mailbox.id}).json()["trash"],
+                1,
+            )
+            self.assertEqual(
+                self.client.get("/api/stats", params={"mailbox_id": recipient_mailbox.id}).json()["trash"],
+                1,
+            )
+
             recipient_detail = recipient_client.get(f"/api/emails/{incoming_record.email_id}")
             sender_detail = sender_client.get(f"/api/emails/{sent_record.email_id}")
+            self.assertEqual(
+                sender_client.get(f"/api/emails/{incoming_record.email_id}").status_code,
+                403,
+            )
+            self.assertEqual(
+                recipient_client.get(f"/api/emails/{sent_record.email_id}").status_code,
+                403,
+            )
             self.assertEqual(
                 [row["email_id"] for row in recipient_detail.json()["thread_messages"]],
                 [incoming_record.email_id],
@@ -1685,6 +1738,15 @@ class DashboardUserFlowTests(unittest.TestCase):
                 params={"mailbox_id": mailbox_b.id, "mailbox": mailbox_b.email},
             )
             self.assertEqual(denied_inbox.status_code, 403, denied_inbox.text)
+            denied_inbox_by_email_only = client_one.get(
+                "/api/emails",
+                params={"mailbox": mailbox_b.email},
+            )
+            self.assertEqual(
+                denied_inbox_by_email_only.status_code,
+                403,
+                denied_inbox_by_email_only.text,
+            )
             allowed_token = client_two.post(
                 f"/api/admin/mailboxes/{mailbox_b.id}/autologin-token"
             )

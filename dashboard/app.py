@@ -1319,16 +1319,19 @@ async def api_stats(
             # left in an inconsistent state by older data.
             q = q.filter(mailbox_visible_email_clause())
         if not global_scope:
-            identity_column = (
-                QuarantineEmail.sender
-                if direction == "outgoing"
-                else QuarantineEmail.recipient_list
-            )
-            filters = [
-                condition
-                for identity in identities
-                for condition in _mailbox_identity_filters(identity_column, identity)
-            ]
+            if direction == "owned":
+                filters = [mailbox_owned_email_clause(identity) for identity in identities]
+            else:
+                identity_column = (
+                    QuarantineEmail.sender
+                    if direction == "outgoing"
+                    else QuarantineEmail.recipient_list
+                )
+                filters = [
+                    condition
+                    for identity in identities
+                    for condition in _mailbox_identity_filters(identity_column, identity)
+                ]
             return q.filter(or_(*filters)) if filters else q.filter(False)
         return q
 
@@ -1337,7 +1340,10 @@ async def api_stats(
         QuarantineEmail.label.notin_(["SENT", "DRAFT"]),
     ))
     total = all_mail_query.count() or 0
-    trash_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.status == "trash")).scalar() or 0
+    trash_count = scoped(
+        db.query(func.count(QuarantineEmail.id)).filter(QuarantineEmail.status == "trash"),
+        direction="owned",
+    ).scalar() or 0
     quarantine_count = scoped(db.query(func.count(QuarantineEmail.id)).filter(
         QuarantineEmail.label == "QUARANTINE",
         QuarantineEmail.status != "trash",
@@ -1546,6 +1552,12 @@ CATEGORY_LABEL_MAP = {
 
 
 def email_belongs_to_identity(email_record: QuarantineEmail, identity: str = "") -> bool:
+    """Return whether this persisted mailbox copy is owned by an identity.
+
+    SENT/DRAFT rows belong to their sender. Delivered and detected rows belong
+    to their recipient. Appearing in the opposite header direction never
+    grants access to that mailbox copy.
+    """
     target = (identity or "").strip().lower()
     if not target:
         return False
@@ -1553,7 +1565,9 @@ def email_belongs_to_identity(email_record: QuarantineEmail, identity: str = "")
     def _addresses(value: str) -> list[str]:
         return [addr.lower() for _, addr in getaddresses([value or ""]) if addr]
 
-    return target in _addresses(email_record.recipient_list) or target in _addresses(email_record.sender)
+    label = str(email_record.label or "").upper()
+    owner_value = email_record.sender if label in {"SENT", "DRAFT"} else email_record.recipient_list
+    return target in _addresses(owner_value)
 
 
 def email_matches_mailbox_direction(
@@ -1585,6 +1599,7 @@ def _mailbox_identity_filters(column, identity: str):
         return []
     variants = {
         target,
+        f"%<{target}>%",
         f"{target},%",
         f"%, {target}",
         f"%, {target},%",
@@ -1593,6 +1608,19 @@ def _mailbox_identity_filters(column, identity: str):
         f"%; {target};%",
     }
     return [column.ilike(pattern) for pattern in variants]
+
+
+def mailbox_owned_email_clause(identity: str):
+    """SQL equivalent of the persisted-copy ownership rule."""
+    sender_filters = _mailbox_identity_filters(QuarantineEmail.sender, identity)
+    recipient_filters = _mailbox_identity_filters(QuarantineEmail.recipient_list, identity)
+    if not sender_filters or not recipient_filters:
+        return False
+    outgoing_label = func.upper(func.coalesce(QuarantineEmail.label, "")).in_(["SENT", "DRAFT"])
+    return or_(
+        and_(outgoing_label, or_(*sender_filters)),
+        and_(~outgoing_label, or_(*recipient_filters)),
+    )
 
 
 def _purge_mailbox_autologin_tokens(mailbox_id: int) -> None:
@@ -1606,11 +1634,9 @@ def _purge_mailbox_autologin_tokens(mailbox_id: int) -> None:
 def _permanently_delete_mailbox(db: Session, mailbox: AdminMailbox) -> dict[str, int]:
     """Delete a mailbox and every email-owned record in the same transaction."""
     identity = (mailbox.email or "").strip().lower()
-    candidates = db.query(QuarantineEmail).filter(or_(
-        QuarantineEmail.sender.ilike(f"%{identity}%"),
-        QuarantineEmail.recipient_list.ilike(f"%{identity}%"),
-    )).all() if identity else []
-    mailbox_emails = [record for record in candidates if email_belongs_to_identity(record, identity)]
+    mailbox_emails = db.query(QuarantineEmail).filter(
+        mailbox_owned_email_clause(identity)
+    ).all() if identity else []
     email_ids = [record.email_id for record in mailbox_emails]
 
     deleted_feedback = 0
@@ -2367,16 +2393,22 @@ async def api_get_emails(
             AdminMailbox.assigned_to == user_info["username"],
             AdminMailbox.is_active == True,
         ).all()
-        managed_column = (
-            QuarantineEmail.sender
-            if outgoing_view
-            else QuarantineEmail.recipient_list
-        )
-        managed_filters = [
-            condition
-            for managed_mailbox in managed_mailboxes
-            for condition in _mailbox_identity_filters(managed_column, managed_mailbox.email)
-        ]
+        if folder == "trash":
+            managed_filters = [
+                mailbox_owned_email_clause(managed_mailbox.email)
+                for managed_mailbox in managed_mailboxes
+            ]
+        else:
+            managed_column = (
+                QuarantineEmail.sender
+                if outgoing_view
+                else QuarantineEmail.recipient_list
+            )
+            managed_filters = [
+                condition
+                for managed_mailbox in managed_mailboxes
+                for condition in _mailbox_identity_filters(managed_column, managed_mailbox.email)
+            ]
         query = query.filter(or_(*managed_filters)) if managed_filters else query.filter(False)
     
     if folder == "trash":
@@ -2389,7 +2421,7 @@ async def api_get_emails(
     if mailbox or mailbox_id:
         # Try to resolve mailbox from admin_mailboxes table
         mailbox_record = None
-        if mailbox_id:
+        if mailbox_id or mailbox:
             try:
                 mailbox_record = resolve_active_mailbox(db, mailbox_id, mailbox, missing_status_code=404, missing_detail="Mailbox not found")
             except HTTPException:
@@ -2408,22 +2440,28 @@ async def api_get_emails(
             # Inbox/threat views are recipient-owned. Sent and Draft are
             # sender-owned. Keeping these directions separate prevents a
             # sender's outbound delivery from appearing in their Inbox.
-            mailbox_column = (
-                QuarantineEmail.sender
-                if outgoing_view
-                else QuarantineEmail.recipient_list
-            )
-            query = query.filter(or_(
-                *_mailbox_identity_filters(mailbox_column, mailbox_record.email)
-            ))
+            if folder == "trash":
+                query = query.filter(mailbox_owned_email_clause(mailbox_record.email))
+            else:
+                mailbox_column = (
+                    QuarantineEmail.sender
+                    if outgoing_view
+                    else QuarantineEmail.recipient_list
+                )
+                query = query.filter(or_(
+                    *_mailbox_identity_filters(mailbox_column, mailbox_record.email)
+                ))
         else:
             # Virtual mailbox (user email not in admin_mailboxes) — use direct ilike filter
-            mailbox_column = (
-                QuarantineEmail.sender
-                if outgoing_view
-                else QuarantineEmail.recipient_list
-            )
-            query = query.filter(mailbox_column.ilike(f"%{mailbox}%"))
+            if folder == "trash":
+                query = query.filter(mailbox_owned_email_clause(mailbox))
+            else:
+                mailbox_column = (
+                    QuarantineEmail.sender
+                    if outgoing_view
+                    else QuarantineEmail.recipient_list
+                )
+                query = query.filter(or_(*_mailbox_identity_filters(mailbox_column, mailbox)))
 
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
@@ -2655,20 +2693,29 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
 
 
     thread_messages = find_thread_messages(db, email_record)
-    if is_regular_user:
-        mailbox_identity = (user_info.get("mailbox_email") or "").strip().lower()
-        anchor_is_outgoing = str(email_record.label or "").upper() in {"SENT", "DRAFT"}
-        direction = "outgoing" if anchor_is_outgoing else "incoming"
+    if user_info["role"] != UserRole.SUPERADMIN.value:
+        if user_info["role"] == UserRole.ADMIN.value:
+            accessible_identities = [
+                mailbox.email.strip().lower()
+                for mailbox in db.query(AdminMailbox).filter(
+                    AdminMailbox.assigned_to == user_info["username"],
+                    AdminMailbox.is_active == True,
+                ).all()
+                if mailbox.email
+            ]
+        else:
+            identity = (user_info.get("mailbox_email") or "").strip().lower()
+            accessible_identities = [identity] if identity else []
+        anchor_identities = [
+            identity
+            for identity in accessible_identities
+            if email_belongs_to_identity(email_record, identity)
+        ]
         thread_messages = [
             message
             for message in thread_messages
-            if email_is_visible_to_mailbox_user(message)
-            and email_matches_mailbox_direction(message, mailbox_identity, direction)
-            and (
-                str(message.label or "").upper() in {"SENT", "DRAFT"}
-                if anchor_is_outgoing
-                else str(message.label or "").upper() not in {"SENT", "DRAFT"}
-            )
+            if any(email_belongs_to_identity(message, identity) for identity in anchor_identities)
+            and (not is_regular_user or email_is_visible_to_mailbox_user(message))
         ]
     incoming_thread_messages = [
         message for message in thread_messages
@@ -3436,7 +3483,6 @@ async def api_get_metrics(
         # Try exact match first
         exact_filters = or_(
             *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
-            *_mailbox_identity_filters(QuarantineEmail.sender, mailbox_record.email),
         )
         
         account_filters.append(exact_filters)
@@ -3449,28 +3495,25 @@ async def api_get_metrics(
         managed_filters = [
             condition
             for managed_mailbox in managed_mailboxes
-            for condition in (
-                *_mailbox_identity_filters(QuarantineEmail.recipient_list, managed_mailbox.email),
-                *_mailbox_identity_filters(QuarantineEmail.sender, managed_mailbox.email),
+            for condition in _mailbox_identity_filters(
+                QuarantineEmail.recipient_list, managed_mailbox.email
             )
         ]
         account_filters.append(or_(*managed_filters) if managed_filters else False)
     elif user_info and user_info["role"] == "mailbox":
         identity = (user_info.get("mailbox_email") or "").strip().lower()
         scope_label = identity or "mailbox"
-        identity_filters = [
-            *_mailbox_identity_filters(QuarantineEmail.recipient_list, identity),
-            *_mailbox_identity_filters(QuarantineEmail.sender, identity),
-        ] if identity else []
+        identity_filters = _mailbox_identity_filters(
+            QuarantineEmail.recipient_list, identity
+        ) if identity else []
         account_filters.append(or_(*identity_filters) if identity_filters else False)
     elif user_info and user_info["role"] == "user":
         user = db.query(User).filter(User.username == user_info["username"]).first()
         identity = ((user.email if user else "") or user_info["username"]).strip().lower()
         scope_label = identity
-        identity_filters = [
-            *_mailbox_identity_filters(QuarantineEmail.recipient_list, identity),
-            *_mailbox_identity_filters(QuarantineEmail.sender, identity),
-        ] if identity else []
+        identity_filters = _mailbox_identity_filters(
+            QuarantineEmail.recipient_list, identity
+        ) if identity else []
         account_filters.append(or_(*identity_filters) if identity_filters else False)
 
     base_query = db.query(QuarantineEmail).filter(
@@ -3738,14 +3781,7 @@ async def api_export_emails_csv(
             AdminMailbox.assigned_to == user_info["username"],
             AdminMailbox.is_active == True,
         ).all()
-        filters = [
-            condition
-            for mailbox in managed_mailboxes
-            for condition in (
-                *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox.email),
-                *_mailbox_identity_filters(QuarantineEmail.sender, mailbox.email),
-            )
-        ]
+        filters = [mailbox_owned_email_clause(mailbox.email) for mailbox in managed_mailboxes]
         query = query.filter(or_(*filters)) if filters else query.filter(False)
     if label:
         query = query.filter(QuarantineEmail.label == label)

@@ -530,12 +530,12 @@ export default function GmailShell({ children }) {
               </button>
 
               {navItem('/inbox', <Inbox size={18} color="#444746" />, 'Kotak Masuk', stats?.unread)}
-              {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, 'Berbintang', stats?.starred)}
-              {navItem('/sent', <Send size={18} color="#444746" />, 'Terkirim', stats?.sent)}
-              {navItem('/draft', <FileText size={18} color="#444746" />, 'Draf', stats?.draft)}
-              {canReviewThreats && navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Semua Email', stats?.total)}
-              {canReviewThreats && navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'), stats?.trash)}
-              {!canReviewThreats && navItem('/inbox?category=warn', <ShieldAlert size={18} color="#b06000" />, t('gmail.warn'), stats?.warn)}
+              {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, 'Berbintang')}
+              {navItem('/sent', <Send size={18} color="#444746" />, 'Terkirim')}
+              {navItem('/draft', <FileText size={18} color="#444746" />, 'Draf')}
+              {canReviewThreats && navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Semua Email')}
+              {canReviewThreats && navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'))}
+              {!canReviewThreats && navItem('/inbox?category=warn', <ShieldAlert size={18} color="#b06000" />, t('gmail.warn'))}
 
               {canReviewThreats && (
                 <>
@@ -553,9 +553,9 @@ export default function GmailShell({ children }) {
                   </button>
                   {threatOpen && (
                     <div className={styles.subNav}>
-                      {catItem('phishing', t('gmail.phishing'), '#EA4335', stats?.categories?.phishing)}
-                      {catItem('spam', t('gmail.spam'), '#f29900', stats?.categories?.spam)}
-                      {catItem('warn', t('gmail.warn'), '#f29900', stats?.categories?.warn ?? stats?.warn)}
+                      {catItem('phishing', t('gmail.phishing'), '#EA4335')}
+                      {catItem('spam', t('gmail.spam'), '#f29900')}
+                      {catItem('warn', t('gmail.warn'), '#f29900')}
                     </div>
                   )}
                 </>
