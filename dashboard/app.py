@@ -2463,6 +2463,14 @@ async def api_get_emails(
                 )
                 query = query.filter(or_(*_mailbox_identity_filters(mailbox_column, mailbox)))
 
+    # Every normal search/folder under Inbox remains recipient-owned. Without
+    # this explicit exclusion, a free-text search could return the sender's
+    # persisted SENT copy merely because the current mailbox was a recipient.
+    # Trash is the only mixed-direction folder and is already protected by the
+    # label-aware ownership clause above.
+    if not outgoing_view and folder != "trash":
+        query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
+
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
     elif folder == "starred":

@@ -1566,11 +1566,15 @@ class DashboardUserFlowTests(unittest.TestCase):
             sender_sent = sender_client.get("/api/emails", params={"folder": "sent"})
             recipient_inbox = recipient_client.get("/api/emails", params={"folder": "inbox"})
             recipient_sent = recipient_client.get("/api/emails", params={"folder": "sent"})
+            sender_search = sender_client.get("/api/emails", params={"q": "Direction test"})
+            recipient_search = recipient_client.get("/api/emails", params={"q": "Direction test"})
 
             self.assertEqual(sender_inbox.status_code, 200, sender_inbox.text)
             self.assertEqual(sender_sent.status_code, 200, sender_sent.text)
             self.assertEqual(recipient_inbox.status_code, 200, recipient_inbox.text)
             self.assertEqual(recipient_sent.status_code, 200, recipient_sent.text)
+            self.assertEqual(sender_search.status_code, 200, sender_search.text)
+            self.assertEqual(recipient_search.status_code, 200, recipient_search.text)
             self.assertEqual(sender_inbox.json()["emails"], [])
             self.assertEqual(
                 [row["email_id"] for row in sender_sent.json()["emails"]],
@@ -1581,6 +1585,11 @@ class DashboardUserFlowTests(unittest.TestCase):
                 [incoming_record.email_id],
             )
             self.assertEqual(recipient_sent.json()["emails"], [])
+            self.assertEqual(sender_search.json()["emails"], [])
+            self.assertEqual(
+                [row["email_id"] for row in recipient_search.json()["emails"]],
+                [incoming_record.email_id],
+            )
 
             sender_stats = sender_client.get("/api/stats")
             recipient_stats = recipient_client.get("/api/stats")
