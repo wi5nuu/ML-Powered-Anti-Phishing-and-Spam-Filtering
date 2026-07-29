@@ -1584,6 +1584,18 @@ class DashboardUserFlowTests(unittest.TestCase):
                 [row["email_id"] for row in recipient_inbox.json()["emails"]],
                 [incoming_record.email_id],
             )
+            starred_update = recipient_client.put(
+                f"/api/emails/{incoming_record.email_id}/starred",
+                json={"is_starred": True},
+            )
+            self.assertEqual(starred_update.status_code, 200, starred_update.text)
+            refreshed_inbox = recipient_client.get("/api/emails", params={"folder": "inbox"})
+            starred_folder = recipient_client.get("/api/emails", params={"folder": "starred"})
+            refreshed_detail = recipient_client.get(f"/api/emails/{incoming_record.email_id}")
+            self.assertTrue(refreshed_inbox.json()["emails"][0]["is_starred"])
+            self.assertTrue(starred_folder.json()["emails"][0]["is_starred"])
+            self.assertTrue(refreshed_detail.json()["is_starred"])
+            self.assertTrue(refreshed_detail.json()["thread_messages"][0]["is_starred"])
             self.assertEqual(recipient_sent.json()["emails"], [])
             self.assertEqual(sender_search.json()["emails"], [])
             self.assertEqual(

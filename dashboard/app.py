@@ -2094,6 +2094,7 @@ def thread_message_payload(email_record: QuarantineEmail) -> dict:
         "category": display_category(email_record),
         "status": email_record.status,
         "is_read": getattr(email_record, "is_read", False),
+        "is_starred": bool(getattr(email_record, "is_starred", False)),
         "direction": "draft" if label == "DRAFT" else "sent" if label == "SENT" else "incoming",
         "received_at": timestamp,
         "raw_content": renderable_email_body(email_record.raw_content),
@@ -2581,6 +2582,7 @@ async def api_get_emails(
             "received_at": email.received_at.isoformat() if hasattr(email.received_at, "isoformat") else str(email.received_at) if email.received_at else None,
             "recipient_list": email.recipient_list,
             "is_read": getattr(email, "is_read", False),
+            "is_starred": bool(getattr(email, "is_starred", False)),
             "thread_id": email_thread_id(email),
         })
     
@@ -2758,6 +2760,7 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         "thread_id": email_thread_id(email_record),
         "recipient_list": email_record.recipient_list,
         "is_read": getattr(email_record, "is_read", False),
+        "is_starred": bool(getattr(email_record, "is_starred", False)),
         "thread_has_unread": thread_has_unread,
         "thread_is_read": not thread_has_unread,
         "attachments": attachment_summaries(email_record),
