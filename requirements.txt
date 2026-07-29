@@ -36,8 +36,6 @@ sqlalchemy>=2.0.0
 # Serialization & Storage
 joblib>=1.4.0
 
-# Explainability
-
 # Monitoring
 prometheus-fastapi-instrumentator>=6.1.0
 

@@ -2,9 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from './client'
 import { APP_TIME_ZONE } from '../utils/time'
 
-// ── Quick stats (header ribbon, sidebar counts)
-// PERFORMANCE FIX: Disabled aggressive auto-refetch to prevent server overload
-// Stats now only refetch on manual action (compose, delete, etc) via React Query invalidation
 export const useStats = ({ mailbox, mailboxId } = {}) =>
   useQuery({
     queryKey: ['stats', mailbox || '', mailboxId || ''],
@@ -19,7 +16,6 @@ export const useStats = ({ mailbox, mailboxId } = {}) =>
     staleTime: 0,
   })
 
-// ── Full metrics panel (charts, top senders, daily stats)
 export const useMetrics = ({ mailbox, mailboxId } = {}) =>
   useQuery({
     queryKey: ['metrics', mailbox || '', mailboxId || ''],
@@ -36,7 +32,6 @@ export const useMetrics = ({ mailbox, mailboxId } = {}) =>
     staleTime: 5000,
   })
 
-// ── Audit log (paginated)
 export const useAuditLog = ({ page = 1, pageSize = 50, eventType, username } = {}) =>
   useQuery({
     queryKey: ['audit-log', page, pageSize, eventType, username],
@@ -47,11 +42,10 @@ export const useAuditLog = ({ page = 1, pageSize = 50, eventType, username } = {
       const { data } = await api.get('/audit-log', { params })
       return data
     },
-    refetchInterval: false, // PERFORMANCE FIX: Disabled auto-refetch
-    staleTime: 3 * 60 * 1000, // 3 minutes
+    refetchInterval: false,
+    staleTime: 3 * 60 * 1000,
   })
 
-// ── System settings
 export const useSettings = () =>
   useQuery({
     queryKey: ['settings'],
@@ -70,13 +64,11 @@ export const useUpdateSettings = () => {
   })
 }
 
-// ── Test IMAP connection
 export const useTestImap = () =>
   useMutation({
     mutationFn: () => api.post('/settings/test-imap'),
   })
 
-// ── CSV export (returns download URL)
 export const downloadEmailsCsv = async (label) => {
   const params = label && label !== 'all' ? { label } : {}
   const response = await api.get('/emails/export-csv', {

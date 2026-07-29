@@ -638,7 +638,6 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     except Exception as e:
         logger.warning("pubsub_publish_failed", error=str(e))
 
-    # ── Multi-channel alerting untuk QUARANTINE ──────────────────────────
     if fusion.label == "QUARANTINE":
         severity = "CRITICAL" if anomaly_score > 0.5 else "HIGH"
         alert_payload = AlertPayload(
@@ -654,7 +653,6 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
         )
         asyncio.create_task(alert_manager.send_all(alert_payload))
 
-    # ── Forward CLEAN/WARN ke tujuan mailbox ────────────────────────────
     # Fusion is the final routing decision. The heuristic category may still
     # contain "spam" for a message that fusion explicitly released as CLEAN;
     # using both values here silently skipped legitimate forwarding.

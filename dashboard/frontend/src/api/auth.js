@@ -11,7 +11,7 @@ export const useMe = () =>
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
-    refetchInterval: false, // PERFORMANCE FIX: Auth rarely changes, no need to poll every minute
+    refetchInterval: false,
     refetchOnWindowFocus: false,
   })
 

@@ -63,7 +63,6 @@ async def lifespan(app: FastAPI):
         state.tfidf_feature_names = state.tfidf.get_feature_names_out().tolist()
         state.all_feature_names = state.tfidf_feature_names + STRUCTURED_FEATURES
 
-        # ── BUG-007: Validate model input dimension matches feature pipeline ──
         # The XGBoost model was trained with a fixed number of input columns.
         # If STRUCTURED_FEATURES drifted (feature added/removed/reordered) but
         # the model artifact was not retrained, every prediction will be silently

@@ -183,7 +183,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CogniMail Dashboard", version="3.0.0", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app)
 
-# csrf_secret is the same as DASHBOARD_SECRET_KEY (already validated above)
 is_production = os.getenv("ENV", "development") == "production"
 app.add_middleware(SessionMiddleware, secret_key=DASHBOARD_SECRET_KEY, same_site="lax", https_only=is_production)
 _allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -196,7 +195,6 @@ app.add_middleware(
     allow_origins=os.getenv("CORS_ORIGINS", _default_cors).split(","),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    # SECURITY FIX: Restrict CORS headers to specific list instead of wildcard
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-API-Key"],
 )
 
@@ -221,7 +219,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
-        # SECURITY FIX: Add Content-Security-Policy headers
         frame_ancestors = "'self'" if is_attachment_response else "'none'"
         csp_directives = [
             "default-src 'self'",
@@ -245,7 +242,6 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# Register RBAC admin routes
 app.include_router(admin_routes.router)
 
 
@@ -255,7 +251,7 @@ app.include_router(admin_routes.router)
 
 class ConnectionManager:
     def __init__(self):
-        # REALTIME FIX: Store connections with user context for org-scoped broadcasting
+        # User context keeps broadcasts inside the authenticated organization/mailbox.
         self.active_connections: dict[WebSocket, dict] = {}
 
     async def connect(self, websocket: WebSocket, user_context: dict):
@@ -482,7 +478,6 @@ def _upsert_seed_user(
         )
         if is_still_insecure:
             user.hashed_password = hash_password(password)
-        # else: leave the user's custom password intact
 
     # Only set email if provided — never overwrite an existing email with None
     if role in ("admin", "superadmin"):
@@ -728,7 +723,6 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
 
 @app.post("/api/auth/logout")
 async def auth_logout():
-    # P3 FIX: Clear both dashboard and mailbox session cookies on logout
     response = JSONResponse({"ok": True})
     response.delete_cookie("access_token")
     response.delete_cookie("access_token", path="/")
@@ -1105,7 +1099,6 @@ async def list_api_keys(request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
-    # P0 FIX: Only admin and superadmin can manage API keys
     if user.role not in ("admin", "superadmin"):
         raise HTTPException(403, "Only admin or superadmin can manage API keys")
     query = db.query(ApiKey)
@@ -1129,7 +1122,6 @@ async def create_api_key(request: Request, data: dict, db: Session = Depends(get
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
-    # P0 FIX: Only admin and superadmin can create API keys
     if user.role not in ("admin", "superadmin"):
         raise HTTPException(403, "Only admin or superadmin can create API keys")
     if user.role == "admin" and user.organization_id is None:
@@ -1158,13 +1150,12 @@ async def delete_api_key(key_id: int, request: Request, db: Session = Depends(ge
     user = db.query(User).filter(User.username == payload.get("sub")).first()
     if not user:
         raise HTTPException(404, "User not found")
-    # P0 FIX: Only admin and superadmin can delete API keys
     if user.role not in ("admin", "superadmin"):
         raise HTTPException(403, "Only admin or superadmin can delete API keys")
     api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
     if not api_key:
         raise HTTPException(404, "API key not found")
-    # P0 FIX: Validate org ownership - admin can only delete keys from their org
+    # Organization ownership prevents an admin from deleting another tenant's key.
     if user.role == "admin" and api_key.organization_id != user.organization_id:
         raise HTTPException(403, "You can only delete API keys from your organization")
     db.delete(api_key)
@@ -2487,15 +2478,12 @@ async def api_get_emails(
     if folder == "all":
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
     elif folder == "starred":
-        # STARRED folder: filter by is_starred = True
         query = query.filter(QuarantineEmail.is_starred == True)
         query = query.filter(QuarantineEmail.label.notin_(["SENT", "DRAFT"]))
     elif folder == "snoozed":
-        # SNOOZED folder: filter by snoozed_until in the future
         query = query.filter(QuarantineEmail.snoozed_until != None)
         query = query.filter(QuarantineEmail.snoozed_until > datetime.now(timezone.utc))
     elif folder == "sent":
-        # SENT folder: filter by sender matching mailbox
         query = query.filter(QuarantineEmail.label == "SENT")
         if mailbox:
             if mailbox_record:
@@ -3260,11 +3248,9 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             if requested_sender != user_info["mailbox_email"]:
                 raise HTTPException(status_code=403, detail="You can only send from the logged-in mailbox")
     
-    # Construct sender address
     sender_address = req.from_email.strip().lower() or user_info.get("mailbox_email") or f"{user_info['username']}@{get_configured_mail_domain()}"
     ensure_sender_access(db, sender_address, user_info)
     
-    # Determine subject and body based on action
     final_subject = req.subject
     final_body = req.body
     draft_to_delete = None
@@ -3279,7 +3265,6 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
     
     if req.action == "share" and req.share_with:
         dest_recipients = parse_recipients(req.share_with)
-        # Fetch original email
         orig = db.query(QuarantineEmail).filter(QuarantineEmail.email_id == req.reply_to_id).first()
         if not orig:
             raise HTTPException(status_code=404, detail="Original email not found")
@@ -3373,7 +3358,6 @@ async def api_send_email(request: Request, db: Session = Depends(get_db)):
             except Exception:
                 logger.warning("Unable to derive reply threading headers", exc_info=True)
 
-        # Detect if body is HTML or plain text
         body_is_html = bool(re.search(r'<(html|body|div|p|br|span|a|table|tr|td)\b', final_body, re.IGNORECASE))
         if body_is_html:
             msg.attach(MIMEText(plain_email_body(final_body), "plain", "utf-8"))
@@ -3490,7 +3474,6 @@ async def api_get_metrics(
     mailbox_id: str = Query(None),
     db: Session = Depends(get_db),
 ):
-    # P0 FIX: Require authentication for all metrics access
     user_info = get_authenticated_api_user(request, db, allow_mailbox_token=True)
     
     mailbox = (mailbox or "").strip().lower()
@@ -3503,7 +3486,6 @@ async def api_get_metrics(
         ensure_mailbox_access(db, mailbox_record, user_info)
         scope_label = mailbox_record.email
         
-        # Try exact match first
         exact_filters = or_(
             *_mailbox_identity_filters(QuarantineEmail.recipient_list, mailbox_record.email),
         )
@@ -3616,7 +3598,7 @@ async def api_get_audit_log(
     if username:
         query = query.filter(AuditLog.user.ilike(f"%{username}%"))
 
-    # P1 FIX: Admin sees only audit logs from users in their own organization
+    # Admin audit access is restricted to identities in the same organization.
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if current_user and current_user.organization_id:
@@ -3658,7 +3640,7 @@ async def api_get_audit_log(
 
 # ─── System Settings ─────────────────────────────────────────────────────────────
 
-# In-memory settings store (persisted to .env file on save in prod; kept simple here)
+# Runtime settings; the organization domain is persisted in SystemSetting.
 _SYSTEM_SETTINGS = {
     "organization_domain": get_configured_mail_domain(),
     "threshold_quarantine": float(os.getenv("THRESHOLD_QUARANTINE", "0.70")),
@@ -3912,7 +3894,7 @@ async def api_analyze_email(
 
 
 
-# ─── User & Settings Management placeholders for Superadmin ──────────────────────
+# Superadmin user and onboarding management
 
 @app.get("/api/admin/users")
 async def api_get_users(request: Request, db: Session = Depends(get_db)):
@@ -3942,7 +3924,7 @@ async def api_search_users(request: Request, q: str = "", db: Session = Depends(
     if not query:
         return []
     
-    # P1 FIX: Admin can only search users in their own organization
+    # Admin search is tenant-scoped.
     user_query = db.query(User).filter(
         User.role == UserRole.ADMIN.value,
         User.username.ilike(f"%{query}%"),
@@ -3978,12 +3960,10 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
 
     domain = get_configured_mail_domain()
 
-    # 1. Create Organization
     org = Organization(name=company_name)
     db.add(org)
     db.flush()
 
-    # 2. Create Admin
     existing = db.query(User).filter(User.username == admin_username).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Username '{admin_username}' already exists")
@@ -3998,7 +3978,6 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
     db.add(admin_user)
     db.flush()
 
-    # 3. Create 3 mailboxes
     mailbox_names = ["inbox", "it-support", "security-alerts"]
     created_mailboxes = []
     for prefix in mailbox_names:
@@ -4026,7 +4005,6 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
             db.flush()
             created_mailboxes.append(m_existing)
 
-    # Grant admin access to all mailboxes
     for mb in created_mailboxes:
         existing_access = db.query(AdminMailboxAccess).filter(
             AdminMailboxAccess.mailbox_id == mb.id,
@@ -4035,7 +4013,6 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
         if not existing_access:
             db.add(AdminMailboxAccess(mailbox_id=mb.id, username=admin_username))
 
-    # 4. Create users
     created_users = []
     for u_data in users_data:
         u_username = str(u_data.get("username", "")).strip()
@@ -4059,7 +4036,6 @@ async def api_onboard_company(request: Request, payload: dict, db: Session = Dep
         db.flush()
         created_users.append({"username": u_username, "email": u_email})
 
-        # Grant mailbox access to user
         for mb in created_mailboxes:
             existing_access = db.query(AdminMailboxAccess).filter(
                 AdminMailboxAccess.mailbox_id == mb.id,
@@ -4341,7 +4317,7 @@ async def api_delete_admin_mailbox(mailbox_id: int, request: Request, db: Sessio
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    # P1 FIX: Admin can only delete mailboxes from their own organization
+    # Admins may delete only mailboxes assigned to them.
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_MAILBOXES):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user or not _admin_can_manage_mailbox(db, current_user, mailbox):
@@ -4374,7 +4350,7 @@ async def api_change_mailbox_password(mailbox_id: int, request: Request, payload
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    # P1 FIX: Admin can only change password for mailboxes in their own organization
+    # Admins may change passwords only for mailboxes assigned to them.
     if user_info["role"] == "admin":
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user or not _admin_can_manage_mailbox(db, current_user, mailbox):
@@ -4411,7 +4387,7 @@ async def api_generate_autologin_token(mailbox_id: int, request: Request, db: Se
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    # P1 FIX: Admin can only generate tokens for mailboxes in their own organization
+    # Admins may generate tokens only for mailboxes assigned to them.
     if user_info["role"] == "admin":
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user or not _admin_can_manage_mailbox(db, current_user, mailbox):
@@ -4555,7 +4531,7 @@ async def api_update_admin_mailbox_forwarder(mailbox_id: int, request: Request, 
     mailbox = db.query(AdminMailbox).filter(AdminMailbox.id == mailbox_id, AdminMailbox.is_active == True).first()
     if not mailbox:
         raise HTTPException(status_code=404, detail="Mailbox not found")
-    # P1 FIX: Admin can only update forwarders for mailboxes in their own organization
+    # Admins may update forwarding only for mailboxes assigned to them.
     if user_info["role"] == "admin":
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user or not _admin_can_manage_mailbox(db, current_user, mailbox):
@@ -4902,7 +4878,7 @@ async def api_get_audit_logs(request: Request, db: Session = Depends(get_db)):
     
     log_query = db.query(AuditLog)
     
-    # P1 FIX: Admin sees only audit logs from users in their own organization
+    # Admin audit access is tenant-scoped.
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if current_user and current_user.organization_id:
@@ -4927,7 +4903,7 @@ async def api_list_organizations(request: Request, db: Session = Depends(get_db)
     user_info = get_authenticated_api_user(request, db)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Permission denied")
-    # P2 FIX: Admin sees only their own organization
+    # Admin organization listings are tenant-scoped.
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if current_user and current_user.organization_id:
@@ -5863,7 +5839,7 @@ async def api_user_stats(request: Request, db: Session = Depends(get_db)):
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS) and not has_permission_dict(user_info, Permission.MANAGE_ORG_USERS):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # P1 FIX: Admin sees only users from their own organization
+    # Admin user statistics are tenant-scoped.
     user_query = db.query(User).filter(User.is_active == True)
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
@@ -5914,7 +5890,7 @@ async def api_user_emails(username: str, request: Request, db: Session = Depends
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(404, "User not found")
-    # P1 FIX: Admin can only view emails for users in their own organization
+    # Admin email analytics are tenant-scoped.
     if not has_permission_dict(user_info, Permission.MANAGE_ALL_USERS):
         current_user = db.query(User).filter(User.username == user_info["username"]).first()
         if not current_user or not current_user.organization_id:

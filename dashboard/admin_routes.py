@@ -213,7 +213,7 @@ def update_user(
         raise HTTPException(status_code=403, detail="Hanya superadmin yang dapat menetapkan role superadmin.")
     if user.id == current_user.id and payload.is_active is False:
         raise HTTPException(status_code=400, detail="Tidak dapat menonaktifkan akun Anda sendiri.")
-    # P2 FIX: Admin can only edit users within their own organization
+    # Admins may edit only users in their organization.
     if current_user.role == UserRole.ADMIN.value:
         if not _admin_can_manage_user(current_user, user):
             raise HTTPException(status_code=403, detail="Admin hanya dapat mengedit pengguna dalam cakupannya.")
@@ -1287,7 +1287,7 @@ async def api_global_search(
 
     like = f"%{query}%"
 
-    # P1 FIX: Admin sees only results from their own organization
+    # Admin search results are tenant-scoped.
     restrict_org_id = None
     if _admin.role == UserRole.ADMIN.value and _admin.organization_id:
         restrict_org_id = _admin.organization_id

@@ -34,9 +34,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-cognimail}
       POSTGRES_USER: ${DB_USER:-cogniuser}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    # Database access stays inside the Compose network at postgres:5432.
-    # Publishing 5432 is unnecessary for the application and is blocked by
-    # Hyper-V on some Windows hosts; VPS containers use the same internal port.
+    # PostgreSQL remains private on the Compose network.
     expose:
       - "5432"
     volumes:
@@ -111,19 +109,10 @@ services:
       SMTP_TLS_DISABLED: ${SMTP_TLS_DISABLED:-false}
     command: ["python", "-m", "worker.smtp_receiver"]
     ports:
-      # PRODUCTION FIX: Expose port 25 publicly for inbound MX email delivery.
-      # Port 25 must be reachable from the internet for other mail servers to
-      # deliver email to your domain (required for MX DNS record to work).
-      # Ensure your VPS/cloud firewall allows inbound TCP port 25.
-      # The receiver process listens on SMTP_PORT (25). Publish the host port
-      # separately so local profile can use 2525 while VPS uses 25.
+      # Production uses host port 25; local development overrides it to 2525.
       - "0.0.0.0:${SMTP_PUBLIC_PORT:-25}:25"
-      # Do not publish 587 until a dedicated authenticated submission listener
-      # is configured; mapping an unused container port is misleading.
     volumes:
-      # Mount TLS certs for STARTTLS — set SMTP_TLS_CERT / SMTP_TLS_KEY in .env
-      # Mount the complete Let's Encrypt tree so /certs/live/... paths from
-      # SMTP_TLS_CERT and SMTP_TLS_KEY resolve inside the container.
+      # The complete certificate tree preserves Let's Encrypt symlink targets.
       - ${SMTP_TLS_CERT_DIR:-/etc/letsencrypt}:/certs:ro
     dns:
       - 8.8.8.8
