@@ -170,6 +170,9 @@ static_dir = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
     # ── Startup ──────────────────────────────────────────────────────────────
+    from dashboard.database import init_db
+    init_db()
+    seed_admin()
     app.state.pubsub_task = asyncio.create_task(redis_pubsub_bridge())
     yield
     # ── Shutdown ─────────────────────────────────────────────────────────────
@@ -576,8 +579,6 @@ def seed_admin():
 
     db.commit()
     db.close()
-
-seed_admin()
 
 
 # ─── Auth Endpoints ─────────────────────────────────────────────────────────────

@@ -23,26 +23,49 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+
+def _env_float(key: str, default: str) -> float:
+    val = os.getenv(key, default)
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s=%r, using default %s", key, val, default)
+        return float(default)
+
+
+def _env_int(key: str, default: str) -> int:
+    val = os.getenv(key, default)
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s=%r, using default %s", key, val, default)
+        return int(default)
+
+
+def _env_bool(key: str, default: str) -> bool:
+    return os.getenv(key, default).lower() in {"1", "true", "yes", "on"}
+
+
 # Konfigurasi (bisa override via env vars)
-ML_WEIGHT       = float(os.getenv("FUSION_ML_WEIGHT", "0.50"))
-SA_WEIGHT       = float(os.getenv("FUSION_SA_WEIGHT", "0.25"))
-ANOMALY_WEIGHT  = float(os.getenv("FUSION_ANOMALY_WEIGHT", "0.25"))
-SA_HARD_LIMIT   = float(os.getenv("SA_QUARANTINE_THRESHOLD", "15.0"))
-ML_HARD_LIMIT   = float(os.getenv("ML_QUARANTINE_THRESHOLD", "0.95"))
-ML_DECISIVE_LIMIT = float(os.getenv("ML_DECISIVE_QUARANTINE_THRESHOLD", "0.995"))
-ANOMALY_HARD_LIMIT = float(os.getenv("ANOMALY_QUARANTINE_THRESHOLD", "0.90"))
-SA_MAX_SCORE    = float(os.getenv("SA_MAX_SCORE", "20.0"))
-THRESH_CLEAN    = float(os.getenv("THRESHOLD_CLEAN", "0.30"))
-THRESH_WARN     = float(os.getenv("THRESHOLD_WARN", "0.70"))
-WARN_EVIDENCE_GATED = os.getenv("WARN_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
-WARN_MIN_EVIDENCE = int(os.getenv("WARN_MIN_EVIDENCE", "2"))
-ML_REVIEW_LIMIT = float(os.getenv("ML_REVIEW_THRESHOLD", "0.97"))
-WARN_ML_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ML_EVIDENCE_THRESHOLD", "0.85"))
-WARN_SA_EVIDENCE_THRESHOLD = float(os.getenv("WARN_SA_EVIDENCE_THRESHOLD", "8.0"))
-WARN_ANOMALY_EVIDENCE_THRESHOLD = float(os.getenv("WARN_ANOMALY_EVIDENCE_THRESHOLD", "0.85"))
-WARN_AUTH_EVIDENCE = os.getenv("WARN_AUTH_EVIDENCE", "false").lower() in {"1", "true", "yes", "on"}
-QUARANTINE_EVIDENCE_GATED = os.getenv("QUARANTINE_EVIDENCE_GATED", "true").lower() in {"1", "true", "yes", "on"}
-QUARANTINE_MIN_EVIDENCE = int(os.getenv("QUARANTINE_MIN_EVIDENCE", "2"))
+ML_WEIGHT       = _env_float("FUSION_ML_WEIGHT", "0.50")
+SA_WEIGHT       = _env_float("FUSION_SA_WEIGHT", "0.25")
+ANOMALY_WEIGHT  = _env_float("FUSION_ANOMALY_WEIGHT", "0.25")
+SA_HARD_LIMIT   = _env_float("SA_QUARANTINE_THRESHOLD", "15.0")
+ML_HARD_LIMIT   = _env_float("ML_QUARANTINE_THRESHOLD", "0.95")
+ML_DECISIVE_LIMIT = _env_float("ML_DECISIVE_QUARANTINE_THRESHOLD", "0.995")
+ANOMALY_HARD_LIMIT = _env_float("ANOMALY_QUARANTINE_THRESHOLD", "0.90")
+SA_MAX_SCORE    = _env_float("SA_MAX_SCORE", "20.0")
+THRESH_CLEAN    = _env_float("THRESHOLD_CLEAN", "0.30")
+THRESH_WARN     = _env_float("THRESHOLD_WARN", "0.70")
+WARN_EVIDENCE_GATED = _env_bool("WARN_EVIDENCE_GATED", "true")
+WARN_MIN_EVIDENCE = _env_int("WARN_MIN_EVIDENCE", "2")
+ML_REVIEW_LIMIT = _env_float("ML_REVIEW_THRESHOLD", "0.97")
+WARN_ML_EVIDENCE_THRESHOLD = _env_float("WARN_ML_EVIDENCE_THRESHOLD", "0.85")
+WARN_SA_EVIDENCE_THRESHOLD = _env_float("WARN_SA_EVIDENCE_THRESHOLD", "8.0")
+WARN_ANOMALY_EVIDENCE_THRESHOLD = _env_float("WARN_ANOMALY_EVIDENCE_THRESHOLD", "0.85")
+WARN_AUTH_EVIDENCE = _env_bool("WARN_AUTH_EVIDENCE", "false")
+QUARANTINE_EVIDENCE_GATED = _env_bool("QUARANTINE_EVIDENCE_GATED", "true")
+QUARANTINE_MIN_EVIDENCE = _env_int("QUARANTINE_MIN_EVIDENCE", "2")
 
 
 @dataclass
