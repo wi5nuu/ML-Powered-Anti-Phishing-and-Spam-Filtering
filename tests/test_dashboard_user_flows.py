@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import datetime
 import io
+import json
 import os
 import re
 import tempfile
@@ -96,6 +98,51 @@ class DashboardUserFlowTests(unittest.TestCase):
                     duplicates.append((key, seen[key], route.name))
                 seen[key] = route.name
         self.assertEqual(duplicates, [])
+
+    def test_attachment_preview_allows_same_origin_framing(self):
+        pdf_data = b"%PDF-1.4\n%%EOF\n"
+        email = QuarantineEmail(
+            email_id="pdf-preview-security-headers",
+            subject="PDF preview",
+            label="CLEAN",
+            category="clean",
+            status="released",
+            fused_score=0.0,
+            sender="sender@example.test",
+            recipient_list="recipient@example.test",
+            attachments_json=json.dumps([
+                {
+                    "index": 0,
+                    "filename": "preview.pdf",
+                    "content_type": "application/pdf",
+                    "size": len(pdf_data),
+                    "stored": True,
+                    "data": base64.b64encode(pdf_data).decode("ascii"),
+                }
+            ]),
+        )
+        self.db.add(email)
+        self.db.commit()
+
+        response = self.client.get(
+            f"/api/emails/{email.email_id}/attachments/0"
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertEqual(response.headers["x-frame-options"], "SAMEORIGIN")
+        self.assertIn(
+            "frame-ancestors 'self'", response.headers["content-security-policy"]
+        )
+        self.assertNotIn(
+            "frame-ancestors 'none'", response.headers["content-security-policy"]
+        )
+
+        page_response = self.client.get("/api/stats")
+        self.assertEqual(page_response.headers["x-frame-options"], "DENY")
+        self.assertIn(
+            "frame-ancestors 'none'", page_response.headers["content-security-policy"]
+        )
 
     def test_new_email_websocket_refreshes_matching_mailbox_for_every_category(self):
         notification_manager = ConnectionManager()

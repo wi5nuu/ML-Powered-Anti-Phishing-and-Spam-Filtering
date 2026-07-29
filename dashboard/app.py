@@ -209,15 +209,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path.startswith("/api/emails/") and "/attachments/" in request.url.path:
+        is_attachment_response = (
+            request.url.path.startswith("/api/emails/")
+            and "/attachments/" in request.url.path
+        )
+        if is_attachment_response:
             response.headers["X-Frame-Options"] = "SAMEORIGIN"
         else:
             response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        
+
         # SECURITY FIX: Add Content-Security-Policy headers
+        frame_ancestors = "'self'" if is_attachment_response else "'none'"
         csp_directives = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # unsafe-eval needed for React DevTools
@@ -225,7 +230,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "img-src 'self' data: https:",
             "font-src 'self' data:",
             "connect-src 'self' ws: wss:",  # WebSocket connections
-            "frame-ancestors 'none'",
+            f"frame-ancestors {frame_ancestors}",
             "base-uri 'self'",
             "form-action 'self'",
         ]
