@@ -1154,13 +1154,13 @@ def _generate_excel_report(data: dict):
     sh(ws1,2); aw(ws1)
 
     ws2 = wb.create_sheet("Admins")
-    h2 = ["Username","Role","Organization","Active","Users","Mailboxes",
+    h2 = ["Username","Role","Active","Users","Mailboxes",
           "Total Emails","Clean","Suspicious","Blocked","Recent Activity"]
     ws2.append(h2); sh(ws2,len(h2))
     for a in data["admins"]:
         recent = "; ".join(f"{x['action']}({x['created_at']})" for x in a["recent_actions"][:5])
         es = a["email_stats"]
-        ws2.append([a["username"],a["role"],a["organization"],
+        ws2.append([a["username"],a["role"],
                     "Yes" if a["is_active"] else "No",
                     a["user_count"],a["mailbox_count"],
                     es["total"],es["clean"],es["warn"],es["quarantine"],recent])
@@ -1168,25 +1168,25 @@ def _generate_excel_report(data: dict):
 
     if data["users"]:
         ws3 = wb.create_sheet("Users")
-        h3 = ["Admin","Organization","Username","Email","Active",
+        h3 = ["Admin","Username","Email","Active",
               "Total Emails","Clean","Suspicious","Blocked","Recent Activity"]
         ws3.append(h3); sh(ws3,len(h3))
         for u in data["users"]:
             recent = "; ".join(f"{x['action']}({x['created_at']})" for x in u["recent_actions"][:3])
             es = u["email_stats"]
-            ws3.append([u["admin"],u["organization"],u["username"],u["email"],
+            ws3.append([u["admin"],u["username"],u["email"],
                         "Yes" if u["is_active"] else "No",
                         es["total"],es["clean"],es["warn"],es["quarantine"],recent])
         aw(ws3)
 
     if data.get("mailboxes"):
         wsm = wb.create_sheet("Mailboxes")
-        hm = ["Admin","Organization","Mailbox","Domain","Active","Created",
+        hm = ["Admin","Mailbox","Domain","Active","Created",
               "Total Emails","Clean","Suspicious","Blocked","Phishing","Spam"]
         wsm.append(hm); sh(wsm,len(hm))
         for m in data["mailboxes"]:
             es = m["email_stats"]
-            wsm.append([m["admin"],m["organization"],m["mailbox_email"],m["domain"],
+            wsm.append([m["admin"],m["mailbox_email"],m["domain"],
                         "Yes" if m["is_active"] else "No",m["created_at"],
                         es["total"],es["clean"],es["warn"],es["quarantine"],
                         es["phishing"],es["spam"]])
@@ -1244,7 +1244,7 @@ def generate_export(
     """Generate a live-data comprehensive report with role and mailbox filters."""
     data = _gather_export_data(db, req, current_user)
     fmt = req.format.lower()
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     if fmt == "pdf":
         content = _generate_pdf_report(data)
         return StreamingResponse(iter([content]), media_type="application/pdf",
