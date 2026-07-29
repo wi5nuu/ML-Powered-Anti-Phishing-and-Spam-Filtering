@@ -495,7 +495,7 @@ def seed():
                     sender = random.choice(PHISHING_SENDERS)
                     subject = random.choice(PHISHING_SUBJECTS)
                     body = random.choice(PHISHING_BODIES).format(
-                        time=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                        time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                         token=uuid.uuid4().hex[:16]
                     )
                 else:
@@ -511,7 +511,7 @@ def seed():
                     sender = random.choice(PHISHING_SENDERS)
                     subject = random.choice(PHISHING_SUBJECTS)
                     body = random.choice(PHISHING_BODIES).format(
-                        time=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                        time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                         token=uuid.uuid4().hex[:16]
                     )
             else:
@@ -591,7 +591,7 @@ def seed():
         # ── 6. Pipeline Metrics ───────────────────────────────────────────────
         metrics_records = []
         for i in range(90):
-            dt    = datetime.utcnow() - timedelta(days=i)
+            dt    = datetime.now(timezone.utc) - timedelta(days=i)
             total = random.randint(50, 250)
             warn  = random.randint(10, 60)
             quar  = random.randint(5, 40)

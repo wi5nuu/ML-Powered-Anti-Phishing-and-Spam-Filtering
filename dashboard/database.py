@@ -52,26 +52,6 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker | None = None
 
 
-def get_engine() -> Engine:
-    global _engine
-    if _engine is None:
-        _engine = create_engine(DB_URL, connect_args=_connect_args)
-    return _engine
-
-
-def get_session_local() -> sessionmaker:
-    global _SessionLocal
-    if _SessionLocal is None:
-        _SessionLocal = sessionmaker(bind=get_engine())
-    return _SessionLocal
-
-
-def init_db() -> None:
-    """Call once at app startup to create tables, run migrations, seed access."""
-    _ensure_schema_compatibility()
-    _seed_mailbox_access()
-
-
 def _ensure_schema_compatibility():
     engine = get_engine()
     Base.metadata.create_all(engine)

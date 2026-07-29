@@ -176,8 +176,8 @@ class DualPredictResponse(BaseModel):
 
 def _compute_label(prob: float) -> str:
     """Tentukan label routing dari supervised probability."""
-    clean_thresh = float(app.state.threshold_clean if hasattr(app.state, "threshold_clean") else 0.30)
-    warn_thresh  = float(app.state.threshold_warn  if hasattr(app.state, "threshold_warn")  else 0.70)
+    clean_thresh = float(os.getenv("THRESHOLD_CLEAN", "0.30"))
+    warn_thresh  = float(os.getenv("THRESHOLD_WARN", "0.70"))
     if prob < clean_thresh:
         return "CLEAN"
     elif prob < warn_thresh:

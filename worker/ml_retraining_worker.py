@@ -38,12 +38,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, update, func, select
 from sqlalchemy.orm import sessionmaker, Session
 
 # Import existing classifier components
 from classifier.features import EmailParser, FeatureExtractor, STRUCTURED_FEATURES
 from classifier.inference_matrix import build_feature_matrix
+
+from database.models import TrainingSample
 
 logging.basicConfig(
     level=logging.INFO,
@@ -195,7 +197,7 @@ def extract_features_from_samples(df: pd.DataFrame) -> pd.DataFrame:
     for idx, row in df.iterrows():
         try:
             # Parse raw email
-            parsed = parser.parse_raw(row['raw_email'])
+            parsed = parser.parse(row['raw_email'])
             
             # Extract features
             features = extractor.extract(parsed)
@@ -454,15 +456,14 @@ def deploy_new_model(
 def mark_samples_as_used(db: Session, sample_ids: List[int], model_version: str):
     """Mark training samples as used after successful training."""
     try:
-        update_query = text("""
-            UPDATE training_samples
-            SET 
-                status = 'used_in_training',
-                used_in_training_at = NOW()
-            WHERE id = ANY(:ids)
-        """)
-        
-        db.execute(update_query, {"ids": sample_ids})
+        db.execute(
+            update(TrainingSample).where(
+                TrainingSample.id.in_(sample_ids)
+            ).values(
+                status="used_in_training",
+                used_in_training_at=func.now()
+            )
+        )
         db.commit()
         
         logger.info(f"Marked {len(sample_ids)} samples as used_in_training")
@@ -631,9 +632,9 @@ def run_retraining() -> Dict:
         # 10. Mark training samples as used
         sample_ids = training_samples['email_id'].tolist() if 'email_id' in training_samples.columns else []
         if sample_ids:
-            # Convert email_ids to actual IDs from training_samples table
-            id_query = text("SELECT id FROM training_samples WHERE email_id = ANY(:email_ids)")
-            result = db.execute(id_query, {"email_ids": sample_ids})
+            result = db.execute(
+                select(TrainingSample.id).where(TrainingSample.email_id.in_(sample_ids))
+            )
             actual_ids = [row[0] for row in result.fetchall()]
             
             if actual_ids:

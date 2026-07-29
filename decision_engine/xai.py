@@ -10,9 +10,11 @@ if TYPE_CHECKING:
     from classifier.features import EmailFeatures
 
 
+import os
+
 XAI_HUMAN_LABELS = {
     "urgency_score": "Email mengandung kata-kata mendesak/darurat",
-    "has_lookalike_domain": "Link mengarah ke domain yang mirip lodaya.id",
+    "has_lookalike_domain": "Link mengarah ke domain yang mirip {}",
     "spf_pass": "Verifikasi identitas pengirim (SPF) berhasil",
     "dkim_pass": "Tanda tangan digital email (DKIM) valid",
     "dmarc_pass": "Kebijakan keamanan email (DMARC) dipenuhi",
@@ -63,7 +65,8 @@ def human_readable_reasons(features: EmailFeatures) -> list[str]:
     if features.urgency_score > 0.3:
         reasons.append(XAI_HUMAN_LABELS["urgency_score"])
     if features.has_lookalike_domain:
-        reasons.append(XAI_HUMAN_LABELS["has_lookalike_domain"])
+        protected = os.getenv("VITE_MAIL_DOMAIN", "zenime.my.id")
+        reasons.append(XAI_HUMAN_LABELS["has_lookalike_domain"].format(protected))
     if features.has_executable_attachment:
         reasons.append(XAI_HUMAN_LABELS["has_executable_attachment"])
     if features.has_url_shortener:
