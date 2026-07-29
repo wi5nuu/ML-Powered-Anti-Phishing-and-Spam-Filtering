@@ -1481,6 +1481,108 @@ class DashboardUserFlowTests(unittest.TestCase):
         self.assertFalse(deleted_mailbox_me.json()["authenticated"])
         mailbox_client.close()
 
+    def test_mailbox_inbox_sent_stats_and_threads_are_directional(self):
+        password = "Strong-Test-123!"
+        sender_mailbox = AdminMailbox(
+            email="wisnu-johan@zenime.my.id",
+            domain="zenime.my.id",
+            password_hash=hash_password(password),
+            sender_name="Wisnu Johan",
+            created_by=self.superadmin.username,
+            is_active=True,
+        )
+        recipient_mailbox = AdminMailbox(
+            email="dimas@zenime.my.id",
+            domain="zenime.my.id",
+            password_hash=hash_password(password),
+            sender_name="Dimas",
+            created_by=self.superadmin.username,
+            is_active=True,
+        )
+        self.db.add_all([sender_mailbox, recipient_mailbox])
+        self.db.flush()
+
+        shared_message_id = "<direction-test@zenime.my.id>"
+        sent_record = QuarantineEmail(
+            email_id="sent-direction-test",
+            label="SENT",
+            fused_score=0.0,
+            status="released",
+            category="sent",
+            subject="Direction test",
+            sender=sender_mailbox.email,
+            recipient_list=recipient_mailbox.email,
+            raw_content="Outgoing copy",
+            message_id_header=shared_message_id,
+        )
+        incoming_record = QuarantineEmail(
+            email_id="smtp-direction-test",
+            label="CLEAN",
+            fused_score=0.01,
+            status="released",
+            category="clean",
+            subject="Direction test",
+            sender=sender_mailbox.email,
+            recipient_list=recipient_mailbox.email,
+            raw_content="Incoming copy",
+            message_id_header=shared_message_id,
+        )
+        self.db.add_all([sent_record, incoming_record])
+        self.db.commit()
+
+        def login_mailbox(address):
+            client = TestClient(app, base_url="http://localhost")
+            response = client.post(
+                "/api/auth/login",
+                data={"username": address, "password": password},
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            return client
+
+        sender_client = login_mailbox(sender_mailbox.email)
+        recipient_client = login_mailbox(recipient_mailbox.email)
+        try:
+            sender_inbox = sender_client.get("/api/emails", params={"folder": "inbox"})
+            sender_sent = sender_client.get("/api/emails", params={"folder": "sent"})
+            recipient_inbox = recipient_client.get("/api/emails", params={"folder": "inbox"})
+            recipient_sent = recipient_client.get("/api/emails", params={"folder": "sent"})
+
+            self.assertEqual(sender_inbox.status_code, 200, sender_inbox.text)
+            self.assertEqual(sender_sent.status_code, 200, sender_sent.text)
+            self.assertEqual(recipient_inbox.status_code, 200, recipient_inbox.text)
+            self.assertEqual(recipient_sent.status_code, 200, recipient_sent.text)
+            self.assertEqual(sender_inbox.json()["emails"], [])
+            self.assertEqual(
+                [row["email_id"] for row in sender_sent.json()["emails"]],
+                [sent_record.email_id],
+            )
+            self.assertEqual(
+                [row["email_id"] for row in recipient_inbox.json()["emails"]],
+                [incoming_record.email_id],
+            )
+            self.assertEqual(recipient_sent.json()["emails"], [])
+
+            sender_stats = sender_client.get("/api/stats")
+            recipient_stats = recipient_client.get("/api/stats")
+            self.assertEqual(sender_stats.json()["clean"], 0)
+            self.assertEqual(sender_stats.json()["sent"], 1)
+            self.assertEqual(recipient_stats.json()["clean"], 1)
+            self.assertEqual(recipient_stats.json()["sent"], 0)
+
+            recipient_detail = recipient_client.get(f"/api/emails/{incoming_record.email_id}")
+            sender_detail = sender_client.get(f"/api/emails/{sent_record.email_id}")
+            self.assertEqual(
+                [row["email_id"] for row in recipient_detail.json()["thread_messages"]],
+                [incoming_record.email_id],
+            )
+            self.assertEqual(
+                [row["email_id"] for row in sender_detail.json()["thread_messages"]],
+                [sent_record.email_id],
+            )
+        finally:
+            sender_client.close()
+            recipient_client.close()
+
     def test_admin_mailbox_ownership_is_strict_and_reassignment_is_atomic(self):
         password = "Strong-Test-123!"
         admin_one = User(
