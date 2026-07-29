@@ -22,6 +22,8 @@ coverage.xml
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 *.dump
 *.backup
 database-backups/
@@ -59,10 +61,33 @@ letsencrypt/
 *.pem
 *.private.pem
 *.dkim.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+credentials*.json
+client_secret*.json
+service-account*.json
+service_account*.json
+*.token
+*.secret
+*.secrets
+*.kdbx
+auth.json
+.envrc
+.direnv/
+.npmrc
+.pypirc
 
 # Runtime/user-generated files are stored in Docker volumes or VPS storage.
 uploads/
 dashboard/static/avatars/
+attachments/
+mail-data/
+*.eml
+*.msg
 
 # Large data files (thousands of small files)
 data/raw/enron/
@@ -82,6 +107,12 @@ node_modules/
 dashboard/frontend/node_modules/
 dashboard/frontend/dist/
 dashboard/static/dist/
+
+# Local/generated deliverables
+deliverables/
+screenshots/
+tmp/
+.tmp/
 
 # OS
 Thumbs.db

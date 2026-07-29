@@ -1,11 +1,42 @@
-# CogniMail
+<div align="center">
+  <img src="dashboard/frontend/public/logo.png" alt="Logo CogniMail" width="112">
+  <h1>CogniMail</h1>
+  <p><strong>ML-Powered Anti-Phishing &amp; Spam Filtering</strong></p>
+  <p>Sistem keamanan email mandiri dengan webmail, deteksi berlapis, karantina terisolasi, dan pelaporan berbasis peran.</p>
+  <p>
+    <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&amp;logoColor=white" alt="Python 3.11">
+    <img src="https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&amp;logoColor=white" alt="FastAPI">
+    <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&amp;logoColor=20232A" alt="React 19">
+    <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&amp;logoColor=white" alt="PostgreSQL 16">
+    <img src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&amp;logoColor=white" alt="Redis 7">
+    <img src="https://img.shields.io/badge/Deployment-Docker_Compose-2496ED?logo=docker&amp;logoColor=white" alt="Docker Compose">
+    <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+  </p>
+</div>
 
-CogniMail adalah sistem keamanan email mandiri untuk menerima, menganalisis, mengelompokkan, dan meninjau email menggunakan SpamAssassin, supervised machine learning, anomaly detection, dan decision fusion. Aplikasi menyediakan webmail, karantina terisolasi per mailbox, dashboard admin dan superadmin, audit log, laporan keamanan, serta monitoring operasional.
+---
 
-> **Status proyek:** sistem dapat dijalankan dengan Docker dan artefak model inference tersedia di repository. Namun, repository ini belum menyertakan pipeline training reproducible beserta checksum dataset dan metrik hold-out. Karena itu, jangan mengklaim angka akurasi atau asal dataset training tertentu sampai bukti tersebut tersedia.
+## Tentang proyek
+
+CogniMail menerima, menganalisis, mengelompokkan, dan membantu pengguna meninjau email menggunakan SpamAssassin, supervised machine learning, anomaly detection, serta decision fusion. Aplikasi menyediakan webmail, karantina yang terisolasi per mailbox, dashboard admin dan superadmin, audit log, laporan keamanan, dan monitoring operasional.
+
+> [!IMPORTANT]
+> Repository menyediakan aplikasi dan artefak model untuk inference. Pipeline training yang reproducible, checksum dataset, dan metrik evaluasi hold-out belum tersedia. Oleh karena itu, dokumentasi ini tidak menyatakan angka akurasi, precision, recall, F1-score, atau asal dataset training yang belum dapat dibuktikan.
+
+## Status dan transparansi
+
+| Status | Ruang lingkup | Makna |
+| --- | --- | --- |
+| ✅ Tersedia di repository | SMTP receiver, queue dan worker, deteksi berlapis, decision fusion, webmail, RBAC, isolasi mailbox, dashboard, audit, laporan, dan monitoring | Implementasi dapat diperiksa pada source code dan diuji di lingkungan yang dikonfigurasi dengan benar. |
+| ⚙️ Bergantung konfigurasi | Pengiriman dan penerimaan email nyata, DNS MX/SPF/DKIM/DMARC, TLS, SMTP relay/direct-to-MX, serta integrasi VPS | Keberhasilannya bergantung pada environment, DNS, firewall, kredensial, reputasi IP, dan layanan eksternal. |
+| ⚠️ Belum terbukti dari repository | Provenance dataset training, proses training yang reproducible, dan metrik performa model pada hold-out set | Jangan digunakan sebagai klaim akademik atau produksi sampai artefak buktinya ditambahkan dan divalidasi. |
+
+Label tersebut membedakan fitur yang memang diimplementasikan dari kemampuan yang masih bergantung pada deployment. Keberadaan source code bukan jaminan bahwa suatu instance publik selalu aktif atau seluruh email akan diklasifikasikan tanpa kesalahan.
 
 ## Daftar isi
 
+- [Tentang proyek](#tentang-proyek)
+- [Status dan transparansi](#status-dan-transparansi)
 - [Kemampuan utama](#kemampuan-utama)
 - [Peran dan batas akses](#peran-dan-batas-akses)
 - [Arsitektur](#arsitektur)
@@ -23,6 +54,8 @@ CogniMail adalah sistem keamanan email mandiri untuk menerima, menganalisis, men
 - [Keamanan](#keamanan)
 - [Troubleshooting](#troubleshooting)
 - [Batasan dan bukti requirement 5.4](#batasan-dan-bukti-requirement-54)
+- [Tim proyek](#tim-proyek)
+- [Lisensi](#lisensi)
 
 ## Kemampuan utama
 
@@ -597,11 +630,13 @@ Sebelum klaim final, tambahkan pipeline training berversi, kontrak label yang ko
 
 ## Tim proyek
 
-- Wisnu Alfian Nur Ashar — ML Engineering
-- Muhammad Ilham Maulana — Backend dan Pipeline
-- Muhammad Ahda Briliantama — Dashboard dan API
-- Christofer — Dataset dan Validation
-- Risly — Infrastructure dan Monitoring
+| Nama | Peran dan tanggung jawab |
+| --- | --- |
+| **Muhammad Ilham Maulana** | Team Leader &amp; Frontend Developer |
+| **Wisnu Alfian Nur Ashar** | Full-Stack Developer, System Architect,<br>API &amp; Feature Engineer |
+| **Muhammad Ahda Briliantama** | Full-Stack Developer, ML, QA<br>&amp; Deployment Engineer |
+| **Christofer S. R. Sitompul** | Technical Documentation &amp; User Manual |
+| **Risly Maria Theresia Worung** | Administration Manual, Evidence<br>&amp; Presentation |
 
 ## Lisensi
 
