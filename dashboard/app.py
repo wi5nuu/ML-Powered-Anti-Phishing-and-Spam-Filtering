@@ -2347,6 +2347,7 @@ def derive_auth_results(raw_content: str = "", sender: str = "") -> dict:
 async def api_get_emails(
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     label: str = Query(None),
     category: str = Query(None),
     folder: str = Query(None),
@@ -2375,7 +2376,20 @@ async def api_get_emails(
         )
     purge_expired_emails(db)
     db.commit()
-    
+    # Schedule expired-email purge as a background task so this GET endpoint
+    # does not block the response on a potentially slow DELETE + commit cycle.
+    def _bg_purge():
+        from dashboard.database import SessionLocal as _SL
+        _bg_db = _SL()
+        try:
+            purge_expired_emails(_bg_db)
+            _bg_db.commit()
+        except Exception:
+            _bg_db.rollback()
+        finally:
+            _bg_db.close()
+
+    background_tasks.add_task(_bg_purge)
     query = db.query(QuarantineEmail)
     if not review_access:
         if (category or "").lower() in {"spam", "phishing", "malware", "warn"} or (label or "").upper() in {"QUARANTINE", "WARN"}:
