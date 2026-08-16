@@ -2136,6 +2136,7 @@ def find_thread_messages(db: Session, email_record: QuarantineEmail) -> list[Qua
 
     candidates = db.query(QuarantineEmail).filter(
         QuarantineEmail.status != "trash",
+        QuarantineEmail.subject.ilike(f"%{base_subject}%"),
     ).all()
 
     def _thread_tokens(record: QuarantineEmail) -> set[str]:
