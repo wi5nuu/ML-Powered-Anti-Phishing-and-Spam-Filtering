@@ -1846,11 +1846,17 @@ def quarantine_spam_clause():
 
 def linkify_plain_text(content: str) -> str:
     escaped = html.escape(content or "")
-    linked = re.sub(
-        r"(https?://[^\s<]+)",
-        r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>',
-        escaped,
-    )
+
+    def _make_link(match: re.Match) -> str:
+        url = match.group(1)
+        # Only allow http:// and https:// schemes to prevent javascript: injection.
+        # html.escape() has already encoded the URL so unescape before scheme check.
+        raw_url = html.unescape(url)
+        if not raw_url.lower().startswith(("http://", "https://")):
+            return url  # Return as plain escaped text, do not linkify.
+        return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{url}</a>'
+
+    linked = re.sub(r"(https?://[^\s<]+)", _make_link, escaped)
     return linked.replace("\n", "<br>")
 
 
