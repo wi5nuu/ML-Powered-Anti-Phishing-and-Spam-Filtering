@@ -25,8 +25,18 @@ from classifier.evasion_detection import detect_evasion_techniques
 # Seed langdetect supaya deterministik
 DetectorFactory.seed = 42
 
-# Stemmer Bahasa Indonesia
-_id_stemmer = StemmerFactory().create_stemmer()
+# Stemmer Bahasa Indonesia — initialised lazily to avoid the ~1 second
+# StemmerFactory startup cost when the module is imported by other services
+# that do not use Indonesian stemming (e.g. the retraining worker on startup).
+_id_stemmer = None
+
+
+def _get_stemmer():
+    global _id_stemmer
+    if _id_stemmer is None:
+        _id_stemmer = StemmerFactory().create_stemmer()
+    return _id_stemmer
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +66,27 @@ URL_SHORTENERS = {
 }
 
 # Domain organisasi yang harus dilindungi
+_protected_domains_cache: set[str] | None = None
+
+
 def get_protected_domains() -> set[str]:
-    """Return organization domains from deployment configuration."""
+    """Return organization domains from deployment configuration.
+
+    Result is cached after the first call because the env vars are fixed
+    for the lifetime of the process and calling os.getenv() + set
+    comprehension on every email unnecessarily wastes CPU cycles.
+    """
+    global _protected_domains_cache
+    if _protected_domains_cache is not None:
+        return _protected_domains_cache
     configured = os.getenv("PROTECTED_DOMAINS", "") or os.getenv("VITE_MAIL_DOMAIN", "")
     domains = {
         value.strip().lower().lstrip("@").rstrip(".")
         for value in configured.split(",")
         if value.strip()
     }
-    return domains or {"example.com"}
+    _protected_domains_cache = domains or {"example.com"}
+    return _protected_domains_cache
 
 # ─── Fitur Terstruktur ───────────────────────────────────────────────────────
 
