@@ -2218,7 +2218,7 @@ def save_delivery_failure(
         routing_reason=f"Delivery failed to {', '.join(recipients)}",
         raw_content=linkify_plain_text(failure_content),
         attachments_json="[]",
-        status="pending",
+        status="released",
         category="delivery_failed",
         subject=failure_subject,
         sender="mailer-daemon@cognimail.local",
