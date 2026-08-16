@@ -1228,14 +1228,18 @@ async def api_health(db: Session = Depends(get_db)):
 
     # Redis check
     redis_status = False
+    _rc = None
     try:
         _redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         _rc = aio_redis.from_url(_redis_url, socket_connect_timeout=2, protocol=2)
         await _rc.ping()
-        await _rc.aclose()
         redis_status = True
     except Exception:
         redis_status = False
+    finally:
+        if _rc is not None:
+            with contextlib.suppress(Exception):
+                await _rc.aclose()
 
     # Classifier check
     classifier_status = False
