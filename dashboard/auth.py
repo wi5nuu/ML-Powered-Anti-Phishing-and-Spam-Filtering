@@ -106,7 +106,6 @@ def require_role(role: UserRole):
 def verify_api_key(key: str, db: Session) -> ApiKey:
     if not key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    import hashlib
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     api_key = db.query(ApiKey).filter(
         ApiKey.key_hash == key_hash,
