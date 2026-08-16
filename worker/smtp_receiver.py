@@ -259,10 +259,11 @@ async def run_smtp_receiver():
     try:
         while True:
             await asyncio.sleep(3600)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
         controller.stop()
         logger.info("SMTP Receiver stopped")
-    finally:
         engine, _ = _get_db_session()
         if engine is not None:
             await engine.dispose()
