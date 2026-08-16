@@ -8,7 +8,6 @@ from datetime import timezone
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import create_engine
 
 
 def _utcnow():
@@ -35,7 +34,7 @@ class Organization(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
-    config = Column(JSON, default=dict)
+    config = Column(JSON, default=lambda: {})
     created_at = Column(DateTime(timezone=True), default=_utcnow)
 
 
