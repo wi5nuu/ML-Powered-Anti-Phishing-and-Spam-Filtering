@@ -218,7 +218,20 @@ def _lazy_init():
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
-        _engine = create_engine(DB_URL, connect_args=_connect_args)
+        # QueuePool options are not accepted by SQLite's pool implementations.
+        # Only apply connection-pool tuning to server databases (PostgreSQL).
+        if DB_URL.startswith("sqlite"):
+            _engine = create_engine(DB_URL, connect_args=_connect_args)
+        else:
+            _engine = create_engine(
+                DB_URL,
+                connect_args=_connect_args,
+                pool_size=20,
+                max_overflow=10,
+                pool_timeout=30,
+                pool_recycle=3600,
+                pool_pre_ping=True,
+            )
     return _engine
 
 
@@ -240,6 +253,9 @@ def get_db():
     db = get_session_local()()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 

@@ -36,9 +36,23 @@ FORWARDER_SMTP_USER = os.getenv("FORWARDER_SMTP_USER", "")
 FORWARDER_SMTP_PASS = os.getenv("FORWARDER_SMTP_PASS", "")
 FORWARDER_FROM = os.getenv("FORWARDER_FROM", "").strip().lower()
 FORWARDER_STARTTLS = os.getenv("FORWARDER_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
-FORWARDER_DOMAIN_MAP = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
 FORWARDER_DESTINATION_OVERRIDE = os.getenv("FORWARDER_DESTINATION_OVERRIDE", "")
 OUTBOUND_SMTP_MODE = os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower()
+
+# Parse FORWARDER_DOMAIN_MAP at startup so misconfigured JSON is caught early
+# rather than silently falling back to an empty mapping at forward time.
+_raw_domain_map = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
+try:
+    import json as _json
+    _FORWARDER_DOMAIN_MAP: dict = _json.loads(_raw_domain_map)
+    if not isinstance(_FORWARDER_DOMAIN_MAP, dict):
+        raise ValueError("FORWARDER_DOMAIN_MAP must be a JSON object")
+except (ValueError, Exception) as _e:
+    logger.error(
+        "Invalid FORWARDER_DOMAIN_MAP env var (%r): %s — using empty map", _raw_domain_map, _e
+    )
+    _FORWARDER_DOMAIN_MAP = {}
+FORWARDER_DOMAIN_MAP: dict = _FORWARDER_DOMAIN_MAP
 
 # Headers for a delivered borderline message.
 SPAM_HEADER = "X-Spam-Reason"

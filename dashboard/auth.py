@@ -2,6 +2,7 @@
 Authentication & Authorization module — JWT-based with RBAC.
 """
 
+import hashlib
 import logging
 import os
 import secrets
@@ -38,7 +39,7 @@ SECRET_KEY = _sk
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 if ALGORITHM not in {"HS256", "HS384", "HS512"}:
     raise RuntimeError("JWT_ALGORITHM harus menggunakan HS256, HS384, atau HS512")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -105,7 +106,6 @@ def require_role(role: UserRole):
 def verify_api_key(key: str, db: Session) -> ApiKey:
     if not key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    import hashlib
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     api_key = db.query(ApiKey).filter(
         ApiKey.key_hash == key_hash,

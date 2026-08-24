@@ -6,6 +6,8 @@ Supports Slack, Telegram, and Email alerts with severity levels.
 import asyncio
 import logging
 import os
+from typing import Optional
+
 import aiohttp
 import aiosmtplib
 from email.mime.text import MIMEText
@@ -41,7 +43,7 @@ class AlertPayload:
 
 class AlertManager:
     def __init__(self):
-        self.session: aiohttp.ClientSession = None
+        self.session: Optional[aiohttp.ClientSession] = None
 
     async def ensure_session(self):
         if self.session is None or self.session.closed:
@@ -63,8 +65,18 @@ class AlertManager:
             f"<{DASHBOARD_URL}/email/{payload.email_id}|View in Dashboard>"
         )
         try:
-            await self.session.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=aiohttp.ClientTimeout(total=10))
-            logger.info("Slack alert sent for %s", payload.email_id)
+            resp = await self.session.post(
+                SLACK_WEBHOOK_URL,
+                json={"text": text},
+                timeout=aiohttp.ClientTimeout(total=10),
+            )
+            if resp.status >= 400:
+                body = await resp.text()
+                logger.warning(
+                    "Slack alert HTTP %d for %s: %s", resp.status, payload.email_id, body[:200]
+                )
+            else:
+                logger.info("Slack alert sent for %s", payload.email_id)
         except Exception as e:
             logger.warning("Slack alert failed: %s", e)
 
@@ -111,6 +123,8 @@ class AlertManager:
         msg["Subject"] = f"[{payload.severity}] CogniMail Alert — {payload.subject[:40]}"
         msg["From"] = SMTP_USER
         msg["To"] = ALERT_RECIPIENT
+        # Port 465 uses implicit TLS (use_tls=True); port 587 uses STARTTLS.
+        use_implicit_tls = SMTP_PORT == 465
         try:
             await aiosmtplib.send(
                 msg,
@@ -118,7 +132,8 @@ class AlertManager:
                 port=SMTP_PORT,
                 username=SMTP_USER,
                 password=SMTP_PASSWORD,
-                start_tls=True,
+                use_tls=use_implicit_tls,
+                start_tls=not use_implicit_tls,
             )
             logger.info("Email alert sent for %s", payload.email_id)
         except Exception as e:

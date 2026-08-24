@@ -15,7 +15,7 @@ import uuid
 import json
 import random
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Allow import from project root (works both in Docker /app and local checkout)
 _project_root = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +32,6 @@ from dashboard.auth import hash_password
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def rand_dt(days_ago_max=90, days_ago_min=0):
-    from datetime import timezone
     delta = timedelta(
         days=random.randint(days_ago_min, days_ago_max),
         hours=random.randint(0, 23),

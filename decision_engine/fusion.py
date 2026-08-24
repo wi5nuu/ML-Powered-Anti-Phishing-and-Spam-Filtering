@@ -43,13 +43,26 @@ def _env_int(key: str, default: str) -> int:
 
 
 def _env_bool(key: str, default: str) -> bool:
-    return os.getenv(key, default).lower() in {"1", "true", "yes", "on"}
+    val = os.getenv(key, default) or default
+    return val.lower() in {"1", "true", "yes", "on"}
 
 
 # Konfigurasi (bisa override via env vars)
 ML_WEIGHT       = _env_float("FUSION_ML_WEIGHT", "0.50")
 SA_WEIGHT       = _env_float("FUSION_SA_WEIGHT", "0.25")
 ANOMALY_WEIGHT  = _env_float("FUSION_ANOMALY_WEIGHT", "0.25")
+
+# Validate weights sum to 1.0 (within floating-point tolerance)
+_weight_sum = ML_WEIGHT + SA_WEIGHT + ANOMALY_WEIGHT
+if abs(_weight_sum - 1.0) > 1e-6:
+    logger.warning(
+        "Fusion weights do not sum to 1.0 (ML=%.2f SA=%.2f Anomaly=%.2f sum=%.6f). "
+        "Normalising automatically.",
+        ML_WEIGHT, SA_WEIGHT, ANOMALY_WEIGHT, _weight_sum,
+    )
+    ML_WEIGHT      = ML_WEIGHT      / _weight_sum
+    SA_WEIGHT      = SA_WEIGHT      / _weight_sum
+    ANOMALY_WEIGHT = ANOMALY_WEIGHT / _weight_sum
 SA_HARD_LIMIT   = _env_float("SA_QUARANTINE_THRESHOLD", "15.0")
 ML_HARD_LIMIT   = _env_float("ML_QUARANTINE_THRESHOLD", "0.95")
 ML_DECISIVE_LIMIT = _env_float("ML_DECISIVE_QUARANTINE_THRESHOLD", "0.995")

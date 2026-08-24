@@ -11,6 +11,7 @@ Endpoint:
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -28,7 +29,7 @@ from classifier.unsupervised import AnomalyDetector
 
 logger = logging.getLogger(__name__)
 
-MODEL_DIR = Path("classifier/models")
+MODEL_DIR = Path(os.getenv("MODEL_DIR", str(Path(__file__).parent / "models")))
 
 
 # ─── Model State (singleton, load sekali waktu startup) ───────────────────────

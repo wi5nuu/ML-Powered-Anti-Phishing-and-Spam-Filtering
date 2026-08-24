@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 RETRAINING_MIN_SAMPLES = int(os.getenv("RETRAINING_MIN_SAMPLES", "100"))
 RETRAINING_MIN_ACCURACY = float(os.getenv("RETRAINING_MIN_ACCURACY", "0.85"))
 RETRAINING_ENABLED = os.getenv("RETRAINING_ENABLED", "true").lower() == "true"
-MODEL_DIR = Path(os.getenv("MODEL_DIR", "classifier/models"))
+MODEL_DIR = Path(os.getenv("MODEL_DIR", str(Path(__file__).parent.parent / "classifier" / "models")))
 BACKUP_DIR = MODEL_DIR / "backups"
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -74,24 +74,35 @@ LABEL_MAPPING = {
 
 # ─── Database Connection ──────────────────────────────────────────────────────
 
+# Module-level engine singleton — prevents a new connection pool from being
+# created on every call to get_db_session().
+_engine = None
+_SessionFactory = None
+
+
+def _get_engine():
+    """Return the shared SQLAlchemy engine, creating it once on first call."""
+    global _engine, _SessionFactory
+    if _engine is None:
+        db_url = (
+            os.getenv("DB_URL")
+            or os.getenv("DASHBOARD_DB_URL")
+            or os.getenv("DB_SYNC_URL")
+        )
+        if not db_url:
+            raise ValueError("Database URL not found in environment variables")
+        # Convert async URL to sync if needed
+        if db_url.startswith("postgresql+asyncpg://"):
+            db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+        _engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+        _SessionFactory = sessionmaker(bind=_engine)
+    return _engine, _SessionFactory
+
+
 def get_db_session() -> Session:
-    """Create database session from environment variables."""
-    db_url = (
-        os.getenv("DB_URL") 
-        or os.getenv("DASHBOARD_DB_URL") 
-        or os.getenv("DB_SYNC_URL")
-    )
-    
-    if not db_url:
-        raise ValueError("Database URL not found in environment variables")
-    
-    # Convert async URL to sync if needed
-    if db_url.startswith("postgresql+asyncpg://"):
-        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
-    
-    engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    """Return a new database session using the shared connection pool."""
+    _, session_factory = _get_engine()
+    return session_factory()
 
 
 # ─── Data Extraction ──────────────────────────────────────────────────────────
@@ -248,6 +259,12 @@ def train_new_model(
     """
     logger.info("Training new XGBoost model...")
     
+    # Compute class balance weight safely — avoid ZeroDivisionError when the
+    # training set is entirely one class (e.g. all-malicious samples).
+    n_negative = int(np.sum(y_train == 0))
+    n_positive = int(np.sum(y_train == 1))
+    scale_pos_weight = n_negative / n_positive if n_positive > 0 else 1.0
+
     # XGBoost parameters (tuned for email classification)
     params = {
         'n_estimators': 200,
@@ -259,7 +276,7 @@ def train_new_model(
         'eval_metric': 'logloss',
         'random_state': 42,
         'n_jobs': -1,
-        'scale_pos_weight': np.sum(y_train == 0) / np.sum(y_train == 1)  # Handle imbalance
+        'scale_pos_weight': scale_pos_weight,  # Handle class imbalance
     }
     
     model = xgb.XGBClassifier(**params)
@@ -408,11 +425,12 @@ def deploy_new_model(
     # Backup current models
     backup_dir = backup_current_models()
     
-    # Save new models with timestamp
-    model_path = MODEL_DIR / f"xgb_model__latest_{timestamp}.joblib"
-    tfidf_path = MODEL_DIR / f"tfidf__latest_{timestamp}.joblib"
-    scaler_path = MODEL_DIR / f"scaler__latest_{timestamp}.joblib"
-    metadata_path = MODEL_DIR / f"metadata__latest_{timestamp}.json"
+    # Save new models with timestamp — single underscore separator to match
+    # the naming convention expected by the predict service (_latest_).
+    model_path = MODEL_DIR / f"xgb_model_latest_{timestamp}.joblib"
+    tfidf_path = MODEL_DIR / f"tfidf_latest_{timestamp}.joblib"
+    scaler_path = MODEL_DIR / f"scaler_latest_{timestamp}.joblib"
+    metadata_path = MODEL_DIR / f"metadata_latest_{timestamp}.json"
     
     joblib.dump(model, model_path)
     joblib.dump(tfidf, tfidf_path)

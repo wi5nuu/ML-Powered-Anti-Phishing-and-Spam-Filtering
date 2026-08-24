@@ -793,6 +793,10 @@ async def run_worker():
                 except Exception as dlq_exc:
                     logger.error("dead_letter_push_failed", error=str(dlq_exc))
 
+    # Keep strong references to background tasks to prevent garbage collection
+    # before completion. Tasks are removed from the set on completion.
+    _background_tasks: set = set()
+
     async with httpx.AsyncClient() as http_client:
         logger.info("worker_started", queue=QUEUE_NAME, concurrency=WORKER_CONCURRENCY)
         while True:
@@ -812,18 +816,27 @@ async def run_worker():
                 )
                 if raw_payload is None:
                     continue
+
                 try:
                     payload = json.loads(raw_payload)
-                except json.JSONDecodeError:
-                    await r.rpush(DEAD_LETTER_QUEUE, raw_payload)
-                    await r.lrem(PROCESSING_QUEUE, 1, raw_payload)
-                    raise
+                except json.JSONDecodeError as e:
+                    # Move unparseable payload to dead-letter queue and log;
+                    # do NOT re-raise so the outer loop stays alive.
+                    logger.error("json_decode_error", error=str(e), raw=repr(raw_payload[:200]))
+                    try:
+                        await r.rpush(DEAD_LETTER_QUEUE, raw_payload)
+                        await r.lrem(PROCESSING_QUEUE, 1, raw_payload)
+                    except Exception as dlq_exc:
+                        logger.error("dead_letter_push_failed", error=str(dlq_exc))
+                    continue
 
-                # Spawn a task so the main loop keeps dequeuing while workers run
-                asyncio.create_task(_handle_with_sem(payload, raw_payload))
+                # Spawn a task so the main loop keeps dequeuing while workers run.
+                # Store a strong reference to prevent the task being GC'd before
+                # it completes (CPython asyncio does not hold a reference itself).
+                task = asyncio.create_task(_handle_with_sem(payload, raw_payload))
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
 
-            except json.JSONDecodeError as e:
-                logger.error("json_decode_error", error=str(e))
             except Exception as e:
                 logger.exception("worker_error", error=str(e))
                 await asyncio.sleep(1)  # Backoff kecil sebelum retry
