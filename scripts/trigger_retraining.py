@@ -209,8 +209,12 @@ Examples:
             print(f"   Samples used: {result.get('n_samples_used', 'N/A')}")
             if 'validation_metrics' in result:
                 metrics = result['validation_metrics'].get('new_model', {})
-                print(f"   Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
-                print(f"   F1 Score: {metrics.get('f1', 'N/A'):.4f}")
+                # Nilai default 'N/A' akan crash saat diformat :.4f —
+                # fallback ke 0.0 bila metrik tidak tersedia.
+                accuracy = metrics.get('accuracy')
+                f1 = metrics.get('f1')
+                print(f"   Accuracy: {accuracy:.4f}" if isinstance(accuracy, (int, float)) else "   Accuracy: N/A")
+                print(f"   F1 Score: {f1:.4f}" if isinstance(f1, (int, float)) else "   F1 Score: N/A")
             return 0
         
         elif result["status"] == "skipped":
