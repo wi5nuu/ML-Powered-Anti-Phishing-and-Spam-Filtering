@@ -335,17 +335,34 @@ def delete_mailbox(
 # ── Audit Trail Export endpoint ────────────────────────────────────────────
 
 
+def _safe_export_cell(value) -> str:
+    """Netralisasi formula injection untuk sel ekspor (OWASP CSV Injection).
+
+    String yang diawali =, +, -, @, tab, atau carriage-return dieksekusi
+    sebagai formula oleh Microsoft Excel/LibreOffice saat file ekspor
+    dibuka. Data audit berasal dari konten email yang sepenuhnya
+    dikendalikan penyerang.
+    """
+    text = str(value or "")
+    if text[:1] in {"=", "+", "-", "@", "\t", "\r"}:
+        return "'" + text
+    return text
+
+
 def _generate_csv_export(audit_records):
     """Generate CSV export of audit log data."""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     writer.writerow(["ID","Timestamp","User","Action","Email ID","Details"])
     for record in audit_records:
         writer.writerow([
             record.id,
             record.created_at.strftime("%Y-%m-%d %H:%M:%S") if record.created_at else "",
-            record.user or "", record.action or "", record.email_id or "", record.details or ""
+            _safe_export_cell(record.user),
+            _safe_export_cell(record.action),
+            _safe_export_cell(record.email_id),
+            _safe_export_cell(record.details),
         ])
     output.seek(0)
     return output.getvalue()
@@ -368,7 +385,10 @@ def _generate_excel_export(audit_records):
         ws.append([
             record.id,
             record.created_at.strftime("%Y-%m-%d %H:%M:%S") if record.created_at else "",
-            record.user or "", record.action or "", record.email_id or "", record.details or ""
+            _safe_export_cell(record.user),
+            _safe_export_cell(record.action),
+            _safe_export_cell(record.email_id),
+            _safe_export_cell(record.details),
         ])
     for col in ws.columns:
         letter = col[0].column_letter
