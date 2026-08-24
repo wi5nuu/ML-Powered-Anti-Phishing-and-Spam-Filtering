@@ -165,11 +165,13 @@ Examples:
     
     args = parser.parse_args()
     
-    # Override environment variables if specified
-    if args.min_samples:
+    # Override environment variables if specified.
+    # Gunakan is not None — truthiness membuat "--min-samples 0" dan
+    # "--min-accuracy 0" diabaikan diam-diam.
+    if args.min_samples is not None:
         os.environ["RETRAINING_MIN_SAMPLES"] = str(args.min_samples)
-    
-    if args.min_accuracy:
+
+    if args.min_accuracy is not None:
         os.environ["RETRAINING_MIN_ACCURACY"] = str(args.min_accuracy)
     
     if args.force:
