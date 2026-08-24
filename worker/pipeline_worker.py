@@ -69,6 +69,18 @@ AUTH_RESULT_VALUES = ("pass", "fail", "softfail", "neutral", "none", "temperror"
 THREAT_CATEGORIES = {"spam", "phishing"}
 
 
+def _parse_received_at(value) -> datetime:
+    """Parse an ISO timestamp, tolerating the trailing 'Z' UTC designator."""
+    if isinstance(value, datetime):
+        return value
+    text_value = str(value or "")
+    try:
+        return datetime.fromisoformat(text_value.replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("received_at_parse_failed", value=text_value[:64])
+        return datetime.now(timezone.utc)
+
+
 def normalize_addresses(values) -> list[str]:
     if not values:
         return []
@@ -585,7 +597,7 @@ async def process_one_email(payload: dict, http_client: httpx.AsyncClient,
     # Simpan semua email. Untuk email CLEAN, simpan konten minimal saja untuk menghemat DB space.
     quarantine_entry = QuarantineEmail(
         email_id=email_id,
-        received_at=datetime.fromisoformat(received_at) if isinstance(received_at, str) else received_at,
+        received_at=_parse_received_at(received_at),
         label=fusion.label,
         fused_score=fusion.fused_score,
         sa_score=sa_score,
