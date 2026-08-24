@@ -95,12 +95,18 @@ class AlertManager:
         )
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         try:
-            await self.session.post(url, json={
+            resp = await self.session.post(url, json={
                 "chat_id": TELEGRAM_CHAT_ID,
                 "text": text,
                 "parse_mode": "Markdown",
             }, timeout=aiohttp.ClientTimeout(total=10))
-            logger.info("Telegram alert sent for %s", payload.email_id)
+            if resp.status >= 400:
+                body = await resp.text()
+                logger.warning(
+                    "Telegram alert HTTP %d for %s: %s", resp.status, payload.email_id, body[:200]
+                )
+            else:
+                logger.info("Telegram alert sent for %s", payload.email_id)
         except Exception as e:
             logger.warning("Telegram alert failed: %s", e)
 
