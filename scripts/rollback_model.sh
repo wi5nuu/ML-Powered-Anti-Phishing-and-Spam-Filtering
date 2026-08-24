@@ -1,15 +1,13 @@
 #!/bin/bash
-"""
-Model Rollback Script
-
-Restores a previous model version from backup.
-
-Usage:
-    ./scripts/rollback_model.sh <backup_name>
-    
-Example:
-    ./scripts/rollback_model.sh backup_20260729_143022
-"""
+# Model Rollback Script
+#
+# Restores a previous model version from backup.
+#
+# Usage:
+#     ./scripts/rollback_model.sh <backup_name>
+#
+# Example:
+#     ./scripts/rollback_model.sh backup_20260729_143022
 
 set -e  # Exit on error
 
