@@ -529,12 +529,12 @@ export default function GmailShell({ children }) {
                 <span>{t('gmail.compose')}</span>
               </button>
 
-              {navItem('/inbox', <Inbox size={18} color="#444746" />, 'Kotak Masuk', stats?.unread)}
-              {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, 'Berbintang')}
-              {navItem('/sent', <Send size={18} color="#444746" />, 'Terkirim')}
-              {navItem('/draft', <FileText size={18} color="#444746" />, 'Draf')}
-              {canReviewThreats && navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, 'Semua Email')}
-              {canReviewThreats && navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'))}
+              {navItem('/inbox', <Inbox size={18} color="#444746" />, t('gmail.inbox'), stats?.unread)}
+              {navItem('/inbox?folder=starred', <Star size={18} color="#f29900" />, t('gmail.starred'), stats?.starred)}
+              {navItem('/sent', <Send size={18} color="#444746" />, t('gmail.sent'), stats?.sent)}
+              {navItem('/draft', <FileText size={18} color="#444746" />, t('gmail.drafts'), stats?.draft)}
+              {canReviewThreats && navItem('/inbox?folder=allmail', <Mail size={18} color="#444746" />, t('gmail.allMail'), stats?.total)}
+              {canReviewThreats && navItem('/inbox?folder=trash', <Trash2 size={18} color="#444746" />, t('gmail.trash'), stats?.trash)}
               {canReviewThreats && (
                 <>
                   <div className={styles.divider} />
@@ -545,15 +545,16 @@ export default function GmailShell({ children }) {
                   >
                     <span className={styles.itemIcon}><Shield size={18} color="#0b57d0" /></span>
                     <span className={styles.itemLabel}>{t('gmail.quarantine')}</span>
+                    {(stats?.quarantine ?? 0) > 0 && <span className={styles.itemCount} style={{ color: '#0b57d0' }}>{stats?.quarantine}</span>}
                     <span className={styles.expandIcon}>
                       {threatOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </span>
                   </button>
                   {threatOpen && (
                     <div className={styles.subNav}>
-                      {catItem('phishing', t('gmail.phishing'), '#EA4335')}
-                      {catItem('spam', t('gmail.spam'), '#f29900')}
-                      {catItem('warn', t('gmail.warn'), '#f29900')}
+                      {catItem('phishing', t('gmail.phishing'), '#EA4335', stats?.categories?.phishing)}
+                      {catItem('spam', t('gmail.spam'), '#f29900', stats?.categories?.spam)}
+                      {catItem('warn', t('gmail.warn'), '#f29900', stats?.warn)}
                     </div>
                   )}
                 </>
