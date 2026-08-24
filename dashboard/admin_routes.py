@@ -241,6 +241,16 @@ def update_user(
     if payload.is_active is not None:
         user.is_active = payload.is_active
     if payload.password:
+        # Ganti password tanpa validasi memungkinkan password 1 karakter.
+        import re as _re
+        if len(payload.password) < 8:
+            raise HTTPException(status_code=400, detail="Password minimal 8 karakter.")
+        if not _re.search(r'[A-Z]', payload.password):
+            raise HTTPException(status_code=400, detail="Password harus mengandung huruf besar.")
+        if not _re.search(r'[a-z]', payload.password):
+            raise HTTPException(status_code=400, detail="Password harus mengandung huruf kecil.")
+        if not _re.search(r'[0-9]', payload.password):
+            raise HTTPException(status_code=400, detail="Password harus mengandung angka.")
         user.hashed_password = hash_password(payload.password)
     db.commit()
     db.refresh(user)
