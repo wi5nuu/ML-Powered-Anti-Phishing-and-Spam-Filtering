@@ -164,6 +164,15 @@ def create_user(
         raise HTTPException(status_code=400, detail="Username maksimal 64 karakter.")
     if len(payload.password) < 8:
         raise HTTPException(status_code=400, detail="Password minimal 8 karakter.")
+    # Konsisten dengan api_onboard_company/api_create_admin_mailbox: tanpa ini
+    # akun admin dapat dibuat dengan password seperti "aaaaaaaa".
+    import re as _re
+    if not _re.search(r'[A-Z]', payload.password):
+        raise HTTPException(status_code=400, detail="Password harus mengandung huruf besar.")
+    if not _re.search(r'[a-z]', payload.password):
+        raise HTTPException(status_code=400, detail="Password harus mengandung huruf kecil.")
+    if not _re.search(r'[0-9]', payload.password):
+        raise HTTPException(status_code=400, detail="Password harus mengandung angka.")
     if payload.role != UserRole.ADMIN.value:
         raise HTTPException(status_code=400, detail="Halaman ini hanya dapat membuat akun admin.")
     if db.query(User).filter(User.username == username).first():
