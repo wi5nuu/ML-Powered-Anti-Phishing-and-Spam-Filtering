@@ -67,7 +67,7 @@ class DashboardUserFlowTests(unittest.TestCase):
         self.superadmin = User(
             username="route-test-superadmin",
             email="route-superadmin@example.test",
-            hashed_password=hash_password("test-password-123"),
+            hashed_password=hash_password("Test-Password-123"),
             role="superadmin",
             is_active=True,
         )
@@ -878,7 +878,7 @@ class DashboardUserFlowTests(unittest.TestCase):
                 json={
                     "username": "delete-flow-admin",
                     "email": "delete-flow-admin@example.test",
-                    "password": "test-password-123",
+                    "password": "Test-Password-123",
                     "role": "admin",
                 },
             )
@@ -1096,7 +1096,7 @@ class DashboardUserFlowTests(unittest.TestCase):
     def test_profile_update_rejects_invalid_username_and_weak_password(self):
         invalid_username = self.client.put(
             "/api/auth/profile",
-            json={"username": "bad name", "current_password": "test-password-123"},
+            json={"username": "bad name", "current_password": "Test-Password-123"},
         )
         self.assertEqual(invalid_username.status_code, 400, invalid_username.text)
 
@@ -1104,14 +1104,14 @@ class DashboardUserFlowTests(unittest.TestCase):
             "/api/auth/profile",
             json={
                 "username": self.superadmin.username,
-                "current_password": "test-password-123",
+                "current_password": "Test-Password-123",
                 "new_password": "onlylowercase",
             },
         )
         self.assertEqual(weak_password.status_code, 400, weak_password.text)
 
     def test_profile_username_can_change_without_changing_password(self):
-        original_password = "test-password-123"
+        original_password = "Test-Password-123"
         response = self.client.put(
             "/api/auth/profile",
             json={"username": "super-renamed-only"},
@@ -1144,7 +1144,7 @@ class DashboardUserFlowTests(unittest.TestCase):
         admin = User(
             username="domain-admin",
             email="admin@managed.test",
-            hashed_password=hash_password("test-password-123"),
+            hashed_password=hash_password("Test-Password-123"),
             role="admin",
             organization_id=None,
             is_active=True,
@@ -1156,7 +1156,7 @@ class DashboardUserFlowTests(unittest.TestCase):
         try:
             login_response = admin_client.post(
                 "/api/auth/login",
-                data={"username": admin.username, "password": "test-password-123"},
+                data={"username": admin.username, "password": "Test-Password-123"},
             )
             self.assertEqual(login_response.status_code, 200, login_response.text)
 
@@ -1170,7 +1170,7 @@ class DashboardUserFlowTests(unittest.TestCase):
                     json={
                         "username": "managed-user",
                         "email": "managed-user@managed.test",
-                        "password": "test-password-123",
+                        "password": "Test-Password-123",
                         "role": "user",
                     },
                 )

@@ -82,13 +82,16 @@ def _parse_recipients(raw_email: str, payload_recipients: list) -> list:
     """Extract recipient addresses from raw email or payload."""
     if payload_recipients:
         return _normalize_recipients(payload_recipients)
-    # Parse From/To dari raw email
+    # Parse To/Cc/Bcc dari raw email — pesan yang dialamatkan via Cc
+    # sebelumnya terlewat sehingga forward diam-diam tidak terkirim.
     recipients = []
     for line in raw_email.splitlines():
-        if line.lower().startswith("to:"):
-            addr = line[3:].strip()
-            if addr:
-                recipients.append(addr)
+        if line and not line[0].isspace() and ":" in line:
+            name, _, value = line.partition(":")
+            if name.strip().lower() in {"to", "cc", "bcc"} and value.strip():
+                recipients.append(value.strip())
+        elif not line.strip():
+            break  # End of headers
     return _normalize_recipients(recipients)
 
 

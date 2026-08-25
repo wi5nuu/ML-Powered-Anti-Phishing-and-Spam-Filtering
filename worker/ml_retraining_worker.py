@@ -583,12 +583,19 @@ def run_retraining() -> Dict:
         y = feature_df['label'].values
         
         # Split: 70% train, 15% validation, 15% test
-        X_temp, X_test, y_temp, y_test = train_test_split(
-            X, y, test_size=0.15, random_state=42, stratify=y
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp, test_size=0.176, random_state=42, stratify=y_temp  # 0.176 * 0.85 ≈ 0.15
-        )
+        # stratify membutuhkan >= 2 kelas; dataset satu kelas (mis. force
+        # dengan sampel awal semua-malicious) akan melempar ValueError.
+        def _split(X_all, y_all, test_size):
+            if len(set(y_all)) > 1:
+                return train_test_split(
+                    X_all, y_all, test_size=test_size,
+                    stratify=y_all, random_state=42,
+                )
+            logger.warning("Single-class dataset detected — splitting without stratification")
+            return train_test_split(X_all, y_all, test_size=test_size, random_state=42)
+
+        X_temp, X_test, y_temp, y_test = _split(X, y, 0.15)
+        X_train, X_val, y_train, y_val = _split(X_temp, y_temp, 0.176)
         
         logger.info(f"Split data: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}")
         

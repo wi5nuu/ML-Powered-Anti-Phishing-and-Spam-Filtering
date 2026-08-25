@@ -39,4 +39,8 @@ if __name__ == "__main__":
         port=int(os.getenv("DASHBOARD_PORT", "8081")),
         reload=True,
         reload_dirs=[str(Path(__file__).parent)],
+        # app_dir dimasukkan ke sys.path proses reloader juga. Tanpa ini,
+        # import "app:app" di child process gagal bila launcher dijalankan
+        # dari direktori lain (sys.path induk tidak diwarisi).
+        app_dir=str(Path(__file__).parent),
     )

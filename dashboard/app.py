@@ -4158,6 +4158,16 @@ async def api_export_emails_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
+
+    def _safe_cell(value) -> str:
+        """Netralisasi CSV formula injection (OWASP): sel berawalan =,+,-,@,
+        tab atau CR dieksekusi Excel sebagai formula; sender/subject berasal
+        dari email pihak luar."""
+        text = str(value if value is not None else "")
+        if text[:1] in {"=", "+", "-", "@", "\t", "\r"}:
+            return "'" + text
+        return text
+
     writer.writerow([
         "email_id", "sender", "subject", "label", "status",
         "fused_score", "ml_probability", "sa_score", "anomaly_score",
@@ -4165,9 +4175,10 @@ async def api_export_emails_csv(
     ])
     for r in records:
         writer.writerow([
-            r.email_id, r.sender, r.subject, r.label, r.status,
+            _safe_cell(r.email_id), _safe_cell(r.sender), _safe_cell(r.subject),
+            _safe_cell(r.label), _safe_cell(r.status),
             r.fused_score, r.ml_probability, r.sa_score, r.anomaly_score,
-            r.model_version, r.routing_reason,
+            _safe_cell(r.model_version), _safe_cell(r.routing_reason),
             r.received_at.isoformat() if hasattr(r.received_at, "isoformat") else str(r.received_at),
             r.created_at.isoformat() if hasattr(r.created_at, "isoformat") else str(r.created_at),
         ])

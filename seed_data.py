@@ -520,9 +520,11 @@ def seed():
                 body = random.choice(CLEAN_BODIES).format("Team")
 
             # Recipient: pick random user from same org
-            org_users = [u for u, (ud, od) in zip(users_seed, created_users) if od[0].id == org.id]
+            # (selalu org_users[0] membuat seluruh email organisasi menumpuk
+            # pada satu mailbox dan mendistorsi statistik per-user di demo)
+            org_users = [u["email"] for u, (_, od) in zip(users_seed, created_users) if od[0].id == org.id]
             if org_users:
-                recipient = org_users[0]["email"]
+                recipient = random.choice(org_users)
             else:
                 recipient = f"user@{domain}"
 

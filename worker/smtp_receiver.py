@@ -105,6 +105,37 @@ def _ip_disconnect(ip: str) -> None:
         _ip_connection_count.pop(ip, None)
 
 
+class RateLimitedSMTP(SMTP):
+    """SMTP protocol that enforces MAX_CONNECTIONS_PER_IP at accept time."""
+
+    def connection_made(self, transport):
+        peer = transport.get_extra_info("peername")
+        ip = peer[0] if peer else "unknown"
+        if not _ip_connect(ip):
+            # Reject before any SMTP dialogue so the peer cannot consume
+            # resources or send DATA. Registering first keeps the counter
+            # balanced because connection_lost() always decrements.
+            logger.warning("SMTP connection rejected for IP=%s (limit=%d)", ip, MAX_CONNECTIONS_PER_IP)
+            transport.close()
+            return
+        self._cognimail_peer_ip = ip
+        super().connection_made(transport)
+
+    def connection_lost(self, exc):
+        ip = getattr(self, "_cognimail_peer_ip", None)
+        if ip:
+            _ip_disconnect(ip)
+            self._cognimail_peer_ip = None
+        super().connection_lost(exc)
+
+
+class RateLimitedController(Controller):
+    """Controller that instantiates the per-IP-limited SMTP protocol."""
+
+    def factory(self):
+        return RateLimitedSMTP(self.handler, **self.SMTP_kwargs)
+
+
 async def mailbox_exists(address: str) -> bool:
     _, DbSession = _get_db_session()
     async with DbSession() as db:
@@ -248,7 +279,7 @@ async def run_smtp_receiver():
             "to enable TLS. Running plaintext SMTP only."
         )
 
-    controller = Controller(handler, **controller_kwargs)
+    controller = RateLimitedController(handler, **controller_kwargs)
     controller.start()
     logger.info(
         "SMTP Receiver listening on %s:%d domain=%s tls=%s require_tls=%s",

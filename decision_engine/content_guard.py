@@ -48,7 +48,7 @@ ACCOUNT_SCARE_HINTS = (
     "account suspended", "account locked", "account will be blocked",
     "account will be deleted", "mailbox is full", "mailbox full",
     "mailbox quota", "retain access", "avoid closure", "security alert",
-    "akun akan dinonaktifkan", "akun akan dikunci", "akun tidak diblokir",
+    "akun akan dinonaktifkan", "akun akan dikunci", "akun akan diblokir",
     "kotak surat akan dihapus",
 )
 URGENCY_HINTS = (
