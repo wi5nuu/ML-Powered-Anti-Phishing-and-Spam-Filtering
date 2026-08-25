@@ -6131,7 +6131,9 @@ async def api_threat_breakdown(
 
     unscoped_base = unscoped_base.filter(
         QuarantineEmail.received_at >= d0.strftime("%Y-%m-%d"),
-        QuarantineEmail.received_at <= f"{d1.strftime('%Y-%m-%d')} 23:59:59",
+        # Batas eksklusif awal hari berikutnya; perbandingan <= "...23:59:59"
+        # melewatkan baris berpecah-detik (mis. 23:59:59.7).
+        QuarantineEmail.received_at < (d1 + _dt.timedelta(days=1)).strftime("%Y-%m-%d"),
     )
     base = (
         unscoped_base.filter(or_(*mailbox_filters))
