@@ -411,13 +411,15 @@ def _generate_pdf_export(audit_records):
     el.append(Paragraph("User Activity Tracking Report", ts))
     el.append(Paragraph(f"Generated: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC", styles['Normal']))
     el.append(Spacer(1,20))
-    td = [["ID","Timestamp","User","Action","Email ID"]]
+    td = [["ID","Timestamp","User","Action","Email ID","Details"]]
     for r in audit_records:
         td.append([str(r.id),
                    r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
                    r.user or "", r.action or "",
-                   str(r.email_id) if r.email_id else ""])
-    t = Table(td, colWidths=[0.6*inch,1.5*inch,1.2*inch,1.2*inch,1*inch])
+                   str(r.email_id) if r.email_id else "",
+                   Paragraph(_safe_export_cell(r.details or ""),
+                             ParagraphStyle('D', parent=styles['Normal'], fontSize=7, leading=9))])
+    t = Table(td, colWidths=[0.6*inch,1.4*inch,1.1*inch,1.1*inch,0.9*inch,2.2*inch])
     t.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1a73e8')),
         ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
