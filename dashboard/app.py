@@ -561,6 +561,7 @@ def seed_admin():
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS dmarc_result VARCHAR(32) DEFAULT ''"))
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS message_id_header VARCHAR(998) DEFAULT ''"))
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS references_header TEXT DEFAULT ''"))
+            db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS draft_context_json TEXT DEFAULT ''"))
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT FALSE"))
             db.execute(text("ALTER TABLE quarantine_emails ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP"))
         else:
@@ -2384,6 +2385,25 @@ async def validate_recipient_domains(recipients: list[str]) -> None:
     await loop.run_in_executor(None, _validate_recipient_domains_sync, recipients)
 
 
+def draft_context_payload(email_record: QuarantineEmail) -> dict:
+    """Kembalikan konteks draf balasan untuk label DRAFT; kosong selain itu."""
+    if str(email_record.label or "").upper() != "DRAFT":
+        return {}
+    try:
+        parsed = json.loads(email_record.draft_context_json or "")
+    except Exception:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {
+        "draft_context": {
+            key: str(value)
+            for key, value in parsed.items()
+            if key in {"compose_mode", "parent_email_id", "thread_id"} and value
+        }
+    }
+
+
 def attachment_summaries(email_record: QuarantineEmail) -> list[dict]:
     try:
         attachments = json.loads(email_record.attachments_json or "[]")
@@ -2944,6 +2964,7 @@ async def api_get_email_detail(email_id: str, request: Request, db: Session = De
         "attachments": attachment_summaries(email_record),
         "thread_root_id": thread_messages[0].email_id if thread_messages else email_record.email_id,
         "thread_messages": [thread_message_payload(message) for message in thread_messages],
+        **draft_context_payload(email_record),
         **auth_results,
     }
 
@@ -3339,6 +3360,10 @@ class DraftEmailRequest(BaseModel):
     from_email: str = ""
     subject: str = ""
     body: str = ""
+    # Konteks reply agar draf yang dibuka kembali tetap terhubung thread.
+    parent_email_id: str = ""
+    compose_mode: str = ""
+    thread_id: str = ""
 
 
 @app.post("/api/emails/draft")
@@ -3457,6 +3482,24 @@ async def api_save_email_draft(request: Request, db: Session = Depends(get_db)):
     draft_entry.received_at = app_now()
     draft_entry.created_at = app_now()
     draft_entry.deleted_at = None
+    draft_context = {
+        key: value.strip()
+        for key, value in {
+            "compose_mode": req.compose_mode,
+            "parent_email_id": req.parent_email_id,
+            "thread_id": req.thread_id,
+        }.items()
+        if value and value.strip()
+    }
+    # Pertahankan konteks lama bila permintaan baru tidak membawanya.
+    if not draft_context:
+        try:
+            existing_context = json.loads(draft_entry.draft_context_json or "")
+            if isinstance(existing_context, dict):
+                draft_context = existing_context
+        except Exception:
+            pass
+    draft_entry.draft_context_json = json.dumps(draft_context) if draft_context else ""
 
     log_audit(db, user_info["username"], "save_email_draft", draft_id,
               get_client_ip(request))

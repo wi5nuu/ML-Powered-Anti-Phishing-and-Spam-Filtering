@@ -145,6 +145,9 @@ class QuarantineEmail(Base):
     recipient_list = Column(Text, default="")
     message_id_header = Column(String(998), default="", index=True)
     references_header = Column(Text, default="")
+    # Konteks draf balasan (compose_mode/parent_email_id/thread_id) agar
+    # draf yang dibuka kembali tidak kehilangan kaitan thread-nya.
+    draft_context_json = Column(Text, default="")
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     model_version = Column(String(32), default="", index=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow, index=True)

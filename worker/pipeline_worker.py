@@ -770,6 +770,7 @@ async def run_worker():
                 ("quarantine_emails", "dmarc_result"): "ALTER TABLE quarantine_emails ADD COLUMN dmarc_result VARCHAR(32) DEFAULT ''",
                 ("quarantine_emails", "message_id_header"): "ALTER TABLE quarantine_emails ADD COLUMN message_id_header VARCHAR(998) DEFAULT ''",
                 ("quarantine_emails", "references_header"): "ALTER TABLE quarantine_emails ADD COLUMN references_header TEXT DEFAULT ''",
+                ("quarantine_emails", "draft_context_json"): "ALTER TABLE quarantine_emails ADD COLUMN draft_context_json TEXT DEFAULT ''",
             }
             missing_statements = [
                 statement
