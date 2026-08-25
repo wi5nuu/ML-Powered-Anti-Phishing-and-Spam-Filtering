@@ -1262,7 +1262,13 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
 
   const closeReplyBox = async () => {
     if (replyAutosaveTimerRef.current) clearTimeout(replyAutosaveTimerRef.current)
-    if (replyMode) {
+    // Reply kosong tidak perlu disimpan — sebelumnya ini memicu POST draft
+    // yang ditolak server ("Draft is empty"), menampilkan toast error dan
+    // mencegah kotak tertutup saat pengguna sekadar membatalkan.
+    const hasContent = Boolean(
+      replyTo.trim() || replySubject.trim() || replyBody.trim() || replyAttachments.length > 0
+    )
+    if (replyMode && hasContent) {
       const savedDraftId = await persistReplyDraft({ silent: true, closeAfter: false, resetAfter: false, requireRecipient: false })
       if (!savedDraftId) return
     }
