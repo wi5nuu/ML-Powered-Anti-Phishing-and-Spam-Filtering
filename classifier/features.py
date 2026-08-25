@@ -410,7 +410,12 @@ class FeatureExtractor:
 
         # ── Authentication headers ────────────────────────────────────────
         auth = parsed.authentication_results.lower()
-        features.spf_pass = "spf=pass" in auth or "pass" in parsed.received_spf.lower()
+        # Word-boundary: substring "pass" cocok dengan "bypassed"/"surpassed"
+        # pada komentar Received-SPF bebas dan menghasilkan SPF pass palsu.
+        features.spf_pass = (
+            "spf=pass" in auth
+            or re.search(r"\bpass\b", parsed.received_spf, re.IGNORECASE) is not None
+        )
         features.dkim_pass = "dkim=pass" in auth
         features.dmarc_pass = "dmarc=pass" in auth
 
