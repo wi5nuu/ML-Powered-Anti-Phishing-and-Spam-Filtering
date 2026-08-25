@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getActiveMailbox, getActiveMailboxId } from '../utils/mailbox'
 import { formatAppDateTime } from '../utils/time'
 import { findExistingDraft } from '../utils/threadUtils'
+import { filterAttachments } from '../utils/attachments'
 import { canonicalEmailCategory, displayEmailCategory } from '../utils/emailCategory'
 import styles from './EmailDetailPage.module.css'
 
@@ -1221,8 +1222,17 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
     await persistReplyDraft({ silent: false, closeAfter: true, resetAfter: true, requireRecipient: false })
   }
 
-  const clearReplyComposeState = () => {
-    setReplyAttachments([])
+  // Pre-validasi lampiran reply (ukuran/tipe/jumlah/duplikat) — server
+  // tetap otoritatif, ini mencegah unggah besar yang pasti ditolak.
+  const handleReplyAttachmentChange = (e) => {
+    const incoming = Array.from(e.target.files || [])
+    e.target.value = ''
+    const { accepted, errors } = filterAttachments(incoming, replyAttachments, t)
+    if (accepted.length) setReplyAttachments((prev) => [...prev, ...accepted])
+    if (errors.length) showToast(errors.join('; '), 'error')
+  }
+
+  const clearReplyComposeState = () => {    setReplyAttachments([])
     setReplyBody('')
     setReplyTo('')
     setReplySubject('')
@@ -1458,11 +1468,7 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
           <label className={styles.replyToolBtn} title={t('action.attachFile')}>
             <Paperclip size={17} />
             <input
-              type="file"
-              multiple
-              onChange={(e) => {
-                setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
-                e.target.value = ''
+              onChange={handleReplyAttachmentChange}
               }}
             />
           </label>
@@ -1513,10 +1519,7 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
               type="file"
               multiple
               accept="image/*"
-              onChange={(e) => {
-                setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
-                e.target.value = ''
-              }}
+              onChange={handleReplyAttachmentChange}
             />
           </label>
           <button className={`${styles.replyToolBtn} ${styles.replyTrashBtn}`} onClick={handleDiscardReplyDraft} title={t('action.discardDraft')}>
@@ -1818,10 +1821,7 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
                     <input
                       type="file"
                       multiple
-                      onChange={(e) => {
-                        setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
-                        e.target.value = ''
-                      }}
+                      onChange={handleReplyAttachmentChange}
                     />
                   </label>
                   <div className={styles.replyLinkWrap}>
@@ -1871,10 +1871,7 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
                       type="file"
                       multiple
                       accept="image/*"
-                      onChange={(e) => {
-                        setReplyAttachments((prev) => [...prev, ...Array.from(e.target.files || [])])
-                        e.target.value = ''
-                      }}
+                      onChange={handleReplyAttachmentChange}
                     />
                   </label>
                   <button className={`${styles.replyToolBtn} ${styles.replyTrashBtn}`} onClick={handleDiscardReplyDraft} title={t('action.discardDraft')}>

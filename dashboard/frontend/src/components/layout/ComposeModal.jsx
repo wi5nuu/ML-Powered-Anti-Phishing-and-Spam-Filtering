@@ -4,6 +4,7 @@ import { Minus, Maximize2, Minimize2, X, Trash2, Paperclip } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
 import { useTranslation } from '../../i18n/context'
 import api from '../../api/client'
+import { filterAttachments } from '../../utils/attachments'
 import styles from './ComposeModal.module.css'
 
 function createDraftId() {
@@ -104,40 +105,11 @@ export default function ComposeModal({
 
   // Pre-validasi lampiran agar pengguna tidak mengunggah file besar/bahaya
   // hanya untuk ditolak server (413/400). Server tetap otoritatif.
-  const MAX_ATTACHMENT_MB = 25
-  const MAX_ATTACHMENTS = 20
-  const BLOCKED_ATTACHMENT_EXT = /\.(exe|scr|bat|cmd|com|pif|vbs|js|jar|ps1|hta|msi|dll|docm|xlsm|pptm)$/i
-
   const handleAttachmentChange = (e) => {
     const incoming = Array.from(e.target.files || [])
     e.target.value = ''
-    const errors = []
-    const accepted = []
-    for (const file of incoming) {
-      if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
-        errors.push(`${file.name} (> ${MAX_ATTACHMENT_MB} MB)`)
-        continue
-      }
-      if (BLOCKED_ATTACHMENT_EXT.test(file.name)) {
-        errors.push(`${file.name} (${t('compose.attachmentBlockedType') || 'tipe diblokir'})`)
-        continue
-      }
-      accepted.push(file)
-    }
-    setAttachments((prev) => {
-      const merged = [...prev]
-      for (const file of accepted) {
-        if (merged.length >= MAX_ATTACHMENTS) {
-          errors.push(`${file.name} (maks ${MAX_ATTACHMENTS} lampiran)`)
-          continue
-        }
-        const duplicate = merged.some(
-          (item) => item.name === file.name && item.size === file.size && (item.lastModified || '') === (file.lastModified || '')
-        )
-        if (!duplicate) merged.push(file)
-      }
-      return merged
-    })
+    const { accepted, errors } = filterAttachments(incoming, attachments, t)
+    if (accepted.length) setAttachments((prev) => [...prev, ...accepted])
     if (errors.length) showToast(errors.join('; '), 'error')
   }
 
