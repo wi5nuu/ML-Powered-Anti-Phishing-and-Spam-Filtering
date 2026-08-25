@@ -279,7 +279,12 @@ export default function AdminPage() {
       setDomainError(t('mailbox.validDomain'))
       return
     }
-    const existingOutsideDomain = mailboxes.filter((email) => !email.endsWith(`@${clean}`))
+    // Paritas dengan backend: hanya mailbox BERDOMAIN yang memblokir
+    // perubahan domain (baris legacy tanpa domain tidak dihitung konflik,
+    // sama seperti cek AdminMailbox.domain != '' di api_update_settings).
+    const existingOutsideDomain = mailboxRows
+      .filter((row) => row.domain && !row.email.endsWith(`@${clean}`))
+      .map((row) => row.email)
     if (existingOutsideDomain.length > 0) {
       setDomainError(t('mailbox.domainConflict').replace('{list}', existingOutsideDomain.join(', ')))
       return
