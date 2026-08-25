@@ -898,6 +898,7 @@
   "compose.body": "Write your message here...",
   "compose.loginAccount": "login account",
   "compose.send": "Send",
+  "compose.attachmentBlockedType": "Tipe file diblokir (eksekusi/script tidak diizinkan)",
   "compose.attach": "Attach file",
   "compose.discardDraft": "Discard draft",
   "compose.removeRecipient": "Remove recipient",

@@ -746,6 +746,7 @@
   "compose.body": "Tulis pesan Anda di sini...",
   "compose.loginAccount": "akun login",
   "compose.send": "Kirim",
+  "compose.attachmentBlockedType": "Tipe file diblokir (eksekusi/script tidak diizinkan)",
   "compose.attach": "Lampirkan file",
   "compose.discardDraft": "Buang draf",
   "compose.removeRecipient": "Hapus penerima",
