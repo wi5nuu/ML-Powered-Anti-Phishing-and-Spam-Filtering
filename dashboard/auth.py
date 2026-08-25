@@ -96,7 +96,9 @@ def get_current_user_cookie(request: Request, db: Session = Depends(get_db)) -> 
 
 
 def require_role(role: UserRole):
-    def checker(user: User = None):
+    def checker(user: User = Depends(get_current_user_cookie)) -> User:
+        # Tanpa Depends, parameter user selalu None saat dipakai sebagai
+        # dependency FastAPI dan memicu AttributeError alih-alih 401/403.
         if user.role not in (role.value, UserRole.SUPERADMIN.value):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
