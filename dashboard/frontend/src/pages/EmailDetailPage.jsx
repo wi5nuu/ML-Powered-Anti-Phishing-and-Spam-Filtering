@@ -473,18 +473,30 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
       const msgs = (Array.isArray(email.thread_messages) ? email.thread_messages : [email])
         .filter((m) => String(m.label || '').toUpperCase() !== 'DRAFT' && m.direction !== 'draft')
       const targetMessage = msgs[msgs.length - 1] || email
-      const nextMode = /^fwd\s*:/i.test(draftData.subject || '') ? 'forward' : 'reply'
+      // Konteks tersimpan di server (draft_context) lebih tepercaya daripada
+      // heuristik prefix subjek / pesan terakhir di thread.
+      const ctx = draftData.draft_context || {}
+      const ctxParentId = String(ctx.parent_email_id || '')
+      const ctxMode = ['reply', 'reply_all', 'forward'].includes(ctx.compose_mode)
+        ? ctx.compose_mode
+        : ''
+      const parentFromCtx = ctxParentId && Array.isArray(email.thread_messages)
+        ? email.thread_messages.find((m) => m.email_id === ctxParentId)
+        : null
+      const nextMode = ctxMode
+        || (/^fwd\s*:/i.test(draftData.subject || '') ? 'forward' : 'reply')
+      const resolvedTarget = parentFromCtx || targetMessage
       const nextBody = stripQuotedThread(draftData.raw_content || '')
       const nextTo = normalizeRecipients(draftData.recipient_list).join(', ') || draftData.recipient_list || ''
       const nextSubject = draftData.subject === '(tanpa subjek)' ? '' : draftData.subject || ''
-      setReplyTargetMessage(targetMessage)
+      setReplyTargetMessage(resolvedTarget)
       setReplyMode(nextMode)
       setReplyTo(nextTo)
       setReplySubject(nextSubject)
       setReplyBody(nextBody)
       setReplyDraftId(draftData.email_id)
       replyDraftIdRef.current = draftData.email_id
-      replyAutosaveSignatureRef.current = JSON.stringify({ mode: nextMode, target: targetMessage.email_id || email.email_id, to: nextTo, subject: nextSubject, body: nextBody, attachments: [] })
+      replyAutosaveSignatureRef.current = JSON.stringify({ mode: nextMode, target: resolvedTarget.email_id || email.email_id, to: nextTo, subject: nextSubject, body: nextBody, attachments: [] })
       setHydratedDraftId(openDraftIdParam)
     }).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
