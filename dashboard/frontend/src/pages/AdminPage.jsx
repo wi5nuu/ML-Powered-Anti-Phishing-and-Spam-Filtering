@@ -46,7 +46,7 @@ export default function AdminPage() {
   const [trackData, setTrackData] = useState(null)
   const [msg, setMsg] = useState('')
   const [expandedReport, setExpandedReport] = useState(null)
-  const [replyText, setReplyText] = useState('')
+  const [replyDrafts, setReplyDrafts] = useState({})
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterMailbox, setFilterMailbox] = useState('all')
   const [mailDomain, setMailDomainState] = useState(() => getMailDomain())
@@ -124,10 +124,17 @@ export default function AdminPage() {
   }
 
   const handleReplyReport = async (id) => {
-    if (!replyText.trim()) return
+    // Draf balasan disimpan per id laporan - satu state global membuat teks
+    // yang diketik untuk laporan A bisa tak sengaja terkirim ke laporan B.
+    const text = String(replyDrafts[id] || '').trim()
+    if (!text) return
     try {
-      await api.put(`/admin/reports/${id}`, { admin_reply: replyText.trim() })
-      setReplyText('')
+      await api.put(`/admin/reports/${id}`, { admin_reply: text })
+      setReplyDrafts((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       setExpandedReport(null)
       fetchData()
     } catch (e) { setMsg(t('msg.reportReplyError')) }
@@ -410,12 +417,12 @@ export default function AdminPage() {
                           <textarea
                             style={{ width: '100%', borderRadius: 8, border: '1px solid #dadce0', padding: '8px 12px', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                             placeholder={t('report.replyPlaceholder')}
-                            value={expandedReport === r.id ? replyText : ''}
-                            onChange={(e) => setReplyText(e.target.value)}
+                            value={replyDrafts[r.id] || ''}
+                            onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
                             rows={3}
                           />
                           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                            <button className={trackStyles.btnRefresh} onClick={() => handleReplyReport(r.id)} disabled={!replyText.trim()}>
+                            <button className={trackStyles.btnRefresh} onClick={() => handleReplyReport(r.id)} disabled={!(replyDrafts[r.id] || '').trim()}>
                               <Reply size={13} /> {t('report.sendReply')}
                             </button>
                             {r.status !== 'resolved' && (
