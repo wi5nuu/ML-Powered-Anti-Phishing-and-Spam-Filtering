@@ -1616,7 +1616,7 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
           <div className={styles.subjectRow}>
             <h1 className={styles.subjectTitle}>
               {displaySubject || t('common.noSubject')}
-              <span className={styles.badgeInbox}>{folderBadgeText} x</span>
+              <span className={styles.badgeInbox}>{folderBadgeText}</span>
             </h1>
             <div className={styles.subjectActions}>
               <button className={styles.toolbarBtn} onClick={handlePrint} title={t('toolbar.printAll')}>
