@@ -18,6 +18,7 @@ Konfigurasi via env vars:
   FORWARDER_DOMAIN_MAP    — JSON mapping domain tujuan ke akun SMTP
 """
 
+import json
 import logging
 import os
 import re
@@ -43,11 +44,12 @@ OUTBOUND_SMTP_MODE = os.getenv("OUTBOUND_SMTP_MODE", "relay").strip().lower()
 # rather than silently falling back to an empty mapping at forward time.
 _raw_domain_map = os.getenv("FORWARDER_DOMAIN_MAP", "{}")
 try:
-    import json as _json
-    _FORWARDER_DOMAIN_MAP: dict = _json.loads(_raw_domain_map)
+    _FORWARDER_DOMAIN_MAP: dict = json.loads(_raw_domain_map)
     if not isinstance(_FORWARDER_DOMAIN_MAP, dict):
         raise ValueError("FORWARDER_DOMAIN_MAP must be a JSON object")
-except (ValueError, Exception) as _e:
+except ValueError as _e:
+    # ValueError mencakup json.JSONDecodeError; tuple (ValueError, Exception)
+    # sebelumnya redundan dan mengaburkan intent penanganan konfigurasi.
     logger.error(
         "Invalid FORWARDER_DOMAIN_MAP env var (%r): %s — using empty map", _raw_domain_map, _e
     )
