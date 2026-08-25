@@ -47,10 +47,14 @@ _ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_ORG_MAILBOXES,
     },
     UserRole.USER.value: {
-        Permission.RELEASE_EMAIL,         # User can release their own emails
-        Permission.DELETE_EMAIL,          # User can delete their own emails
-        Permission.REVIEW_QUARANTINE,     # User can view their own quarantine
-        Permission.VIEW_OWN_REPORTS,      # User can submit/view own reports only
+        # DELETE_EMAIL disengaja: dipakai jalur hapus-milik-pengguna di
+        # _delete_email_record (fallback cek kepemilikan alamat email).
+        # RELEASE_EMAIL / REVIEW_QUARANTINE sengaja TIDAK diberikan —
+        # peninjauan ancaman eksklusif admin/superadmin; memberikannya di
+        # sini adalah dead-privilege berisiko eskalasi bila guard ganda
+        # can_review_threats hilang dari satu endpoint.
+        Permission.DELETE_EMAIL,
+        Permission.VIEW_OWN_REPORTS,
     },
     "mailbox": set(),
 }
