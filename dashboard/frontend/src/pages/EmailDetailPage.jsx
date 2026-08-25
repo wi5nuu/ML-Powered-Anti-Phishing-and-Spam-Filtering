@@ -1469,7 +1469,6 @@ export default function EmailDetailPage({ overrideEmailId = null }) {
             <Paperclip size={17} />
             <input
               onChange={handleReplyAttachmentChange}
-              }}
             />
           </label>
           <div className={styles.replyLinkWrap}>
