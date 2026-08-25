@@ -581,10 +581,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'email' && isSuper && (
-          <AdminMailboxManagement />
-        )}
-        {tab === 'email' && !isSuper && (
+        {tab === 'email' && (
           <AdminMailboxManagement />
         )}
 
@@ -596,19 +593,11 @@ export default function AdminPage() {
           <SuperadminUserAnalytics onExport={() => setExportOpen(true)} />
         )}
 
-        {tab === 'review' && !isSuper && (
+        {tab === 'review' && (
           <AdminQuarantineReview />
         )}
 
-        {tab === 'review' && isSuper && (
-          <AdminQuarantineReview />
-        )}
-
-        {tab === 'logs' && !isSuper && (
-          <AdminDetectionLogs />
-        )}
-
-        {tab === 'logs' && isSuper && (
+        {tab === 'logs' && (
           <AdminDetectionLogs />
         )}
 
