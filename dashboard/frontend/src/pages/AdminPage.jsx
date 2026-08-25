@@ -52,11 +52,6 @@ export default function AdminPage() {
   const [mailDomain, setMailDomainState] = useState(() => getMailDomain())
   const [mailboxRows, setMailboxRows] = useState([])
   const [mailboxes, setMailboxState] = useState(() => getMailboxes())
-  const [mailboxInput, setMailboxInput] = useState('')
-  const [mailboxPassword, setMailboxPassword] = useState('')
-  const [mailboxSenderName, setMailboxSenderName] = useState('')
-  const [showMailboxPassword, setShowMailboxPassword] = useState(false)
-  const [createMailboxOpen, setCreateMailboxOpen] = useState(false)
   const [mailboxError, setMailboxError] = useState('')
   const [domainDraft, setDomainDraft] = useState(() => getMailDomain())
   const [domainError, setDomainError] = useState('')
@@ -152,15 +147,6 @@ export default function AdminPage() {
     setMailboxes(next)
   }
 
-  const passwordChecks = {
-    length: mailboxPassword.length >= 8,
-    lower: /[a-z]/.test(mailboxPassword),
-    upper: /[A-Z]/.test(mailboxPassword),
-    number: /\d/.test(mailboxPassword),
-    symbol: /[^A-Za-z0-9]/.test(mailboxPassword),
-    latin: mailboxPassword.length > 0 && /^[\x20-\x7E]+$/.test(mailboxPassword),
-  }
-  const passwordValid = Object.values(passwordChecks).every(Boolean)
   const actionPasswordChecks = {
     length: passwordDraft.length >= 8,
     lower: /[a-z]/.test(passwordDraft),
@@ -171,43 +157,6 @@ export default function AdminPage() {
   }
   const actionPasswordValid = Object.values(actionPasswordChecks).every(Boolean)
 
-  const handleAddMailbox = async () => {
-    const localPart = mailboxInput.trim().toLowerCase().replace(/@.*$/, '')
-    const email = `${localPart}@${mailDomain}`
-    setMailboxError('')
-
-    if (!/^[a-z0-9._%+-]+$/i.test(localPart)) {
-      setMailboxError(t('mailbox.validEmail'))
-      return
-    }
-    if (!passwordValid) {
-      setMailboxError(t('mailbox.passwordRequirements'))
-      return
-    }
-    if (mailboxes.includes(email)) {
-      setMailboxError(t('mailbox.emailExists'))
-      return
-    }
-
-    try {
-      await api.post('/admin/mailboxes', {
-        email,
-        domain: mailDomain,
-        password: mailboxPassword,
-        sender_name: mailboxSenderName,
-      })
-      await fetchMailboxes()
-      setMailboxInput('')
-      setMailboxPassword('')
-      setMailboxSenderName('')
-      setShowMailboxPassword(false)
-      setCreateMailboxOpen(false)
-      setMsg(t('msg.mailboxCreated').replace('{email}', email))
-      setTimeout(() => setMsg(''), 4000)
-    } catch (e) {
-      setMailboxError(e.response?.data?.detail || t('msg.mailboxAddError'))
-    }
-  }
 
   const removeMailbox = async (row) => {
     try {
