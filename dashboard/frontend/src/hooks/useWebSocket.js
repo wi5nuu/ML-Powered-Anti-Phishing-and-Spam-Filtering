@@ -20,9 +20,17 @@ export function useWebSocket({ enabled = false, mailboxEmail = '' } = {}) {
     const notificationKey = `cognimail:last-clean-email:${normalizedMailbox}`
 
     function connect() {
+      // Cancel any pending reconnect first — replacing the socket below must
+      // not leave extra timers behind.
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current)
+        reconnectRef.current = null
+      }
+
       // Close any existing socket before creating a new one to prevent duplicates
-      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-        wsRef.current.close()
+      const previous = wsRef.current
+      if (previous && previous.readyState !== WebSocket.CLOSED) {
+        previous.close()
       }
 
       // The access_token is an HttpOnly cookie — the browser sends it automatically.
@@ -71,6 +79,10 @@ export function useWebSocket({ enabled = false, mailboxEmail = '' } = {}) {
       ws.onclose = (event) => {
         // Do not reconnect on intentional close or auth error (4001)
         if (intentionalCloseRef.current) return
+        // A replaced (stale) socket must not schedule another reconnect —
+        // its close event previously spawned duplicate timers, multiplying
+        // connections on every backoff cycle.
+        if (event.target !== wsRef.current) return
         if (event.code === 4001) {
           console.warn('WebSocket closed: unauthorized. Not reconnecting.')
           return
