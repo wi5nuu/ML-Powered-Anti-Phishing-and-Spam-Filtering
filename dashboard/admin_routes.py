@@ -1157,6 +1157,13 @@ def _generate_pdf_report(data: dict):
 def _generate_excel_report(data: dict):
     if not OPENPYXL_AVAILABLE:
         raise HTTPException(status_code=500, detail="openpyxl not installed")
+
+    def safe(value):
+        """openpyxl menyimpan string berawalan '=' sebagai formula sehingga
+        teks dari email eksternal bisa dieksekusi saat file dibuka."""
+        text = str(value if value is not None else "")
+        return "'" + text if text[:1] in {"=", "+", "@", "\t", "\r"} else text
+
     wb = openpyxl.Workbook()
     hf = PatternFill(start_color="1a73e8", end_color="1a73e8", fill_type="solid")
     hfn = Font(bold=True, color="FFFFFF", size=10)
@@ -1199,9 +1206,9 @@ def _generate_excel_report(data: dict):
           "Total Emails","Clean","Suspicious","Blocked","Recent Activity"]
     ws2.append(h2); sh(ws2,len(h2))
     for a in data["admins"]:
-        recent = "; ".join(f"{x['action']}({x['created_at']})" for x in a["recent_actions"][:5])
+        recent = safe("; ".join(f"{x['action']}({x['created_at']})" for x in a["recent_actions"][:5]))
         es = a["email_stats"]
-        ws2.append([a["username"],a["role"],
+        ws2.append([safe(a["username"]),safe(a["role"]),
                     "Yes" if a["is_active"] else "No",
                     a["user_count"],a["mailbox_count"],
                     es["total"],es["clean"],es["warn"],es["quarantine"],recent])
@@ -1213,9 +1220,9 @@ def _generate_excel_report(data: dict):
               "Total Emails","Clean","Suspicious","Blocked","Recent Activity"]
         ws3.append(h3); sh(ws3,len(h3))
         for u in data["users"]:
-            recent = "; ".join(f"{x['action']}({x['created_at']})" for x in u["recent_actions"][:3])
+            recent = safe("; ".join(f"{x['action']}({x['created_at']})" for x in u["recent_actions"][:3]))
             es = u["email_stats"]
-            ws3.append([u["admin"],u["username"],u["email"],
+            ws3.append([safe(u["admin"]),safe(u["username"]),safe(u["email"]),
                         "Yes" if u["is_active"] else "No",
                         es["total"],es["clean"],es["warn"],es["quarantine"],recent])
         aw(ws3)
@@ -1227,7 +1234,7 @@ def _generate_excel_report(data: dict):
         wsm.append(hm); sh(wsm,len(hm))
         for m in data["mailboxes"]:
             es = m["email_stats"]
-            wsm.append([m["admin"],m["mailbox_email"],m["domain"],
+            wsm.append([safe(m["admin"]),safe(m["mailbox_email"]),safe(m["domain"]),
                         "Yes" if m["is_active"] else "No",m["created_at"],
                         es["total"],es["clean"],es["warn"],es["quarantine"],
                         es["phishing"],es["spam"]])
@@ -1263,13 +1270,13 @@ def _generate_excel_report(data: dict):
             if address in email.get("mailbox_addresses", [])
         ]
         for e in mailbox_emails:
-            ws4.append([e["email_id"],e["subject"],e["sender"],e["recipient"],
+            ws4.append([safe(e["email_id"]),safe(e["subject"]),safe(e["sender"]),safe(e["recipient"]),
                         e["label_display"],e["category"],e["received_at"],
                         e["fused_score"],e["sa_score"],e["ml_probability"],e["anomaly_score"],
                         "Yes" if e["has_attachment"] else "No",
                         "Yes" if e["has_malware_extension"] else "No",
                         e["spf_result"],e["dkim_result"],e["dmarc_result"],e["model_version"],
-                        "; ".join(e["reasons"])])
+                        safe("; ".join(e["reasons"]))])
         aw(ws4)
 
     out = io.BytesIO(); wb.save(out); out.seek(0)
