@@ -2,14 +2,41 @@ groups:
   - name: cognimail
     interval: 30s
     rules:
-      - alert: HighQuarantineRate
-        expr: rate(quarantine_emails_total[5m]) > 10
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High quarantine rate detected"
-          description: "More than 10 emails quarantined per minute in the last 5 minutes"
+      # CATATAN: tiga aturan lama (HighQuarantineRate, HighLatency,
+      # AnomalySpike) dinonaktifkan karena metriknya TIDAK PERNAH diekspor
+      # oleh layanan mana pun — query tanpa series membuat alert tidak akan
+      # pernah terpicu sehingga memberi ilusi perlindungan. Aktifkan kembali
+      # setelah menambahkan instrumentation bisnis, contoh:
+      #   - quarantine_emails_total   (Counter di pipeline worker)
+      #   - classifier_prediction_duration_seconds (Histogram di classifier)
+      #   - anomaly_score             (Gauge/histogram per prediksi)
+      #
+      # - alert: HighQuarantineRate
+      #   expr: rate(quarantine_emails_total[5m]) * 60 > 10
+      #   for: 2m
+      #   labels:
+      #     severity: warning
+      #   annotations:
+      #     summary: "High quarantine rate detected"
+      #     description: "More than 10 emails quarantined per minute in the last 5 minutes"
+      #
+      # - alert: HighLatency
+      #   expr: classifier_prediction_duration_seconds{quantile="0.95"} > 5
+      #   for: 5m
+      #   labels:
+      #     severity: warning
+      #   annotations:
+      #     summary: "High prediction latency"
+      #     description: "95th percentile of prediction latency exceeds 5 seconds"
+      #
+      # - alert: AnomalySpike
+      #   expr: avg(anomaly_score) > 0.7
+      #   for: 5m
+      #   labels:
+      #     severity: critical
+      #   annotations:
+      #     summary: "Anomaly score spike detected"
+      #     description: "Average anomaly score across all emails exceeds 0.7"
 
       - alert: ClassifierDown
         expr: up{job="classifier"} == 0
@@ -20,29 +47,23 @@ groups:
           summary: "Classifier service is down"
           description: "The ML classifier service has been unreachable for over 1 minute"
 
-      - alert: HighLatency
-        expr: classifier_prediction_duration_seconds{quantile="0.95"} > 5
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High prediction latency"
-          description: "95th percentile of prediction latency exceeds 5 seconds"
-
-      - alert: AnomalySpike
-        expr: avg(anomaly_score) > 0.7
-        for: 5m
+      - alert: DashboardDown
+        expr: up{job="dashboard"} == 0
+        for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "Anomaly score spike detected"
-          description: "Average anomaly score across all emails exceeds 0.7"
+          summary: "Dashboard service is down"
+          description: "The dashboard API has been unreachable for over 2 minutes"
 
       - alert: RedisMemoryHigh
-        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
+        # maxmemory=0 (tanpa batas) membuat pembagian menghasilkan NaN dan
+        # alert tidak pernah fire; filter dulu agar hanya dievaluasi saat
+        # batas memori memang dikonfigurasi.
+        expr: redis_memory_max_bytes > 0 and redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "Redis memory usage high"
-          description: "Redis memory usage exceeds 80% of max"
+          description: "Redis memory usage exceeds 80% of configured maxmemory"
