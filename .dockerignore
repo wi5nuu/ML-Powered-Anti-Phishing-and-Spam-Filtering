@@ -15,6 +15,11 @@ dashboard/frontend/node_modules
 dashboard/frontend/dist
 dashboard/static/dist
 
+# Artefak model berukuran besar dan terus bertambah (backup joblib
+# bertimestamp). Runtime memakai bind mount ./classifier/models sehingga
+# menyalinnya ke image hanya membengkakan build dan membekukan model lama.
+classifier/models
+
 data
 logs
 screenshots
