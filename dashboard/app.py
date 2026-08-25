@@ -3048,13 +3048,17 @@ async def api_download_attachment(
     if not match.get("stored", bool(encoded_data)) or not encoded_data:
         raise HTTPException(status_code=410, detail="Attachment is too large or not stored")
     data = base64.b64decode(encoded_data)
-    filename = match.get("filename") or f"attachment-{attachment_index + 1}"
+    raw_filename = match.get("filename") or f"attachment-{attachment_index + 1}"
+    # Nama lampiran berasal dari pengirim eksternal. Karakter kutip/backslash
+    # bisa keluar dari quoted-string Content-Disposition (parameter injection)
+    # dan CR/LF dapat memicu kegagalan atau pembelahan header.
+    safe_name = re.sub(r'[\r\n"\\]', "_", str(raw_filename)).strip() or f"attachment-{attachment_index + 1}"
     content_type = match.get("content_type") or "application/octet-stream"
     disposition = "attachment" if download else "inline"
     return Response(
         data,
         media_type=content_type,
-        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
     )
 
 
