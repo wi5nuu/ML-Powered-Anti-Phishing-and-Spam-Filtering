@@ -6,54 +6,117 @@
     {
       "title": "Email Throughput",
       "type": "graph",
-      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
-        {"expr": "rate(classifier_predictions_total[1m])", "legendFormat": "predictions/s"}
+        {
+          "expr": "sum(rate(http_requests_total{job=\"classifier\"}[5m]))",
+          "legendFormat": "classifier req/s"
+        }
       ]
     },
     {
-      "title": "Label Distribution",
+      "title": "Dashboard HTTP status mix (5m rate)",
       "type": "piechart",
-      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
-        {"expr": "classifier_predictions_total{label='QUARANTINE'}", "legendFormat": "QUARANTINE"},
-        {"expr": "classifier_predictions_total{label='WARN'}", "legendFormat": "WARN"},
-        {"expr": "classifier_predictions_total{label='CLEAN'}", "legendFormat": "CLEAN"}
+        {
+          "expr": "sum by (status) (rate(http_requests_total{job=\"dashboard\",status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx Server Error"
+        },
+        {
+          "expr": "sum by (status) (rate(http_requests_total{job=\"dashboard\",status=~\"4..\"}[5m]))",
+          "legendFormat": "4xx Client Error"
+        },
+        {
+          "expr": "sum by (status) (rate(http_requests_total{job=\"dashboard\",status=~\"2..\"}[5m]))",
+          "legendFormat": "2xx OK"
+        }
       ]
     },
     {
       "title": "Prediction Latency (p95)",
       "type": "graph",
-      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
-        {"expr": "classifier_prediction_duration_seconds{quantile='0.95'}", "legendFormat": "p95"}
+        {
+          "expr": "max(http_request_duration_seconds{job=\"classifier\",quantile=\"0.95\"})",
+          "legendFormat": "p95"
+        }
       ]
     },
     {
-      "title": "Anomaly Scores Over Time",
+      "title": "Latency p95 (classifier / dashboard)",
       "type": "graph",
-      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
-        {"expr": "avg(anomaly_score)", "legendFormat": "avg anomaly"},
-        {"expr": "max(anomaly_score)", "legendFormat": "max anomaly"}
+        {
+          "expr": "min(http_request_duration_seconds{job=\"dashboard\",quantile=\"0.95\"})",
+          "legendFormat": "dashboard p95"
+        },
+        {
+          "expr": "max(http_request_duration_seconds{job=\"dashboard\",quantile=\"0.95\"})",
+          "legendFormat": "p95"
+        }
       ]
     },
     {
       "title": "Service Health",
       "type": "stat",
-      "gridPos": {"x": 0, "y": 16, "w": 8, "h": 6},
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
       "targets": [
-        {"expr": "up{job='classifier'}", "legendFormat": "Classifier"},
-        {"expr": "up{job='worker'}", "legendFormat": "Worker"},
-        {"expr": "up{job='dashboard'}", "legendFormat": "Dashboard"}
+        {
+          "expr": "up{job=\"classifier\"}",
+          "legendFormat": "Classifier"
+        },
+        {
+          "expr": "up{job=\"postgres\"}",
+          "legendFormat": "PostgreSQL"
+        },
+        {
+          "expr": "up{job=\"dashboard\"}",
+          "legendFormat": "Dashboard"
+        }
       ]
     },
     {
-      "title": "Top Features (SHAP Importance)",
+      "title": "Top dashboard endpoints (15m)",
       "type": "bargauge",
-      "gridPos": {"x": 8, "y": 16, "w": 16, "h": 6},
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 16,
+        "h": 6
+      },
       "targets": [
-        {"expr": "topk(10, shap_importance_sum)", "legendFormat": "{{feature}}"}
+        {
+          "expr": "topk(10, sum by (handler) (rate(http_requests_total{job=\"dashboard\"}[15m])))",
+          "legendFormat": "{{handler}}"
+        }
       ]
     }
   ]
