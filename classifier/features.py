@@ -434,9 +434,12 @@ class FeatureExtractor:
         # Fake RE/FWD (subject mulai dengan RE: atau FWD: tapi bukan reply asli)
         subject_lower = parsed.subject.lower()
         if subject_lower.startswith(("re:", "fwd:", "fw:")):
-            # Heuristik: tidak ada References header = kemungkinan fake
+            # Heuristik: tidak ada References header = kemungkinan fake.
+            # Nama header dari pengirim tidak dinormalisasi kapital oleh
+            # parser, jadi lookup harus case-insensitive.
+            headers_lower = {str(k).lower(): v for k, v in parsed.headers.items()}
             features.subject_has_re_fwd_fake = not bool(
-                parsed.headers.get("References") or parsed.headers.get("In-Reply-To")
+                headers_lower.get("references") or headers_lower.get("in-reply-to")
             )
 
         # Recipients
